@@ -1,0 +1,8 @@
+apiVersion: v2
+name: helmbot
+description: Kubernetes Helm Telegram Bot
+type: application
+version: __VERSION__
+appVersion: __VERSION__
+home: https://github.com/shoce/helmbot/tree/main/helm/
+

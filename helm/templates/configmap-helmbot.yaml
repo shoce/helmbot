@@ -1,0 +1,28 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $.Release.Namespace }}-helmbot
+  labels:
+    app: {{ $.Release.Namespace }}-helmbot
+data:
+  LoggingHost: "{{ $.Values.LoggingHost }}"
+  LoggingPort: "{{ $.Values.LoggingPort }}"
+  LoggingUsername: "{{ $.Values.LoggingUsername }}"
+  LoggingPassword: "{{ $.Values.LoggingPassword }}"
+  LoggingTag: "{{ $.Release.Namespace }}-helmbot"
+  ServerHostname: "{{ $.Values.ServerHostname }}"
+  PackagesDir: "{{ $.Values.PackagesDir }}"
+  TgToken: "{{ $.Values.TgToken }}"
+  TgWebhookHost: "{{ $.Values.TgWebhookHost }}"
+  TgWebhookUrl: "{{ $.Values.TgWebhookUrl }}"
+  TgWebhookToken: "{{ $.Values.TgWebhookToken }}"
+  TgChatIds: "{{ $.Values.TgChatIds }}"
+  TgBossUserIds: "{{ $.Values.TgBossUserIds }}"
+  GetValuesUrlPrefix: "{{ $.Values.GetValuesUrlPrefix }}"
+  GetValuesUsername: "{{ $.Values.GetValuesUsername }}"
+  GetValuesPassword: "{{ $.Values.GetValuesPassword }}"
+  PutValuesUrlPrefix: "{{ $.Values.PutValuesUrlPrefix }}"
+  PutValuesUsername: "{{ $.Values.PutValuesUsername }}"
+  PutValuesPassword: "{{ $.Values.PutValuesPassword }}"
+

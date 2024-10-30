@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ $.Release.Namespace }}-rootkubedir-persistentvolume
+  labels:
+    type: local
+    app: {{ $.Release.Namespace }}-helmbot
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 100Mi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: /root/.kube/
+
