@@ -25,8 +25,7 @@ jobs:
         run: |
           sed -i -e "s/__VERSION__/$VERSION/g" helm/Chart.yaml
           cat helm/Chart.yaml
-      - name: push
-        uses: bsord/helm-push@v4
+      - uses: bsord/helm-push@v4
         with:
           useOCIRegistry: true
           registry-url:  oci://ghcr.io/${{ github.repository }}/${{ github.ref_name }}
