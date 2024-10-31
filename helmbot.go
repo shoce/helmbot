@@ -681,19 +681,27 @@ func ServerPackagesUpgrade() (err error) {
 	if err != nil {
 		return err
 	}
-	log("kconfig: %+v", kconfig)
+	if DEBUG {
+		log("kconfig: %+v", kconfig)
+	}
 
 	kclientset, err := kubernetes.NewForConfig(kconfig)
 	if err != nil {
 		return err
 	}
-	log("kclientset: %+v", kclientset)
+	if DEBUG {
+		log("kclientset: %+v", kclientset)
+	}
+
+	for _, p := range packages {
+		log(
+			"package Name:%s AlwaysForceNow:%v HelmChartAddress:%v HelmRepo:%v",
+			p.Name, p.AlwaysForceNow, p.HelmChartAddress, p.HelmRepo,
+		)
+	}
 
 	return nil
 
-	for _, p := range packages {
-		log("package name:%s", p.Name)
-	}
 	// RETURN
 
 	for _, p := range packages {
@@ -1466,6 +1474,7 @@ type PackageConfig struct {
 	EnvName             string `yaml:"EnvName"`
 	HelmChartVersion    string `yaml:"HelmChartVersion"`
 	HelmChartVersionKey string `yaml:"HelmChartVersionKey"`
+	HelmChartAddress    string `yaml:"HelmChartAddress"`
 	HelmRepo            struct {
 		Address  string `yaml:"Address"`
 		Username string `yaml:"Username"`
