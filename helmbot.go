@@ -421,7 +421,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 			log("latest and deployed values hashes match")
 			err = tglog(
 				rupdate.Message.Chat.Id, rupdate.Message.MessageId,
-				"*THIS UPDATE `%s` IS ALREADY DEPLOYED*", UpdateHashId,
+				"*THIS UPDATE IS ALREADY DEPLOYED*",
 			)
 			if err != nil {
 				log("ERROR tglog: %v", err)
@@ -429,7 +429,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		log("%s could not be read: %v", deployedvalueshashpath, err)
+		log("ERROR `%s` could not be read: %v", deployedvalueshashpath, err)
 		err = tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
 			"*INTERNAL ERROR*",
@@ -458,7 +458,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		log("%s could not be read: %v", reportedvalueshashpath, err)
+		log("ERROR `%s` could not be read: %v", reportedvalueshashpath, err)
 		err = tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
 			"*INTERNAL ERROR*",
