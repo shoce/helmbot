@@ -281,13 +281,13 @@ func main() {
 
 		go func() {
 			for {
-				log("serving http requests on `%s`.", ListenAddr)
+				log("http: serving requests on `%s`.", ListenAddr)
 				err := http.ListenAndServe(ListenAddr, nil)
 				if err != nil {
-					log("ERROR http. %+v", err)
+					log("ERROR http: %+v", err)
 				}
 				retryinterval := 11 * time.Second
-				log("http. retrying in %s.", retryinterval)
+				log("http: retrying in %s.", retryinterval)
 				time.Sleep(retryinterval)
 			}
 		}()
@@ -302,7 +302,7 @@ func main() {
 				log("ERROR update: %+v", err)
 			}
 			if DEBUG {
-				log("update. sleeping %s.", ServerPackagesUpgradeInterval)
+				log("update: sleeping %s.", ServerPackagesUpgradeInterval)
 			}
 			time.Sleep(ServerPackagesUpgradeInterval)
 		}
