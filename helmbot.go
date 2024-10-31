@@ -590,17 +590,21 @@ func ServerPackagesUpgrade() (err error) {
 		}
 	}
 
-	serverconfigs := make([]ServerConfig, 0)
+	serverconfigslocal := make([]ServerConfig, 0)
 
-	err = GetValuesFile(PackagesLocalPath, nil, &serverconfigs)
+	err = GetValuesFile(PackagesLocalPath, nil, &serverconfigslocal)
 	if err != nil {
 		log("WARNING ServerPackagesUpgrade GetValuesFile `%s`: %v", PackagesLocalPath, err)
 	}
+
+	serverconfigs := make([]ServerConfig, 0)
 
 	err = GetValues("helm-packages.values.yaml", nil, &serverconfigs)
 	if err != nil {
 		return fmt.Errorf("GetValues helm-packages.values.yaml: %w", err)
 	}
+
+	serverconfigs = append(serverconfigs, serverconfigslocal...)
 
 	if DEBUG {
 		log("DEBUG ServerPackagesUpgrade serverconfigs: %+v", serverconfigs)
