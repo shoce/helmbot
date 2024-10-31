@@ -314,9 +314,10 @@ func log(msg string, args ...interface{}) {
 		tsuffix = "z"
 	} else {
 		t = time.Now().Local()
+		tsuffix = strings.ToLower(t.Location().String())
 	}
 	ts := fmt.Sprintf(
-		"%03d.%02d%02d.%02d%02d%s.",
+		"%03d.%02d%02d.%02d%02d.%s",
 		t.Year()%1000, t.Month(), t.Day(), t.Hour(), t.Minute(), tsuffix,
 	)
 	fmt.Fprintf(os.Stderr, ts+" "+msg+NL, args...)
