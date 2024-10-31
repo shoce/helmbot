@@ -297,10 +297,10 @@ func main() {
 		for {
 			err := ServerPackagesUpgrade()
 			if err != nil {
-				log("helm. %+v", err)
+				log("ERROR ServerPackagesUpgrade: %+v", err)
 			}
 			HelmUpdateInterval := 43 * time.Second
-			log("helm. sleeping %s.", HelmUpdateInterval)
+			log("ServerPackagesUpgrade sleeping %s.", HelmUpdateInterval)
 			time.Sleep(HelmUpdateInterval)
 		}
 	}()
@@ -561,7 +561,7 @@ func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error
 }
 
 func ServerPackagesUpgrade() (err error) {
-	log("helm. "+"hostname:%s ", ServerHostname)
+	log("ServerPackagesUpgrade hostname:%s ", ServerHostname)
 
 	helmactioncfg := new(helmaction.Configuration)
 	err = helmactioncfg.Init(helmcli.New().RESTClientGetter(), "", "", log)
@@ -577,7 +577,7 @@ func ServerPackagesUpgrade() (err error) {
 	if DEBUG {
 		for _, r := range installedreleases {
 			log(
-				"helm. "+"installed release name:%s version:%s namespace:%s ",
+				"DEBUG installed release name:%s version:%s namespace:%s ",
 				r.Name, r.Chart.Metadata.Version, r.Namespace,
 			)
 		}
@@ -590,13 +590,13 @@ func ServerPackagesUpgrade() (err error) {
 		log("WARNING GetValuesFile `%s`: %v", PackagesLocalPath, err)
 	}
 
-	log("serverconfigs: %+v", serverconfigs)
-
-	return nil
-
 	err = GetValues("helm-packages.values.yaml", nil, &serverconfigs)
 	if err != nil {
 		return fmt.Errorf("GetValues helm-packages.values.yaml: %w", err)
+	}
+
+	if DEBUG {
+		log("DEBUG serverconfigs: %+v", serverconfigs)
 	}
 
 	packages := make([]PackageConfig, 0)
@@ -620,7 +620,7 @@ func ServerPackagesUpgrade() (err error) {
 		for _, p := range s.Packages {
 			p.Name = fmt.Sprintf("%s-%s", p.HelmName, p.EnvName)
 
-			p.PackageName = fmt.Sprintf("%s-%s-helmbot", p.HelmName, p.EnvName)
+			p.PackageName = fmt.Sprintf("%s-%s", p.HelmName, p.EnvName)
 
 			if p.Namespace == "" {
 				p.Namespace = fmt.Sprintf("%s-%s", p.HelmName, p.EnvName)
@@ -687,6 +687,14 @@ func ServerPackagesUpgrade() (err error) {
 	if err != nil {
 		return err
 	}
+	log("kclientset: %+v", kclientset)
+
+	return nil
+
+	for _, p := range packages {
+		log("package name:%s", p.Name)
+	}
+	// RETURN
 
 	for _, p := range packages {
 		timenowhour := fmt.Sprintf("%02d", time.Now().In(p.TimezoneLocation).Hour())
