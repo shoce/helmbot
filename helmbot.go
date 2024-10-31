@@ -693,11 +693,14 @@ func ServerPackagesUpgrade() (err error) {
 		log("kclientset: %+v", kclientset)
 	}
 
-	for _, p := range packages {
-		log(
-			"package Name:%s AlwaysForceNow:%v HelmChartAddress:%v HelmRepo:%v",
-			p.Name, p.AlwaysForceNow, p.HelmChartAddress, p.HelmRepo,
-		)
+	log("packages count:%v", len(packages))
+	if DEBUG {
+		for _, p := range packages {
+			log(
+				"package Name:%s AlwaysForceNow:%v ",
+				p.Name, *p.AlwaysForceNow,
+			)
+		}
 	}
 
 	return nil
