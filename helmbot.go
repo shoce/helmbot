@@ -300,7 +300,7 @@ func main() {
 				log("ERROR ServerPackagesUpgrade: %+v", err)
 			}
 			HelmUpdateInterval := 43 * time.Second
-			log("ServerPackagesUpgrade sleeping %s.", HelmUpdateInterval)
+			log("sleeping %s.", HelmUpdateInterval)
 			time.Sleep(HelmUpdateInterval)
 		}
 	}()
@@ -561,7 +561,9 @@ func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error
 }
 
 func ServerPackagesUpgrade() (err error) {
-	log("ServerPackagesUpgrade hostname:%s ", ServerHostname)
+	if DEBUG {
+		log("DEBUG ServerPackagesUpgrade hostname:%s ", ServerHostname)
+	}
 
 	helmactioncfg := new(helmaction.Configuration)
 	err = helmactioncfg.Init(helmcli.New().RESTClientGetter(), "", "", log)
@@ -577,7 +579,7 @@ func ServerPackagesUpgrade() (err error) {
 	if DEBUG {
 		for _, r := range installedreleases {
 			log(
-				"DEBUG installed release name:%s version:%s namespace:%s ",
+				"DEBUG ServerPackagesUpgrade installed release name:%s version:%s namespace:%s ",
 				r.Name, r.Chart.Metadata.Version, r.Namespace,
 			)
 		}
@@ -587,7 +589,7 @@ func ServerPackagesUpgrade() (err error) {
 
 	err = GetValuesFile(PackagesLocalPath, nil, &serverconfigs)
 	if err != nil {
-		log("WARNING GetValuesFile `%s`: %v", PackagesLocalPath, err)
+		log("WARNING ServerPackagesUpgrade GetValuesFile `%s`: %v", PackagesLocalPath, err)
 	}
 
 	err = GetValues("helm-packages.values.yaml", nil, &serverconfigs)
@@ -596,7 +598,7 @@ func ServerPackagesUpgrade() (err error) {
 	}
 
 	if DEBUG {
-		log("DEBUG serverconfigs: %+v", serverconfigs)
+		log("DEBUG ServerPackagesUpgrade serverconfigs: %+v", serverconfigs)
 	}
 
 	packages := make([]PackageConfig, 0)
@@ -665,14 +667,14 @@ func ServerPackagesUpgrade() (err error) {
 	helmenvsettings := helmcli.New()
 
 	/*
-		log("helm. "+"env settings %+v", helmenvsettings)
+		log("ServerPackagesUpgrade env settings %+v", helmenvsettings)
 		if err := os.MkdirAll("/opt/zz/helmbot/helm/cache/", 0750); err != nil {
 			return err
 		}
 		helmenvsettings.RegistryConfig = "/opt/zz/helmbot/helm/registry-config.yaml"
 		helmenvsettings.RepositoryConfig = "/opt/zz/helmbot/helm/repository-config.yaml"
 		helmenvsettings.RepositoryCache = "/opt/zz/helmbot/helm/cache/"
-		log("helm. "+"env settings %+v", helmenvsettings)
+		log("ServerPackagesUpgrade env settings %+v", helmenvsettings)
 	*/
 
 	helmgetterall := helmgetter.All(helmenvsettings)
@@ -682,7 +684,7 @@ func ServerPackagesUpgrade() (err error) {
 		return err
 	}
 	if DEBUG {
-		log("kconfig: %+v", kconfig)
+		log("DEBUG ServerPackagesUpgrade kconfig: %+v", kconfig)
 	}
 
 	kclientset, err := kubernetes.NewForConfig(kconfig)
@@ -690,14 +692,14 @@ func ServerPackagesUpgrade() (err error) {
 		return err
 	}
 	if DEBUG {
-		log("kclientset: %+v", kclientset)
+		log("DEBUG ServerPackagesUpgrade kclientset: %+v", kclientset)
 	}
 
-	log("packages count:%v", len(packages))
+	log("ServerPackagesUpgrade packages count:%v", len(packages))
 	if DEBUG {
 		for _, p := range packages {
 			log(
-				"package Name:%s AlwaysForceNow:%v ",
+				"DEBUG ServerPackagesUpgrade package Name:%s AlwaysForceNow:%v ",
 				p.Name, *p.AlwaysForceNow,
 			)
 		}
