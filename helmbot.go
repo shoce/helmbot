@@ -590,6 +590,9 @@ func ServerPackagesUpgrade() (err error) {
 		log("WARNING GetValuesFile `%s`: %v", PackagesLocalPath, err)
 	}
 
+	log("serverconfigs: %#v", serverconfigs)
+	log("serverconfigs: %+v", serverconfigs)
+
 	return nil
 
 	err = GetValues("helm-packages.values.yaml", nil, &serverconfigs)
