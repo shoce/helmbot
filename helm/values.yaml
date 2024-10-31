@@ -11,6 +11,9 @@ ServerHostname: ""
 
 PackagesDir: ""
 
+PackagesLocalPath: "/opt/helmbot/helmbot.packages.yaml"
+
+
 TgToken: ""
 TgWebhookHost: ""
 TgWebhookUrl: ""

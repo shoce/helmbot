@@ -67,15 +67,17 @@ const (
 )
 
 var (
-	DEBUG      bool
+	DEBUG bool
+
 	LogUTCTime bool
 
 	LocalZone string
 
 	UpdateHashIdRe *regexp.Regexp
 
-	ServerHostname string
-	PackagesDir    string
+	ServerHostname    string
+	PackagesDir       string
+	PackagesLocalPath string
 
 	ListenAddr string
 
@@ -132,6 +134,8 @@ func init() {
 		log("ERROR Empty PackagesDir env var")
 		os.Exit(1)
 	}
+
+	PackagesLocalPath = os.Getenv("PackagesLocalPath")
 
 	ListenAddr = os.Getenv("ListenAddr")
 	if ListenAddr == "" {
@@ -289,207 +293,23 @@ func main() {
 		log("TgWebhookUrl is empty so this instance will not receive telegram updates.")
 	}
 
-	/*
-		go func() {
-			for {
-				err := HelmServerUpgrade()
-				if err != nil {
-					log("helm. %+v", err)
-				}
-				HelmUpdateInterval := 23 * time.Second
-				log("helm. sleeping %s.", HelmUpdateInterval)
-				time.Sleep(HelmUpdateInterval)
+	go func() {
+		for {
+			err := ServerPackagesUpgrade()
+			if err != nil {
+				log("helm. %+v", err)
 			}
-		}()
-	*/
+			HelmUpdateInterval := 43 * time.Second
+			log("helm. sleeping %s.", HelmUpdateInterval)
+			time.Sleep(HelmUpdateInterval)
+		}
+	}()
 
 	log("start done.")
 
 	for {
-		time.Sleep(7 * time.Second)
+		time.Sleep(11 * time.Second)
 	}
-}
-
-func log(msg string, args ...interface{}) {
-	var t time.Time
-	var tzone string
-	if LogUTCTime {
-		t = time.Now().UTC()
-		tzone = "z"
-	} else {
-		t = time.Now().Local()
-		tzone = LocalZone
-	}
-	ts := fmt.Sprintf(
-		"%03d.%02d%02d.%02d%02d%s",
-		t.Year()%1000, t.Month(), t.Day(), t.Hour(), t.Minute(), tzone,
-	)
-	fmt.Fprintf(os.Stderr, ts+" "+msg+NL, args...)
-}
-
-func tglog(chatid int64, replyid int64, msg string, args ...interface{}) error {
-	type TgSendMessageRequest struct {
-		ChatId              int64  `json:"chat_id"`
-		ReplyToMessageId    int64  `json:"reply_to_message_id,omitempty"`
-		Text                string `json:"text"`
-		ParseMode           string `json:"parse_mode,omitempty"`
-		DisableNotification bool   `json:"disable_notification"`
-	}
-
-	type TgSendMessageResponse struct {
-		OK          bool   `json:"ok"`
-		Description string `json:"description"`
-		Result      struct {
-			MessageId int64 `json:"message_id"`
-		} `json:"result"`
-	}
-
-	text := fmt.Sprintf(msg, args...)
-	text = strings.NewReplacer(
-		"(", "\\(",
-		")", "\\)",
-		"[", "\\[",
-		"]", "\\]",
-		"{", "\\{",
-		"}", "\\}",
-		"~", "\\~",
-		">", "\\>",
-		"#", "\\#",
-		"+", "\\+",
-		"-", "\\-",
-		"=", "\\=",
-		"|", "\\|",
-		"!", "\\!",
-		".", "\\.",
-	).Replace(text)
-
-	smreq := TgSendMessageRequest{
-		ChatId:              chatid,
-		ReplyToMessageId:    replyid,
-		Text:                text,
-		ParseMode:           TgParseMode,
-		DisableNotification: TgDisableNotification,
-	}
-	smreqjs, err := json.Marshal(smreq)
-	if err != nil {
-		return fmt.Errorf("%v", err)
-	}
-	smreqjsBuffer := bytes.NewBuffer(smreqjs)
-
-	var resp *http.Response
-	tgapiurl := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", TgToken)
-	resp, err = http.Post(
-		tgapiurl,
-		"application/json",
-		smreqjsBuffer,
-	)
-	if err != nil {
-		return fmt.Errorf("apiurl:`%s` apidata:`%s` %v", tgapiurl, smreqjs, err)
-	}
-
-	var smresp TgSendMessageResponse
-	err = json.NewDecoder(resp.Body).Decode(&smresp)
-	if err != nil {
-		return fmt.Errorf("%v", err)
-	}
-	if !smresp.OK {
-		return fmt.Errorf("apiurl:`%s` apidata:`%s` api response not ok: %+v", tgapiurl, smreqjs, smresp)
-	}
-
-	return nil
-}
-
-func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error {
-	log("TgSetWebhook: url:%s allowedupdates:%s secrettoken:%s", url, allowedupdates, secrettoken)
-
-	type TgSetWebhookRequest struct {
-		Url            string   `json:"url"`
-		MaxConnections int64    `json:"max_connections"`
-		AllowedUpdates []string `json:"allowed_updates"`
-		SecretToken    string   `json:"secret_token,omitempty"`
-	}
-
-	type TgSetWebhookResponse struct {
-		OK          bool   `json:"ok"`
-		Description string `json:"description"`
-		Result      bool   `json:"result"`
-	}
-
-	swreq := TgSetWebhookRequest{
-		Url:            url,
-		MaxConnections: TgWebhookMaxConnections,
-		AllowedUpdates: allowedupdates,
-		SecretToken:    secrettoken,
-	}
-	swreqjs, err := json.Marshal(swreq)
-	if err != nil {
-		return err
-	}
-	swreqjsBuffer := bytes.NewBuffer(swreqjs)
-
-	var resp *http.Response
-	tgapiurl := fmt.Sprintf("https://api.telegram.org/bot%s/setWebhook", TgToken)
-	resp, err = http.Post(
-		tgapiurl,
-		"application/json",
-		swreqjsBuffer,
-	)
-	if err != nil {
-		return fmt.Errorf("apiurl:`%s` apidata:`%s` %v", tgapiurl, swreqjs, err)
-	}
-
-	var swresp TgSetWebhookResponse
-	var swrespbody []byte
-	swrespbody, err = io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("io.ReadAll: %w", err)
-	}
-	err = json.NewDecoder(bytes.NewBuffer(swrespbody)).Decode(&swresp)
-	if err != nil {
-		return fmt.Errorf("json.Decoder.Decode: %w", err)
-	}
-	if !swresp.OK || !swresp.Result {
-		return fmt.Errorf("apiurl:`%s` apidata:`%s` api response not ok: %+v", tgapiurl, swreqjs, swresp)
-	}
-
-	return nil
-}
-
-type TgUpdate struct {
-	UpdateId    int64     `json:"update_id"`
-	Message     TgMessage `json:"message"`
-	ChannelPost TgMessage `json:"channel_post"`
-}
-
-type TgMessage struct {
-	MessageId      int64  `json:"message_id"`
-	From           TgUser `json:"from"`
-	SenderChat     TgChat `json:"sender_chat"`
-	Chat           TgChat `json:"chat"`
-	Date           int64  `json:"date"`
-	Text           string `json:"text"`
-	ReplyToMessage struct {
-		MessageId  int64  `json:"message_id"`
-		From       TgUser `json:"from"`
-		SenderChat TgChat `json:"sender_chat"`
-		Chat       TgChat `json:"chat"`
-		Date       int64  `json:"date"`
-		Text       string `json:"text"`
-	} `json:"reply_to_message"`
-}
-
-type TgUser struct {
-	Id        int64  `json:"id"`
-	IsBot     bool   `json:"is_bot"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Username  string `json:"username"`
-}
-
-type TgChat struct {
-	Id    int64  `json:"id"`
-	Title string `json:"title"`
-	Type  string `json:"type"`
 }
 
 func Webhook(w http.ResponseWriter, r *http.Request) {
@@ -684,287 +504,63 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	log("finished %s", UpdateHashId)
 }
 
-// get values file from a minio storage
-// https://gist.github.com/gabo89/5e3e316bd4be0fb99369eac512a66537
-// https://stackoverflow.com/questions/72047783/how-do-i-download-files-from-a-minio-s3-bucket-using-curl
-func GetValuesText(name string, valuestext *string) (err error) {
-	r, err := http.NewRequest("GET", GetValuesUrlPrefix+name, nil)
+func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error {
+	log("TgSetWebhook: url:%s allowedupdates:%s secrettoken:%s", url, allowedupdates, secrettoken)
+
+	type TgSetWebhookRequest struct {
+		Url            string   `json:"url"`
+		MaxConnections int64    `json:"max_connections"`
+		AllowedUpdates []string `json:"allowed_updates"`
+		SecretToken    string   `json:"secret_token,omitempty"`
+	}
+
+	type TgSetWebhookResponse struct {
+		OK          bool   `json:"ok"`
+		Description string `json:"description"`
+		Result      bool   `json:"result"`
+	}
+
+	swreq := TgSetWebhookRequest{
+		Url:            url,
+		MaxConnections: TgWebhookMaxConnections,
+		AllowedUpdates: allowedupdates,
+		SecretToken:    secrettoken,
+	}
+	swreqjs, err := json.Marshal(swreq)
 	if err != nil {
 		return err
 	}
-	r.Header.Set("User-Agent", "helmbot")
-	hdrcontenttype := "application/octet-stream"
-	r.Header.Set("Content-Type", hdrcontenttype)
-	r.Header.Set("Host", GetValuesUrlPrefix)
-	hdrdate := time.Now().UTC().Format(time.RFC1123Z)
-	r.Header.Set("Date", hdrdate)
-	hdrauthsig := "GET" + NL + NL + hdrcontenttype + NL + hdrdate + NL + GetValuesUrlPrefixPath + name
-	hdrauthsighmac := hmac.New(sha1.New, []byte(GetValuesPassword))
-	hdrauthsighmac.Write([]byte(hdrauthsig))
-	hdrauthsig = base64.StdEncoding.EncodeToString(hdrauthsighmac.Sum(nil))
-	r.Header.Set("Authorization", fmt.Sprintf("AWS %s:%s", GetValuesUsername, hdrauthsig))
+	swreqjsBuffer := bytes.NewBuffer(swreqjs)
 
-	resp, err := http.DefaultClient.Do(r)
-	if err != nil {
-		return err
-	}
-
-	valuesbytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	*valuestext = string(valuesbytes)
-
-	if DEBUG {
-		log("DEBUG GetValuesText %s: %d length: %s...", name, len(*valuestext), strings.ReplaceAll((*valuestext), NL, " <nl> "))
-	}
-
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("minio server response status: %s", resp.Status)
-	}
-
-	return nil
-}
-
-func GetValues(name string, valuestext *string, values interface{}) (err error) {
-	var tempvaluestext string
-	if valuestext == nil {
-		valuestext = &tempvaluestext
-	}
-
-	err = GetValuesText(name, valuestext)
-	if err != nil {
-		return err
-	}
-
-	d := yaml.NewDecoder(strings.NewReader(*valuestext))
-	err = d.Decode(values)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// put values file to a minio storage
-// https://gist.github.com/gabo89/5e3e316bd4be0fb99369eac512a66537
-// https://stackoverflow.com/questions/72047783/how-do-i-download-files-from-a-minio-s3-bucket-using-curl
-func PutValuesText(name string, valuestext string) (err error) {
-	r, err := http.NewRequest("PUT", PutValuesUrlPrefix+name, bytes.NewBuffer([]byte(valuestext)))
-	if err != nil {
-		return err
-	}
-	r.Header.Set("User-Agent", "helmbot")
-	hdrcontenttype := "application/octet-stream"
-	r.Header.Set("Content-Type", hdrcontenttype)
-	r.Header.Set("Host", PutValuesUrlPrefix)
-	hdrdate := time.Now().UTC().Format(time.RFC1123Z)
-	r.Header.Set("Date", hdrdate)
-	hdrauthsig := "PUT" + NL + NL + hdrcontenttype + NL + hdrdate + NL + PutValuesUrlPrefixPath + name
-	hdrauthsighmac := hmac.New(sha1.New, []byte(PutValuesPassword))
-	hdrauthsighmac.Write([]byte(hdrauthsig))
-	hdrauthsig = base64.StdEncoding.EncodeToString(hdrauthsighmac.Sum(nil))
-	r.Header.Set("Authorization", fmt.Sprintf("AWS %s:%s", PutValuesUsername, hdrauthsig))
-
-	if DEBUG {
-		log("DEBUG PutValuesText %s: %d length: %s...", name, len(valuestext), strings.ReplaceAll((valuestext), NL, " <nl> "))
-	}
-
-	resp, err := http.DefaultClient.Do(r)
-	log("DEBUG PutValuesText resp.Status: %s", resp.Status)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode >= 300 {
-		return fmt.Errorf("minio server response status: %s", resp.Status)
-	}
-
-	return nil
-}
-
-type DrLatestYamlEntry struct {
-	KeyPrefix        string `yaml:"KeyPrefix"`
-	KeyPrefixReplace string `yaml:"KeyPrefixReplace"`
-	RegistryUsername string `yaml:"RegistryUsername"`
-	RegistryPassword string `yaml:"RegistryPassword"`
-}
-
-type DrLatestYaml struct {
-	DrLatestYaml []DrLatestYamlEntry `yaml:"DrLatestYaml"`
-}
-
-type DrVersions []string
-
-func (vv DrVersions) Len() int {
-	return len(vv)
-}
-
-func (vv DrVersions) Less(i, j int) bool {
-	v1, v2 := vv[i], vv[j]
-	v1s := strings.Split(v1, ".")
-	v2s := strings.Split(v2, ".")
-	if len(v1s) < len(v2s) {
-		return true
-	} else if len(v1s) > len(v2s) {
-		return false
-	}
-	for e := 0; e < len(v1s); e++ {
-		d1, _ := strconv.Atoi(v1s[e])
-		d2, _ := strconv.Atoi(v2s[e])
-		if d1 < d2 {
-			return true
-		} else if d1 > d2 {
-			return false
-		}
-	}
-	return false
-}
-
-func (vv DrVersions) Swap(i, j int) {
-	vv[i], vv[j] = vv[j], vv[i]
-}
-
-func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlvalues DrLatestYaml, imagesvalues *map[string]string) (err error) {
-	for helmvalueskey, helmvaluesvalue := range helmvalues {
-		//log("drlatestyaml helmvalueskey %s", helmvalueskey)
-		for _, e := range drlatestyamlvalues.DrLatestYaml {
-			//log("  drlatestyaml KeyPrefix %s", e.KeyPrefix)
-			if strings.HasPrefix(helmvalueskey, e.KeyPrefix) {
-				//log("drlatestyaml %s HasPrefix %s", helmvalueskey, e.KeyPrefix)
-
-				imagename := helmvalueskey
-				imageurl := helmvaluesvalue.(string)
-
-				if !strings.HasPrefix(imageurl, "https://") && !strings.HasPrefix(imageurl, "http://") {
-					imageurl = fmt.Sprintf("https://%s", imageurl)
-				}
-
-				var u *url.URL
-				if u, err = url.Parse(imageurl); err != nil {
-					return fmt.Errorf("url.Parse %s %v: %w", imagename, imageurl, err)
-				}
-
-				RegistryUrl := fmt.Sprintf("%s://%s", u.Scheme, u.Host)
-				RegistryRepository := u.Path
-
-				//log("drlatestyaml registry %s %s", RegistryUrl, RegistryRepository)
-
-				r := registry.NewInsecure(RegistryUrl, e.RegistryUsername, e.RegistryPassword)
-				r.Logf = registry.Quiet
-
-				imagetags, err := r.Tags(RegistryRepository)
-				if err != nil {
-					return fmt.Errorf("registry.Tags %s %v: %w", imagename, imageurl, err)
-				}
-
-				sort.Sort(sort.Reverse(DrVersions(imagetags)))
-
-				imagetag := ""
-
-				if len(imagetags) > 0 {
-					imagetag = imagetags[0]
-				} else {
-					imagetag = "latest"
-				}
-
-				imagenamereplace := e.KeyPrefixReplace + strings.TrimPrefix(imagename, e.KeyPrefix)
-				(*imagesvalues)[imagenamereplace] = imagetag
-
-				//log("drlatestyaml %s %s", imagenamereplace, imagetag)
-			}
-		}
-	}
-
-	return nil
-}
-
-type PackageConfig struct {
-	Name                string `yaml:"Name"`
-	PackageName         string `yaml:"PackageName"`
-	Namespace           string `yaml:"Namespace,omitempty"`
-	HelmName            string `yaml:"HelmName"`
-	EnvName             string `yaml:"EnvName"`
-	HelmChartVersion    string `yaml:"HelmChartVersion"`
-	HelmChartVersionKey string `yaml:"HelmChartVersionKey"`
-	HelmRepo            struct {
-		Address  string `yaml:"Address"`
-		Username string `yaml:"Username"`
-		Password string `yaml:"Password"`
-	} `yaml:"HelmRepo"`
-
-	ServerHostname *string `yaml:"ServerHostname,omitempty"`
-	TgChatId       *int64  `yaml:"TgChatId,omitempty"`
-	TgMentions     *string `yaml:"TgMentions,omitempty"`
-	Timezone       *string `yaml:"Timezone,omitempty"`
-	AllowedHours   *string `yaml:"AllowedHours,omitempty"`
-	AlwaysForceNow *bool   `yaml:"AlwaysForceNow,omitempty"`
-	ForceNow       bool    `yaml:"ForceNow"`
-	UpdateInterval string  `yaml:"UpdateInterval"`
-	UpdateDelay    *string `yaml:"UpdateDelay,omitempty"`
-
-	AllowedHoursList []string
-	TimezoneLocation *time.Location
-
-	HelmValuesText string
-	HelmValues     map[string]interface{}
-
-	HelmEnvValuesText string
-	HelmEnvValues     map[string]interface{}
-
-	ImagesValuesText string
-	ImagesValuesList []map[string]string
-	ImagesValuesMap  map[string]string
-
-	ValuesHash string `yaml:"ValuesHash"`
-}
-
-type ServerConfig struct {
-	ServerHostname string  `yaml:"ServerHostname"`
-	Timezone       *string `yaml:"Timezone,omitempty"`
-	AllowedHours   *string `yaml:"AllowedHours,omitempty"`
-	AlwaysForceNow *bool   `yaml:"AlwaysForceNow,omitempty"`
-	UpdateDelay    *string `yaml:"UpdateDelay,omitempty"`
-
-	TgChatId   *int64  `yaml:"TgChatId,omitempty"`
-	TgMentions *string `yaml:"TgMentions,omitempty"`
-
-	Packages []PackageConfig `yaml:"Packages"`
-
-	AllowedHoursList []string
-	TimezoneLocation *time.Location
-}
-
-func ImagesValuesMapToList(imagesvaluesmap map[string]string) (imagesvalueslist []map[string]string, imagesvaluesyamltext string, err error) {
-	imagesvalueslist = make([]map[string]string, 0)
-	for k, v := range imagesvaluesmap {
-		imagesvalueslist = append(imagesvalueslist, map[string]string{k: v})
-	}
-	sort.Slice(
-		imagesvalueslist,
-		func(i, j int) bool {
-			for ik := range imagesvalueslist[i] {
-				for jk := range imagesvalueslist[j] {
-					return ik < jk
-				}
-			}
-			return false
-		},
+	var resp *http.Response
+	tgapiurl := fmt.Sprintf("https://api.telegram.org/bot%s/setWebhook", TgToken)
+	resp, err = http.Post(
+		tgapiurl,
+		"application/json",
+		swreqjsBuffer,
 	)
-
-	imagesvaluestext := new(strings.Builder)
-	e := yaml.NewEncoder(imagesvaluestext)
-	for _, iv := range imagesvalueslist {
-		err := e.Encode(iv)
-		if err != nil {
-			return nil, "", fmt.Errorf("yaml.Encoder: %w", err)
-		}
+	if err != nil {
+		return fmt.Errorf("apiurl:`%s` apidata:`%s` %v", tgapiurl, swreqjs, err)
 	}
-	imagesvaluesyamltext = imagesvaluestext.String()
 
-	return imagesvalueslist, imagesvaluesyamltext, nil
+	var swresp TgSetWebhookResponse
+	var swrespbody []byte
+	swrespbody, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("io.ReadAll: %w", err)
+	}
+	err = json.NewDecoder(bytes.NewBuffer(swrespbody)).Decode(&swresp)
+	if err != nil {
+		return fmt.Errorf("json.Decoder.Decode: %w", err)
+	}
+	if !swresp.OK || !swresp.Result {
+		return fmt.Errorf("apiurl:`%s` apidata:`%s` api response not ok: %+v", tgapiurl, swreqjs, swresp)
+	}
+
+	return nil
 }
 
-func HelmServerUpgrade() (err error) {
+func ServerPackagesUpgrade() (err error) {
 	log("helm. "+"hostname:%s ", ServerHostname)
 
 	helmactioncfg := new(helmaction.Configuration)
@@ -978,14 +574,24 @@ func HelmServerUpgrade() (err error) {
 		return err
 	}
 
-	for _, r := range installedreleases {
-		log(
-			"helm. "+"installed release name:%s version:%s namespace:%s ",
-			r.Name, r.Chart.Metadata.Version, r.Namespace,
-		)
+	if DEBUG {
+		for _, r := range installedreleases {
+			log(
+				"helm. "+"installed release name:%s version:%s namespace:%s ",
+				r.Name, r.Chart.Metadata.Version, r.Namespace,
+			)
+		}
 	}
 
 	serverconfigs := make([]ServerConfig, 0)
+
+	err = GetValuesFile(PackagesLocalPath, nil, &serverconfigs)
+	if err != nil {
+		log("WARNING GetValuesFile `%s`: %v", PackagesLocalPath, err)
+	}
+
+	return nil
+
 	err = GetValues("helm-packages.values.yaml", nil, &serverconfigs)
 	if err != nil {
 		return fmt.Errorf("GetValues helm-packages.values.yaml: %w", err)
@@ -1499,4 +1105,431 @@ func HelmServerUpgrade() (err error) {
 	}
 
 	return nil
+}
+func log(msg string, args ...interface{}) {
+	var t time.Time
+	var tzone string
+	if LogUTCTime {
+		t = time.Now().UTC()
+		tzone = "z"
+	} else {
+		t = time.Now().Local()
+		tzone = LocalZone
+	}
+	ts := fmt.Sprintf(
+		"%03d.%02d%02d.%02d%02d%s",
+		t.Year()%1000, t.Month(), t.Day(), t.Hour(), t.Minute(), tzone,
+	)
+	fmt.Fprintf(os.Stderr, ts+" "+msg+NL, args...)
+}
+
+func tglog(chatid int64, replyid int64, msg string, args ...interface{}) error {
+	type TgSendMessageRequest struct {
+		ChatId              int64  `json:"chat_id"`
+		ReplyToMessageId    int64  `json:"reply_to_message_id,omitempty"`
+		Text                string `json:"text"`
+		ParseMode           string `json:"parse_mode,omitempty"`
+		DisableNotification bool   `json:"disable_notification"`
+	}
+
+	type TgSendMessageResponse struct {
+		OK          bool   `json:"ok"`
+		Description string `json:"description"`
+		Result      struct {
+			MessageId int64 `json:"message_id"`
+		} `json:"result"`
+	}
+
+	text := fmt.Sprintf(msg, args...)
+	text = strings.NewReplacer(
+		"(", "\\(",
+		")", "\\)",
+		"[", "\\[",
+		"]", "\\]",
+		"{", "\\{",
+		"}", "\\}",
+		"~", "\\~",
+		">", "\\>",
+		"#", "\\#",
+		"+", "\\+",
+		"-", "\\-",
+		"=", "\\=",
+		"|", "\\|",
+		"!", "\\!",
+		".", "\\.",
+	).Replace(text)
+
+	smreq := TgSendMessageRequest{
+		ChatId:              chatid,
+		ReplyToMessageId:    replyid,
+		Text:                text,
+		ParseMode:           TgParseMode,
+		DisableNotification: TgDisableNotification,
+	}
+	smreqjs, err := json.Marshal(smreq)
+	if err != nil {
+		return fmt.Errorf("%v", err)
+	}
+	smreqjsBuffer := bytes.NewBuffer(smreqjs)
+
+	var resp *http.Response
+	tgapiurl := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", TgToken)
+	resp, err = http.Post(
+		tgapiurl,
+		"application/json",
+		smreqjsBuffer,
+	)
+	if err != nil {
+		return fmt.Errorf("apiurl:`%s` apidata:`%s` %v", tgapiurl, smreqjs, err)
+	}
+
+	var smresp TgSendMessageResponse
+	err = json.NewDecoder(resp.Body).Decode(&smresp)
+	if err != nil {
+		return fmt.Errorf("%v", err)
+	}
+	if !smresp.OK {
+		return fmt.Errorf("apiurl:`%s` apidata:`%s` api response not ok: %+v", tgapiurl, smreqjs, smresp)
+	}
+
+	return nil
+}
+
+type TgUpdate struct {
+	UpdateId    int64     `json:"update_id"`
+	Message     TgMessage `json:"message"`
+	ChannelPost TgMessage `json:"channel_post"`
+}
+
+type TgMessage struct {
+	MessageId      int64  `json:"message_id"`
+	From           TgUser `json:"from"`
+	SenderChat     TgChat `json:"sender_chat"`
+	Chat           TgChat `json:"chat"`
+	Date           int64  `json:"date"`
+	Text           string `json:"text"`
+	ReplyToMessage struct {
+		MessageId  int64  `json:"message_id"`
+		From       TgUser `json:"from"`
+		SenderChat TgChat `json:"sender_chat"`
+		Chat       TgChat `json:"chat"`
+		Date       int64  `json:"date"`
+		Text       string `json:"text"`
+	} `json:"reply_to_message"`
+}
+
+type TgUser struct {
+	Id        int64  `json:"id"`
+	IsBot     bool   `json:"is_bot"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Username  string `json:"username"`
+}
+
+type TgChat struct {
+	Id    int64  `json:"id"`
+	Title string `json:"title"`
+	Type  string `json:"type"`
+}
+
+// get values file from a minio storage
+// https://gist.github.com/gabo89/5e3e316bd4be0fb99369eac512a66537
+// https://stackoverflow.com/questions/72047783/how-do-i-download-files-from-a-minio-s3-bucket-using-curl
+func GetValuesText(name string, valuestext *string) (err error) {
+	r, err := http.NewRequest("GET", GetValuesUrlPrefix+name, nil)
+	if err != nil {
+		return err
+	}
+	r.Header.Set("User-Agent", "helmbot")
+	hdrcontenttype := "application/octet-stream"
+	r.Header.Set("Content-Type", hdrcontenttype)
+	r.Header.Set("Host", GetValuesUrlPrefix)
+	hdrdate := time.Now().UTC().Format(time.RFC1123Z)
+	r.Header.Set("Date", hdrdate)
+	hdrauthsig := "GET" + NL + NL + hdrcontenttype + NL + hdrdate + NL + GetValuesUrlPrefixPath + name
+	hdrauthsighmac := hmac.New(sha1.New, []byte(GetValuesPassword))
+	hdrauthsighmac.Write([]byte(hdrauthsig))
+	hdrauthsig = base64.StdEncoding.EncodeToString(hdrauthsighmac.Sum(nil))
+	r.Header.Set("Authorization", fmt.Sprintf("AWS %s:%s", GetValuesUsername, hdrauthsig))
+
+	resp, err := http.DefaultClient.Do(r)
+	if err != nil {
+		return err
+	}
+
+	valuesbytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	*valuestext = string(valuesbytes)
+
+	if DEBUG {
+		log("DEBUG GetValuesText %s: %d length: %s...", name, len(*valuestext), strings.ReplaceAll((*valuestext), NL, " <nl> "))
+	}
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("minio server response status: %s", resp.Status)
+	}
+
+	return nil
+}
+
+func GetValues(name string, valuestext *string, values interface{}) (err error) {
+	var tempvaluestext string
+	if valuestext == nil {
+		valuestext = &tempvaluestext
+	}
+
+	err = GetValuesText(name, valuestext)
+	if err != nil {
+		return err
+	}
+
+	d := yaml.NewDecoder(strings.NewReader(*valuestext))
+	err = d.Decode(values)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func GetValuesFile(filepath string, valuestext *string, values interface{}) (err error) {
+	bb, err := os.ReadFile(filepath)
+	if err != nil {
+		return err
+	}
+
+	if valuestext == nil {
+		tempvaluestext := string(bb)
+		valuestext = &tempvaluestext
+	} else {
+		*valuestext = string(bb)
+	}
+
+	d := yaml.NewDecoder(strings.NewReader(*valuestext))
+	err = d.Decode(values)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// put values file to a minio storage
+// https://gist.github.com/gabo89/5e3e316bd4be0fb99369eac512a66537
+// https://stackoverflow.com/questions/72047783/how-do-i-download-files-from-a-minio-s3-bucket-using-curl
+func PutValuesText(name string, valuestext string) (err error) {
+	r, err := http.NewRequest("PUT", PutValuesUrlPrefix+name, bytes.NewBuffer([]byte(valuestext)))
+	if err != nil {
+		return err
+	}
+	r.Header.Set("User-Agent", "helmbot")
+	hdrcontenttype := "application/octet-stream"
+	r.Header.Set("Content-Type", hdrcontenttype)
+	r.Header.Set("Host", PutValuesUrlPrefix)
+	hdrdate := time.Now().UTC().Format(time.RFC1123Z)
+	r.Header.Set("Date", hdrdate)
+	hdrauthsig := "PUT" + NL + NL + hdrcontenttype + NL + hdrdate + NL + PutValuesUrlPrefixPath + name
+	hdrauthsighmac := hmac.New(sha1.New, []byte(PutValuesPassword))
+	hdrauthsighmac.Write([]byte(hdrauthsig))
+	hdrauthsig = base64.StdEncoding.EncodeToString(hdrauthsighmac.Sum(nil))
+	r.Header.Set("Authorization", fmt.Sprintf("AWS %s:%s", PutValuesUsername, hdrauthsig))
+
+	if DEBUG {
+		log("DEBUG PutValuesText %s: %d length: %s...", name, len(valuestext), strings.ReplaceAll((valuestext), NL, " <nl> "))
+	}
+
+	resp, err := http.DefaultClient.Do(r)
+	log("DEBUG PutValuesText resp.Status: %s", resp.Status)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("minio server response status: %s", resp.Status)
+	}
+
+	return nil
+}
+
+type DrLatestYamlEntry struct {
+	KeyPrefix        string `yaml:"KeyPrefix"`
+	KeyPrefixReplace string `yaml:"KeyPrefixReplace"`
+	RegistryUsername string `yaml:"RegistryUsername"`
+	RegistryPassword string `yaml:"RegistryPassword"`
+}
+
+type DrLatestYaml struct {
+	DrLatestYaml []DrLatestYamlEntry `yaml:"DrLatestYaml"`
+}
+
+type DrVersions []string
+
+func (vv DrVersions) Len() int {
+	return len(vv)
+}
+
+func (vv DrVersions) Less(i, j int) bool {
+	v1, v2 := vv[i], vv[j]
+	v1s := strings.Split(v1, ".")
+	v2s := strings.Split(v2, ".")
+	if len(v1s) < len(v2s) {
+		return true
+	} else if len(v1s) > len(v2s) {
+		return false
+	}
+	for e := 0; e < len(v1s); e++ {
+		d1, _ := strconv.Atoi(v1s[e])
+		d2, _ := strconv.Atoi(v2s[e])
+		if d1 < d2 {
+			return true
+		} else if d1 > d2 {
+			return false
+		}
+	}
+	return false
+}
+
+func (vv DrVersions) Swap(i, j int) {
+	vv[i], vv[j] = vv[j], vv[i]
+}
+
+func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlvalues DrLatestYaml, imagesvalues *map[string]string) (err error) {
+	for helmvalueskey, helmvaluesvalue := range helmvalues {
+		//log("drlatestyaml helmvalueskey %s", helmvalueskey)
+		for _, e := range drlatestyamlvalues.DrLatestYaml {
+			//log("  drlatestyaml KeyPrefix %s", e.KeyPrefix)
+			if strings.HasPrefix(helmvalueskey, e.KeyPrefix) {
+				//log("drlatestyaml %s HasPrefix %s", helmvalueskey, e.KeyPrefix)
+
+				imagename := helmvalueskey
+				imageurl := helmvaluesvalue.(string)
+
+				if !strings.HasPrefix(imageurl, "https://") && !strings.HasPrefix(imageurl, "http://") {
+					imageurl = fmt.Sprintf("https://%s", imageurl)
+				}
+
+				var u *url.URL
+				if u, err = url.Parse(imageurl); err != nil {
+					return fmt.Errorf("url.Parse %s %v: %w", imagename, imageurl, err)
+				}
+
+				RegistryUrl := fmt.Sprintf("%s://%s", u.Scheme, u.Host)
+				RegistryRepository := u.Path
+
+				//log("drlatestyaml registry %s %s", RegistryUrl, RegistryRepository)
+
+				r := registry.NewInsecure(RegistryUrl, e.RegistryUsername, e.RegistryPassword)
+				r.Logf = registry.Quiet
+
+				imagetags, err := r.Tags(RegistryRepository)
+				if err != nil {
+					return fmt.Errorf("registry.Tags %s %v: %w", imagename, imageurl, err)
+				}
+
+				sort.Sort(sort.Reverse(DrVersions(imagetags)))
+
+				imagetag := ""
+
+				if len(imagetags) > 0 {
+					imagetag = imagetags[0]
+				} else {
+					imagetag = "latest"
+				}
+
+				imagenamereplace := e.KeyPrefixReplace + strings.TrimPrefix(imagename, e.KeyPrefix)
+				(*imagesvalues)[imagenamereplace] = imagetag
+
+				//log("drlatestyaml %s %s", imagenamereplace, imagetag)
+			}
+		}
+	}
+
+	return nil
+}
+
+type PackageConfig struct {
+	Name                string `yaml:"Name"`
+	PackageName         string `yaml:"PackageName"`
+	Namespace           string `yaml:"Namespace,omitempty"`
+	HelmName            string `yaml:"HelmName"`
+	EnvName             string `yaml:"EnvName"`
+	HelmChartVersion    string `yaml:"HelmChartVersion"`
+	HelmChartVersionKey string `yaml:"HelmChartVersionKey"`
+	HelmRepo            struct {
+		Address  string `yaml:"Address"`
+		Username string `yaml:"Username"`
+		Password string `yaml:"Password"`
+	} `yaml:"HelmRepo"`
+
+	ServerHostname *string `yaml:"ServerHostname,omitempty"`
+	TgChatId       *int64  `yaml:"TgChatId,omitempty"`
+	TgMentions     *string `yaml:"TgMentions,omitempty"`
+	Timezone       *string `yaml:"Timezone,omitempty"`
+	AllowedHours   *string `yaml:"AllowedHours,omitempty"`
+	AlwaysForceNow *bool   `yaml:"AlwaysForceNow,omitempty"`
+	ForceNow       bool    `yaml:"ForceNow"`
+	UpdateInterval string  `yaml:"UpdateInterval"`
+	UpdateDelay    *string `yaml:"UpdateDelay,omitempty"`
+
+	AllowedHoursList []string
+	TimezoneLocation *time.Location
+
+	HelmValuesText string
+	HelmValues     map[string]interface{}
+
+	HelmEnvValuesText string
+	HelmEnvValues     map[string]interface{}
+
+	ImagesValuesText string
+	ImagesValuesList []map[string]string
+	ImagesValuesMap  map[string]string
+
+	ValuesHash string `yaml:"ValuesHash"`
+}
+
+type ServerConfig struct {
+	ServerHostname string  `yaml:"ServerHostname"`
+	Timezone       *string `yaml:"Timezone,omitempty"`
+	AllowedHours   *string `yaml:"AllowedHours,omitempty"`
+	AlwaysForceNow *bool   `yaml:"AlwaysForceNow,omitempty"`
+	UpdateDelay    *string `yaml:"UpdateDelay,omitempty"`
+
+	TgChatId   *int64  `yaml:"TgChatId,omitempty"`
+	TgMentions *string `yaml:"TgMentions,omitempty"`
+
+	Packages []PackageConfig `yaml:"Packages"`
+
+	AllowedHoursList []string
+	TimezoneLocation *time.Location
+}
+
+func ImagesValuesMapToList(imagesvaluesmap map[string]string) (imagesvalueslist []map[string]string, imagesvaluesyamltext string, err error) {
+	imagesvalueslist = make([]map[string]string, 0)
+	for k, v := range imagesvaluesmap {
+		imagesvalueslist = append(imagesvalueslist, map[string]string{k: v})
+	}
+	sort.Slice(
+		imagesvalueslist,
+		func(i, j int) bool {
+			for ik := range imagesvalueslist[i] {
+				for jk := range imagesvalueslist[j] {
+					return ik < jk
+				}
+			}
+			return false
+		},
+	)
+
+	imagesvaluestext := new(strings.Builder)
+	e := yaml.NewEncoder(imagesvaluestext)
+	for _, iv := range imagesvalueslist {
+		err := e.Encode(iv)
+		if err != nil {
+			return nil, "", fmt.Errorf("yaml.Encoder: %w", err)
+		}
+	}
+	imagesvaluesyamltext = imagesvaluestext.String()
+
+	return imagesvalueslist, imagesvaluesyamltext, nil
 }

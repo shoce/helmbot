@@ -16,6 +16,7 @@ data:
 
   ServerHostname: "{{ $.Values.ServerHostname }}"
   PackagesDir: "{{ $.Values.PackagesDir }}"
+  PackagesLocalPath: "{{ $.Values.PackagesLocalPath }}"
 
   TgToken: "{{ $.Values.TgToken }}"
   TgWebhookHost: "{{ $.Values.TgWebhookHost }}"
