@@ -58,6 +58,8 @@ const (
 	TAB  = "\t"
 	NL   = "\n"
 
+	ServerPackagesUpgradeInterval = 43 * time.Second
+
 	UpdateHashIdReString = "#([-a-z]+)#([-a-z]+)#([a-z0-9]+)$"
 
 	ValuesLatestHashFilenameSuffix   = "values.latest.hash.text"
@@ -299,9 +301,8 @@ func main() {
 			if err != nil {
 				log("ERROR ServerPackagesUpgrade: %+v", err)
 			}
-			HelmUpdateInterval := 43 * time.Second
-			log("sleeping %s.", HelmUpdateInterval)
-			time.Sleep(HelmUpdateInterval)
+			log("sleeping %s.", ServerPackagesUpgradeInterval)
+			time.Sleep(ServerPackagesUpgradeInterval)
 		}
 	}()
 
