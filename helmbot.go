@@ -70,6 +70,8 @@ var (
 	DEBUG      bool
 	LogUTCTime bool
 
+	LocalZone string
+
 	UpdateHashIdRe *regexp.Regexp
 
 	ServerHostname string
@@ -106,6 +108,8 @@ var (
 
 func init() {
 	var err error
+
+	LocalZone = time.Now().Local().Format("-0700")
 
 	UpdateHashIdRe, err = regexp.Compile(UpdateHashIdReString)
 	if err != nil {
@@ -308,17 +312,17 @@ func main() {
 
 func log(msg string, args ...interface{}) {
 	var t time.Time
-	var tsuffix string
+	var tzone string
 	if LogUTCTime {
 		t = time.Now().UTC()
-		tsuffix = "z"
+		tzone = "z"
 	} else {
 		t = time.Now().Local()
-		tsuffix = strings.ToLower(t.Location().String())
+		tzone = LocalZone
 	}
 	ts := fmt.Sprintf(
-		"%03d.%02d%02d.%02d%02d.%s",
-		t.Year()%1000, t.Month(), t.Day(), t.Hour(), t.Minute(), tsuffix,
+		"%03d.%02d%02d.%02d%02d%s",
+		t.Year()%1000, t.Month(), t.Day(), t.Hour(), t.Minute(), tzone,
 	)
 	fmt.Fprintf(os.Stderr, ts+" "+msg+NL, args...)
 }
