@@ -508,7 +508,9 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 }
 
 func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error {
-	log("TgSetWebhook: url:%s allowedupdates:%s secrettoken:%s", url, allowedupdates, secrettoken)
+	if DEBUG {
+		log("TgSetWebhook: url:%s allowedupdates:%s secrettoken:%s", url, allowedupdates, secrettoken)
+	}
 
 	type TgSetWebhookRequest struct {
 		Url            string   `json:"url"`
