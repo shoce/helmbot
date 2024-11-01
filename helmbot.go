@@ -601,7 +601,7 @@ func ServerPackagesUpgrade() (err error) {
 
 	err = GetValues("helm-packages.values.yaml", nil, &serverconfigs)
 	if err != nil {
-		return fmt.Errorf("GetValues helm-packages.values.yaml: %w", err)
+		log("WARNING ServerPackagesUpgrade GetValues `helm-packages.values.yaml`: %v", err)
 	}
 
 	serverconfigs = append(serverconfigs, serverconfigslocal...)
