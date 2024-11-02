@@ -495,7 +495,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		rupdate.Message.Chat.Id, rupdate.Message.MessageId,
 		"*FORCE UPDATE NOW IS ACCEPTED.*"+
 			NL+NL+
-			"%s"+
+			"`%s`"+
 			NL+NL+
 			"UPDATE WILL START IN FEW MINUTES.",
 		UpdateHashId,
