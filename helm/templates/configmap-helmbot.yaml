@@ -19,7 +19,7 @@ data:
 
   ConfigLocalDir: "{{ $.Values.ConfigLocalDir }}"
   ConfigLocalFilename: "{{ $.Values.ConfigLocalFilename }}"
-  ConfigLocalFilename: "{{ $.Values.ConfigLocalFilename }}"
+  ConfigMinioFilename: "{{ $.Values.ConfigMinioFilename }}"
 
   TgToken: "{{ $.Values.TgToken }}"
   TgWebhookHost: "{{ $.Values.TgWebhookHost }}"
