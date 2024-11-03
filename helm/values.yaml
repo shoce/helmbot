@@ -11,8 +11,9 @@ ServerHostname: ""
 
 PackagesDir: ""
 
-ConfigLocalPath: "/opt/helmbot/helmbot.config.yaml"
-ConfigMinioPath: "helmbot.config.yaml"
+ConfigLocalDir: "/opt/helmbot/"
+ConfigLocalFilename: "helmbot.config.local.yaml"
+ConfigMinioFilename: "helmbot.config.yaml"
 
 
 TgToken: ""

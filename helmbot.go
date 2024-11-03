@@ -84,8 +84,9 @@ var (
 	ServerHostname string
 	PackagesDir    string
 
-	ConfigLocalPath string
-	ConfigMinioPath string
+	ConfigLocalDir      string
+	ConfigLocalFilename string
+	ConfigMinioFilename string
 
 	Config HelmbotConfig
 
@@ -143,8 +144,9 @@ func init() {
 		os.Exit(1)
 	}
 
-	ConfigLocalPath = os.Getenv("ConfigLocalPath")
-	ConfigMinioPath = os.Getenv("ConfigMinioPath")
+	ConfigLocalDir = os.Getenv("ConfigLocalDir")
+	ConfigLocalFilename = os.Getenv("ConfigLocalFilename")
+	ConfigMinioFilename = os.Getenv("ConfigMinioFilename")
 
 	ListenAddr = os.Getenv("ListenAddr")
 	if ListenAddr == "" {
@@ -593,14 +595,15 @@ func ServerPackagesUpgrade() (err error) {
 
 	var configlocal HelmbotConfig
 
-	err = GetValuesFile(ConfigLocalPath, nil, &configlocal)
+	configlocalpath := ConfigLocalDir + "/" + ConfigLocalFilename
+	err = GetValuesFile(configlocalpath, nil, &configlocal)
 	if err != nil {
-		log("WARNING ServerPackagesUpgrade GetValuesFile `%s`: %v", ConfigLocalPath, err)
+		log("WARNING ServerPackagesUpgrade GetValuesFile `%s`: %v", configlocalpath, err)
 	}
 
-	err = GetValues(ConfigMinioPath, nil, &Config)
+	err = GetValues(ConfigMinioFilename, nil, &Config)
 	if err != nil {
-		log("WARNING ServerPackagesUpgrade GetValues `%s`: %v", ConfigMinioPath, err)
+		log("WARNING ServerPackagesUpgrade GetValues `%s`: %v", ConfigMinioFilename, err)
 	}
 
 	Config.DrLatestYaml = append(Config.DrLatestYaml, configlocal.DrLatestYaml...)
