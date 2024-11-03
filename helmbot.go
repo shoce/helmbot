@@ -3,6 +3,10 @@
 GoFmt
 GoBuildNull
 
+go get -u -v gopkg.in/yaml.v3
+go get -u -v helm.sh/helm/v3
+go get -u -v github.com/rusenask/docker-registry-client/registry
+go get -u -v k8s.io/api/core/v1 k8s.io/apimachinery/pkg/api/errors k8s.io/apimachinery/pkg/apis/meta/v1 k8s.io/client-go/kubernetes k8s.io/client-go/rest
 go get -a -u -v
 go mod tidy
 
@@ -44,7 +48,7 @@ import (
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	helmrepo "helm.sh/helm/v3/pkg/repo"
 
-	"github.com/rusenask/docker-registry-client/registry"
+	dregistry "github.com/rusenask/docker-registry-client/registry"
 
 	kcorev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -497,9 +501,9 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		rupdate.Message.Chat.Id, rupdate.Message.MessageId,
 		"*FORCE UPDATE NOW IS ACCEPTED.*"+
 			NL+NL+
-			"`%s`"+
+			"THIS UPDATE WILL START IN FEW MINUTES."+
 			NL+NL+
-			"UPDATE WILL START IN FEW MINUTES.",
+			"`%s`",
 		UpdateHashId,
 	)
 	if err != nil {
@@ -1453,8 +1457,8 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlvalues DrLatest
 
 				//log("drlatestyaml registry %s %s", RegistryUrl, RegistryRepository)
 
-				r := registry.NewInsecure(RegistryUrl, e.RegistryUsername, e.RegistryPassword)
-				r.Logf = registry.Quiet
+				r := dregistry.NewInsecure(RegistryUrl, e.RegistryUsername, e.RegistryPassword)
+				r.Logf = dregistry.Quiet
 
 				imagetags, err := r.Tags(RegistryRepository)
 				if err != nil {
