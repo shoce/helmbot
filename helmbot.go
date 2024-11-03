@@ -28,6 +28,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"regexp"
 	"slices"
 	"sort"
@@ -595,10 +596,19 @@ func ServerPackagesUpgrade() (err error) {
 
 	var configlocal HelmbotConfig
 
-	configlocalpath := ConfigLocalDir + "/" + ConfigLocalFilename
+	configlocalpath := path.Join(ConfigLocalDir, ConfigLocalFilename)
 	err = GetValuesFile(configlocalpath, nil, &configlocal)
 	if err != nil {
 		log("WARNING ServerPackagesUpgrade GetValuesFile `%s`: %v", configlocalpath, err)
+	}
+
+	for _, sp := range configlocal.ServersPackages {
+		for _, p := range sp.Packages {
+			log(
+				"ServerPackagesUpgrade `%s` package Name:%s HelmChartLocalFilename:%s ",
+				configlocalpath, p.Name, p.HelmChartLocalFilename,
+			)
+		}
 	}
 
 	err = GetValues(ConfigMinioFilename, nil, &Config)
