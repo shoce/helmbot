@@ -14,11 +14,9 @@ RUN ls -l -a
 # https://hub.docker.com/_/alpine/tags
 FROM alpine:3.20.3
 RUN apk add --no-cache gcompat && ln -s -f -v ld-linux-x86-64.so.2 /lib/libresolv.so.2
-RUN mkdir -p /opt/zz/
-RUN mkdir -p /opt/helmbot/
-COPY --from=build /root/helmbot/helmbot /opt/helmbot/helmbot
-RUN ls -l -a /opt/helmbot/
-WORKDIR /opt/helmbot/
-ENTRYPOINT ["./helmbot"]
+COPY --from=build /root/helmbot/helmbot /bin/helmbot
+RUN ls -l -a /bin/helmbot
+WORKDIR /root/
+ENTRYPOINT ["/bin/helmbot"]
 
 
