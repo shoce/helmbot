@@ -1481,15 +1481,19 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 }
 
 type PackageConfig struct {
-	Name                string `yaml:"Name"`
-	PackageName         string `yaml:"PackageName"`
-	Namespace           string `yaml:"Namespace,omitempty"`
-	HelmName            string `yaml:"HelmName"`
-	EnvName             string `yaml:"EnvName"`
+	Name        string `yaml:"Name"`
+	PackageName string `yaml:"PackageName"`
+	Namespace   string `yaml:"Namespace,omitempty"`
+	HelmName    string `yaml:"HelmName"`
+	EnvName     string `yaml:"EnvName"`
+
 	HelmChartVersion    string `yaml:"HelmChartVersion"`
 	HelmChartVersionKey string `yaml:"HelmChartVersionKey"`
-	HelmChartAddress    string `yaml:"HelmChartAddress"`
-	HelmRepo            struct {
+
+	HelmChartLocalFilename string `yaml:"HelmChartLocalFilename"`
+
+	HelmChartAddress string `yaml:"HelmChartAddress"`
+	HelmRepo         struct {
 		Address  string `yaml:"Address"`
 		Username string `yaml:"Username"`
 		Password string `yaml:"Password"`
@@ -1498,15 +1502,17 @@ type PackageConfig struct {
 	ServerHostname *string `yaml:"ServerHostname,omitempty"`
 	TgChatId       *int64  `yaml:"TgChatId,omitempty"`
 	TgMentions     *string `yaml:"TgMentions,omitempty"`
+
 	Timezone       *string `yaml:"Timezone,omitempty"`
 	AllowedHours   *string `yaml:"AllowedHours,omitempty"`
 	AlwaysForceNow *bool   `yaml:"AlwaysForceNow,omitempty"`
 	ForceNow       bool    `yaml:"ForceNow"`
+
 	UpdateInterval string  `yaml:"UpdateInterval"`
 	UpdateDelay    *string `yaml:"UpdateDelay,omitempty"`
 
-	AllowedHoursList []string
 	TimezoneLocation *time.Location
+	AllowedHoursList []string
 
 	HelmValuesText string
 	HelmValues     map[string]interface{}
