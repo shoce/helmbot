@@ -81,10 +81,13 @@ var (
 
 	UpdateHashIdRe *regexp.Regexp
 
-	ServerHostname    string
-	PackagesDir       string
-	PackagesMinioPath string
-	PackagesLocalPath string
+	ServerHostname string
+	PackagesDir    string
+
+	ConfigLocalPath string
+	ConfigMinioPath string
+
+	Config HelmbotConfig
 
 	ListenAddr string
 
@@ -111,8 +114,6 @@ var (
 	PutValuesUrlPrefixPath string
 	PutValuesUsername      string
 	PutValuesPassword      string
-
-	DrLatestYamlValues DrLatestYaml
 )
 
 func init() {
@@ -142,8 +143,8 @@ func init() {
 		os.Exit(1)
 	}
 
-	PackagesMinioPath = os.Getenv("PackagesMinioPath")
-	PackagesLocalPath = os.Getenv("PackagesLocalPath")
+	ConfigLocalPath = os.Getenv("ConfigLocalPath")
+	ConfigMinioPath = os.Getenv("ConfigMinioPath")
 
 	ListenAddr = os.Getenv("ListenAddr")
 	if ListenAddr == "" {
@@ -261,12 +262,6 @@ func init() {
 	PutValuesPassword = os.Getenv("PutValuesPassword")
 	if PutValuesPassword == "" {
 		log("ERROR Empty PutValuesPassword env var")
-		os.Exit(1)
-	}
-
-	err = GetValues("drlatestyaml.values.yaml", nil, &DrLatestYamlValues)
-	if err != nil {
-		log("ERROR GetValues drlatestyaml.values.yaml: %v", err)
 		os.Exit(1)
 	}
 
@@ -596,28 +591,27 @@ func ServerPackagesUpgrade() (err error) {
 		}
 	}
 
-	serverconfigslocal := make([]ServerConfig, 0)
+	var configlocal HelmbotConfig
 
-	err = GetValuesFile(PackagesLocalPath, nil, &serverconfigslocal)
+	err = GetValuesFile(ConfigLocalPath, nil, &configlocal)
 	if err != nil {
-		log("WARNING ServerPackagesUpgrade GetValuesFile `%s`: %v", PackagesLocalPath, err)
+		log("WARNING ServerPackagesUpgrade GetValuesFile `%s`: %v", ConfigLocalPath, err)
 	}
 
-	serverconfigs := make([]ServerConfig, 0)
-
-	err = GetValues(PackagesMinioPath, nil, &serverconfigs)
+	err = GetValues(ConfigMinioPath, nil, &Config)
 	if err != nil {
-		log("WARNING ServerPackagesUpgrade GetValues `%s`: %v", PackagesMinioPath, err)
+		log("WARNING ServerPackagesUpgrade GetValues `%s`: %v", ConfigMinioPath, err)
 	}
 
-	serverconfigs = append(serverconfigs, serverconfigslocal...)
+	Config.DrLatestYaml = append(Config.DrLatestYaml, configlocal.DrLatestYaml...)
+	Config.ServersPackages = append(Config.ServersPackages, configlocal.ServersPackages...)
 
 	if DEBUG {
-		log("DEBUG ServerPackagesUpgrade serverconfigs: %+v", serverconfigs)
+		log("DEBUG ServerPackagesUpgrade Config: %+v", Config)
 	}
 
 	packages := make([]PackageConfig, 0)
-	for _, s := range serverconfigs {
+	for _, s := range Config.ServersPackages {
 		if s.ServerHostname != ServerHostname {
 			continue
 		}
@@ -843,7 +837,7 @@ func ServerPackagesUpgrade() (err error) {
 
 		p.ImagesValuesMap[p.HelmChartVersionKey] = chartversion.Version
 
-		err = drlatestyaml(p.HelmEnvValues, DrLatestYamlValues, &p.ImagesValuesMap)
+		err = drlatestyaml(p.HelmEnvValues, Config.DrLatestYaml, &p.ImagesValuesMap)
 		if err != nil {
 			return fmt.Errorf("drlatestyaml %s.%s: %w", p.HelmName, p.EnvName, err)
 		}
@@ -1144,6 +1138,7 @@ func ServerPackagesUpgrade() (err error) {
 
 	return nil
 }
+
 func log(msg string, args ...interface{}) {
 	var t time.Time
 	var tzone string
@@ -1390,15 +1385,11 @@ func PutValuesText(name string, valuestext string) (err error) {
 	return nil
 }
 
-type DrLatestYamlEntry struct {
+type DrLatestYamlItem struct {
 	KeyPrefix        string `yaml:"KeyPrefix"`
 	KeyPrefixReplace string `yaml:"KeyPrefixReplace"`
 	RegistryUsername string `yaml:"RegistryUsername"`
 	RegistryPassword string `yaml:"RegistryPassword"`
-}
-
-type DrLatestYaml struct {
-	DrLatestYaml []DrLatestYamlEntry `yaml:"DrLatestYaml"`
 }
 
 type DrVersions []string
@@ -1432,10 +1423,10 @@ func (vv DrVersions) Swap(i, j int) {
 	vv[i], vv[j] = vv[j], vv[i]
 }
 
-func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlvalues DrLatestYaml, imagesvalues *map[string]string) (err error) {
+func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLatestYamlItem, imagesvalues *map[string]string) (err error) {
 	for helmvalueskey, helmvaluesvalue := range helmvalues {
 		//log("drlatestyaml helmvalueskey %s", helmvalueskey)
-		for _, e := range drlatestyamlvalues.DrLatestYaml {
+		for _, e := range drlatestyamlitems {
 			//log("  drlatestyaml KeyPrefix %s", e.KeyPrefix)
 			if strings.HasPrefix(helmvalueskey, e.KeyPrefix) {
 				//log("drlatestyaml %s HasPrefix %s", helmvalueskey, e.KeyPrefix)
@@ -1541,6 +1532,11 @@ type ServerConfig struct {
 
 	AllowedHoursList []string
 	TimezoneLocation *time.Location
+}
+
+type HelmbotConfig struct {
+	DrLatestYaml    []DrLatestYamlItem `yaml:"DrLatestYaml"`
+	ServersPackages []ServerConfig     `yaml:"ServersPackages"`
 }
 
 func ImagesValuesMapToList(imagesvaluesmap map[string]string) (imagesvalueslist []map[string]string, imagesvaluesyamltext string, err error) {

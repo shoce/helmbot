@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ $.Release.Namespace }}-packageslocal-persistentvolumeclaim
+  name: {{ $.Release.Namespace }}-configlocal-persistentvolumeclaim
   labels:
     app: {{ $.Release.Namespace }}-helmbot
 spec:
@@ -12,5 +12,5 @@ spec:
   resources:
     requests:
       storage: 10Mi
-  volumeName: {{ $.Release.Namespace }}-packageslocal-persistentvolume
+  volumeName: {{ $.Release.Namespace }}-configlocal-persistentvolume
 

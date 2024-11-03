@@ -45,17 +45,17 @@ spec:
                 name: {{ $.Release.Namespace }}-helmbot
 
           volumeMounts:
-            - mountPath: {{ $.Values.PackagesLocalPath }}
-              name: {{ $.Release.Namespace }}-packageslocal-volume
+            - mountPath: {{ $.Values.ConfigLocalPath }}
+              name: {{ $.Release.Namespace }}-configlocal-volume
             - mountPath: {{ $.Values.PackagesDir }}
               name: {{ $.Release.Namespace }}-packagesdir-volume
             - mountPath: /root/.kube2/
               name: {{ $.Release.Namespace }}-rootkubedir-volume
 
       volumes:
-        - name: {{ $.Release.Namespace }}-packageslocal-volume
+        - name: {{ $.Release.Namespace }}-configlocal-volume
           persistentVolumeClaim:
-            claimName: {{ $.Release.Namespace }}-packageslocal-persistentvolumeclaim
+            claimName: {{ $.Release.Namespace }}-configlocal-persistentvolumeclaim
         - name: {{ $.Release.Namespace }}-packagesdir-volume
           persistentVolumeClaim:
             claimName: {{ $.Release.Namespace }}-packagesdir-persistentvolumeclaim
