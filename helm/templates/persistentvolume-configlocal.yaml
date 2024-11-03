@@ -14,5 +14,5 @@ spec:
     - ReadOnlyMany
   hostPath:
     path: {{ $.Values.ConfigLocalPath }}
-    type: File
+    type: FileOrCreate
 
