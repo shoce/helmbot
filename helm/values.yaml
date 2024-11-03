@@ -11,6 +11,7 @@ ServerHostname: ""
 
 PackagesDir: ""
 
+PackagesMinioPath: "helmbot.packages.yaml"
 PackagesLocalPath: "/opt/helmbot/helmbot.packages.yaml"
 
 

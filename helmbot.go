@@ -79,6 +79,7 @@ var (
 
 	ServerHostname    string
 	PackagesDir       string
+	PackagesMinioPath string
 	PackagesLocalPath string
 
 	ListenAddr string
@@ -137,6 +138,7 @@ func init() {
 		os.Exit(1)
 	}
 
+	PackagesMinioPath = os.Getenv("PackagesMinioPath")
 	PackagesLocalPath = os.Getenv("PackagesLocalPath")
 
 	ListenAddr = os.Getenv("ListenAddr")
@@ -599,9 +601,9 @@ func ServerPackagesUpgrade() (err error) {
 
 	serverconfigs := make([]ServerConfig, 0)
 
-	err = GetValues("helm-packages.values.yaml", nil, &serverconfigs)
+	err = GetValues(PackagesMinioPath, nil, &serverconfigs)
 	if err != nil {
-		log("WARNING ServerPackagesUpgrade GetValues `helm-packages.values.yaml`: %v", err)
+		log("WARNING ServerPackagesUpgrade GetValues `%s`: %v", PackagesMinioPath, err)
 	}
 
 	serverconfigs = append(serverconfigs, serverconfigslocal...)
