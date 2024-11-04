@@ -638,7 +638,7 @@ func ServerPackagesUpgrade() (err error) {
 		log("WARNING ServerPackagesUpgrade ProcessServersPackages: %v", err)
 	}
 
-	log("ServerPackagesUpgrade Config packages count:%v", len(Packages))
+	log("ServerPackagesUpgrade Packages count:%v", len(Packages))
 
 	if DEBUG {
 		for _, p := range Packages {
@@ -1169,6 +1169,7 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 		}
 	}
 
+	log("ProcessServersPackages servers:%d packages:%d", len(servers), len(packages))
 	return packages, nil
 }
 
