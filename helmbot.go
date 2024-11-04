@@ -89,7 +89,11 @@ var (
 	ConfigLocalFilename string
 	ConfigMinioFilename string
 
-	Config HelmbotConfig
+	ConfigLocal HelmbotConfig
+	Config      HelmbotConfig
+
+	PackagesLocal []PackageConfig
+	Packages      []PackageConfig
 
 	ListenAddr string
 
@@ -594,16 +598,25 @@ func ServerPackagesUpgrade() (err error) {
 		}
 	}
 
-	var configlocal HelmbotConfig
-
 	configlocalpath := path.Join(ConfigLocalDir, ConfigLocalFilename)
-	err = GetValuesFile(configlocalpath, nil, &configlocal)
+	err = GetValuesFile(configlocalpath, nil, &ConfigLocal)
 	if err != nil {
 		log("WARNING ServerPackagesUpgrade GetValuesFile `%s`: %v", configlocalpath, err)
 	}
 
-	for _, sp := range configlocal.ServersPackages {
-		for _, p := range sp.Packages {
+	if DEBUG {
+		log("DEBUG ServerPackagesUpgrade ConfigLocal: %+v", ConfigLocal)
+	}
+
+	err = ProcessServersPackages(ConfigLocal.Servers, PackagesLocal)
+	if err != nil {
+		log("WARNING ServerPackagesUpgrade ProcessServersPackages `%s`: %v", configlocalpath, err)
+	}
+
+	log("ServerPackagesUpgrade PackagesLocal count:%v", len(PackagesLocal))
+
+	if DEBUG {
+		for _, p := range PackagesLocal {
 			log(
 				"ServerPackagesUpgrade `%s` package Name:%s HelmChartLocalFilename:%s ",
 				configlocalpath, p.Name, p.HelmChartLocalFilename,
@@ -616,73 +629,23 @@ func ServerPackagesUpgrade() (err error) {
 		log("WARNING ServerPackagesUpgrade GetValues `%s`: %v", ConfigMinioFilename, err)
 	}
 
-	Config.DrLatestYaml = append(Config.DrLatestYaml, configlocal.DrLatestYaml...)
-	Config.ServersPackages = append(Config.ServersPackages, configlocal.ServersPackages...)
-
 	if DEBUG {
 		log("DEBUG ServerPackagesUpgrade Config: %+v", Config)
 	}
 
-	packages := make([]PackageConfig, 0)
-	for _, s := range Config.ServersPackages {
-		if s.ServerHostname != ServerHostname {
-			continue
-		}
-		if s.AllowedHours != nil {
-			s.AllowedHoursList = strings.Split(*s.AllowedHours, " ")
-		}
-		if s.Timezone == nil || *s.Timezone == "" {
-			tzutc := "UTC"
-			s.Timezone = &tzutc
-			s.TimezoneLocation = time.UTC
-		} else {
-			s.TimezoneLocation, err = time.LoadLocation(*s.Timezone)
-			if err != nil {
-				return err
-			}
-		}
-		for _, p := range s.Packages {
-			p.Name = fmt.Sprintf("%s-%s", p.HelmName, p.EnvName)
+	err = ProcessServersPackages(Config.Servers, Packages)
+	if err != nil {
+		log("WARNING ServerPackagesUpgrade ProcessServersPackages: %v", err)
+	}
 
-			p.PackageName = fmt.Sprintf("%s-%s", p.HelmName, p.EnvName)
+	log("ServerPackagesUpgrade Config packages count:%v", len(Packages))
 
-			if p.Namespace == "" {
-				p.Namespace = fmt.Sprintf("%s-%s", p.HelmName, p.EnvName)
-			}
-
-			p.ServerHostname = &s.ServerHostname
-
-			if p.AllowedHours == nil {
-				p.AllowedHours = s.AllowedHours
-			}
-			if p.AllowedHours != nil {
-				p.AllowedHoursList = strings.Split(*p.AllowedHours, " ")
-			}
-
-			if p.Timezone == nil {
-				p.Timezone = s.Timezone
-				p.TimezoneLocation = s.TimezoneLocation
-			}
-
-			if p.AlwaysForceNow == nil {
-				if s.AlwaysForceNow == nil {
-					varfalse := false
-					p.AlwaysForceNow = &varfalse
-				} else {
-					p.AlwaysForceNow = s.AlwaysForceNow
-				}
-			}
-
-			if p.UpdateDelay == nil {
-				p.UpdateDelay = s.UpdateDelay
-			}
-			if p.TgChatId == nil {
-				p.TgChatId = s.TgChatId
-			}
-			if p.TgMentions == nil {
-				p.TgMentions = s.TgMentions
-			}
-			packages = append(packages, p)
+	if DEBUG {
+		for _, p := range Packages {
+			log(
+				"DEBUG ServerPackagesUpgrade package Name:%s AlwaysForceNow:%v ",
+				p.Name, *p.AlwaysForceNow,
+			)
 		}
 	}
 
@@ -717,21 +680,11 @@ func ServerPackagesUpgrade() (err error) {
 		log("DEBUG ServerPackagesUpgrade kclientset: %+v", kclientset)
 	}
 
-	log("ServerPackagesUpgrade packages count:%v", len(packages))
-	if DEBUG {
-		for _, p := range packages {
-			log(
-				"DEBUG ServerPackagesUpgrade package Name:%s AlwaysForceNow:%v ",
-				p.Name, *p.AlwaysForceNow,
-			)
-		}
-	}
-
 	return nil
 
 	// RETURN
 
-	for _, p := range packages {
+	for _, p := range Packages {
 		timenowhour := fmt.Sprintf("%02d", time.Now().In(p.TimezoneLocation).Hour())
 
 		log("helm. "+"%s AlwaysForceNow:%v AllowedHours:%v Timezone:%s TimeNowHour:%v ", p.Name, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour)
@@ -1152,6 +1105,73 @@ func ServerPackagesUpgrade() (err error) {
 	return nil
 }
 
+func ProcessServersPackages(servers []ServerConfig, packages []PackageConfig) (err error) {
+	for _, s := range servers {
+		if s.ServerHostname != ServerHostname {
+			continue
+		}
+		if s.AllowedHours != nil {
+			s.AllowedHoursList = strings.Split(*s.AllowedHours, " ")
+		}
+		if s.Timezone == nil || *s.Timezone == "" {
+			tzutc := "UTC"
+			s.Timezone = &tzutc
+			s.TimezoneLocation = time.UTC
+		} else {
+			s.TimezoneLocation, err = time.LoadLocation(*s.Timezone)
+			if err != nil {
+				return err
+			}
+		}
+		for _, p := range s.Packages {
+			p.Name = fmt.Sprintf("%s-%s", p.HelmName, p.EnvName)
+
+			p.PackageName = fmt.Sprintf("%s-%s", p.HelmName, p.EnvName)
+
+			if p.Namespace == "" {
+				p.Namespace = fmt.Sprintf("%s-%s", p.HelmName, p.EnvName)
+			}
+
+			p.ServerHostname = &s.ServerHostname
+
+			if p.AllowedHours == nil {
+				p.AllowedHours = s.AllowedHours
+			}
+			if p.AllowedHours != nil {
+				p.AllowedHoursList = strings.Split(*p.AllowedHours, " ")
+			}
+
+			if p.Timezone == nil {
+				p.Timezone = s.Timezone
+				p.TimezoneLocation = s.TimezoneLocation
+			}
+
+			if p.AlwaysForceNow == nil {
+				if s.AlwaysForceNow == nil {
+					varfalse := false
+					p.AlwaysForceNow = &varfalse
+				} else {
+					p.AlwaysForceNow = s.AlwaysForceNow
+				}
+			}
+
+			if p.UpdateDelay == nil {
+				p.UpdateDelay = s.UpdateDelay
+			}
+			if p.TgChatId == nil {
+				p.TgChatId = s.TgChatId
+			}
+			if p.TgMentions == nil {
+				p.TgMentions = s.TgMentions
+			}
+
+			packages = append(packages, p)
+		}
+	}
+
+	return nil
+}
+
 func log(msg string, args ...interface{}) {
 	var t time.Time
 	var tzone string
@@ -1554,8 +1574,8 @@ type ServerConfig struct {
 }
 
 type HelmbotConfig struct {
-	DrLatestYaml    []DrLatestYamlItem `yaml:"DrLatestYaml"`
-	ServersPackages []ServerConfig     `yaml:"ServersPackages"`
+	DrLatestYaml []DrLatestYamlItem `yaml:"DrLatestYaml"`
+	Servers      []ServerConfig     `yaml:"Servers"`
 }
 
 func ImagesValuesMapToList(imagesvaluesmap map[string]string) (imagesvalueslist []map[string]string, imagesvaluesyamltext string, err error) {
