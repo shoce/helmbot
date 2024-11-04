@@ -1169,7 +1169,10 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 		}
 	}
 
-	log("ProcessServersPackages servers:%d packages:%d", len(servers), len(packages))
+	if DEBUG {
+		log("ProcessServersPackages servers:%d packages:%d", len(servers), len(packages))
+	}
+
 	return packages, nil
 }
 
