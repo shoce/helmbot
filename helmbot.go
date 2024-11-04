@@ -608,7 +608,7 @@ func ServerPackagesUpgrade() (err error) {
 		log("DEBUG ServerPackagesUpgrade ConfigLocal: %+v", ConfigLocal)
 	}
 
-	err = ProcessServersPackages(ConfigLocal.Servers, PackagesLocal)
+	err = ProcessServersPackages(ConfigLocal.Servers, &PackagesLocal)
 	if err != nil {
 		log("WARNING ServerPackagesUpgrade ProcessServersPackages `%s`: %v", configlocalpath, err)
 	}
@@ -633,7 +633,7 @@ func ServerPackagesUpgrade() (err error) {
 		log("DEBUG ServerPackagesUpgrade Config: %+v", Config)
 	}
 
-	err = ProcessServersPackages(Config.Servers, Packages)
+	err = ProcessServersPackages(Config.Servers, &Packages)
 	if err != nil {
 		log("WARNING ServerPackagesUpgrade ProcessServersPackages: %v", err)
 	}
@@ -1105,7 +1105,11 @@ func ServerPackagesUpgrade() (err error) {
 	return nil
 }
 
-func ProcessServersPackages(servers []ServerConfig, packages []PackageConfig) (err error) {
+func ProcessServersPackages(servers []ServerConfig, packages *[]PackageConfig) (err error) {
+	if packages == nil {
+		return fmt.Errorf("packages is a nil pointer")
+	}
+
 	for _, s := range servers {
 		if s.ServerHostname != ServerHostname {
 			continue
@@ -1165,7 +1169,7 @@ func ProcessServersPackages(servers []ServerConfig, packages []PackageConfig) (e
 				p.TgMentions = s.TgMentions
 			}
 
-			packages = append(packages, p)
+			*packages = append(*packages, p)
 		}
 	}
 
