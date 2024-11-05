@@ -326,19 +326,21 @@ func main() {
 func Webhook(w http.ResponseWriter, r *http.Request) {
 	var err error
 	if TgWebhookToken != "" && r.Header.Get("X-Telegram-Bot-Api-Secret-Token") != TgWebhookToken {
-		log("request with invalid X-Telegram-Bot-Api-Secret-Token header")
+		log("Webhook request with invalid X-Telegram-Bot-Api-Secret-Token header")
 		return
 	}
 	var rbody []byte
 	rbody, err = io.ReadAll(r.Body)
 	if err != nil {
-		log("io.ReadAll r.Body: %s", err)
+		log("Webhook io.ReadAll r.Body: %s", err)
 	}
-	log("%s %s %s: %s", r.Method, r.URL, r.Header.Get("Content-Type"), strings.ReplaceAll(string(rbody), NL, ""))
+	if DEBUG {
+		log("Webhook %s %s %s: %s", r.Method, r.URL, r.Header.Get("Content-Type"), strings.ReplaceAll(string(rbody), NL, ""))
+	}
 	var rupdate TgUpdate
 	err = json.NewDecoder(bytes.NewBuffer(rbody)).Decode(&rupdate)
 	if err != nil {
-		log("json.Decoder.Decode: %s", err)
+		log("Webhook json.Decoder.Decode: %s", err)
 	}
 	w.WriteHeader(http.StatusOK)
 
@@ -346,42 +348,44 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		rupdate.Message = rupdate.ChannelPost
 	}
 
-	log("TgUpdate: %#v", rupdate)
+	if DEBUG {
+		log("Webhook TgUpdate: %+v", rupdate)
+	}
 
 	if !slices.Contains(TgChatIds, rupdate.Message.Chat.Id) {
-		log("reply to message chat id not valid")
+		log("Webhook reply to message chat id not valid")
 		return
 	}
-	log("reply to message chat id valid")
+	log("Webhook reply to message chat id valid")
 
 	if rupdate.Message.ReplyToMessage.From.Id != TgBotUserId && !slices.Contains(TgChatIds, rupdate.Message.ReplyToMessage.SenderChat.Id) {
-		log("reply to message user id not valid")
+		log("Webhook reply to message user id not valid")
 		return
 	}
-	log("reply to message user id valid")
+	log("Webhook reply to message user id valid")
 
 	UpdateHashIdSubmatch := UpdateHashIdRe.FindStringSubmatch(rupdate.Message.ReplyToMessage.Text)
 	if len(UpdateHashIdSubmatch) == 0 {
-		log("reply to message text not valid")
+		log("Webhook reply to message text not valid")
 		return
 	}
-	log("reply to message text valid")
+	log("Webhook reply to message text valid")
 
 	if !slices.Contains(TgChatIds, rupdate.Message.Chat.Id) {
-		log("message chat id not valid")
+		log("Webhook message chat id not valid")
 		return
 	}
-	log("message chat id valid")
+	log("Webhook message chat id valid")
 
 	msgtext := strings.TrimSpace(rupdate.Message.Text)
 	if msgtext != "NOW" {
-		log("message text not valid")
+		log("Webhook message text not valid")
 		return
 	}
-	log("message text valid")
+	log("Webhook message text valid")
 
 	if !slices.Contains(TgBossUserIds, rupdate.Message.From.Id) && !slices.Contains(TgChatIds, rupdate.Message.ReplyToMessage.SenderChat.Id) {
-		log("message user id not valid")
+		log("Webhook message user id not valid")
 		err = tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
 			"*Your request to force update %s is NOT accepted.*"+NL+NL+"Check helmbot TgBossUserIds config value.",
@@ -391,18 +395,18 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	log("message user id valid")
+	log("Webhook message user id valid")
 
-	log("update hash id submatch: %+v", UpdateHashIdSubmatch)
+	log("Webhook update hash id submatch: %+v", UpdateHashIdSubmatch)
 
 	UpdateHashId := UpdateHashIdSubmatch[0]
-	log("update hash id: %s", UpdateHashId)
+	log("Webhook update hash id: %s", UpdateHashId)
 	UpdateHelmName := UpdateHashIdSubmatch[1]
-	log("update helm name: %s", UpdateHelmName)
+	log("Webhook update helm name: %s", UpdateHelmName)
 	UpdateEnvName := UpdateHashIdSubmatch[2]
-	log("update env name: %s", UpdateEnvName)
+	log("Webhook update env name: %s", UpdateEnvName)
 	UpdateValuesHash := UpdateHashIdSubmatch[3]
-	log("update values hash: %s", UpdateValuesHash)
+	log("Webhook update values hash: %s", UpdateValuesHash)
 
 	/*
 		if s, err := script.ListFiles(PackagesDir).EachLine(func(l string, o *strings.Builder) { o.WriteString(l + NL) }).Join().String(); err == nil {
@@ -480,15 +484,15 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log("all checks passed")
+	log("Webhook all checks passed")
 
 	permithashpath := fmt.Sprintf("%s.%s.%s", UpdateHelmName, UpdateEnvName, PermitHashFilenameSuffix)
-	log("creating %s file", permithashpath)
+	log("Webhook creating %s file", permithashpath)
 
 	if err := PutValuesText(permithashpath, UpdateValuesHash); err == nil {
-		log("created %s file", permithashpath)
+		log("Webhook created %s file", permithashpath)
 	} else {
-		log("%s file could not be written: %v", permithashpath, err)
+		log("Webhook %s file could not be written: %v", permithashpath, err)
 		err = tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
 			"*INTERNAL ERROR*",
@@ -512,7 +516,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		log("ERROR tglog: %v", err)
 	}
 
-	log("finished %s", UpdateHashId)
+	log("Webhook finished %s", UpdateHashId)
 }
 
 func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error {
