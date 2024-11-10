@@ -4,8 +4,8 @@ GoFmt
 GoBuildNull
 
 go get -u -v gopkg.in/yaml.v3
-go get -u -v helm.sh/helm/v3
 go get -u -v github.com/rusenask/docker-registry-client/registry
+go get -u -v helm.sh/helm/v3@v3.16.2
 go get -u -v k8s.io/api/core/v1 k8s.io/apimachinery/pkg/api/errors k8s.io/apimachinery/pkg/apis/meta/v1 k8s.io/client-go/kubernetes k8s.io/client-go/rest
 go get -a -u -v
 go mod tidy
