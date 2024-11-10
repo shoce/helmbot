@@ -6,7 +6,8 @@ GoBuildNull
 go get -u -v gopkg.in/yaml.v3
 go get -u -v github.com/rusenask/docker-registry-client/registry
 go get -u -v helm.sh/helm/v3@v3.16.2
-go get -u -v k8s.io/api/core/v1 k8s.io/apimachinery/pkg/api/errors k8s.io/apimachinery/pkg/apis/meta/v1 k8s.io/client-go/kubernetes k8s.io/client-go/rest
+go get -u -v golang.org/x/crypto golang.org/x/net golang.org/x/oauth2 golang.org/x/sync golang.org/x/sys golang.org/x/term golang.org/x/text golang.org/x/time
+go get -u -v k8s.io/api/core/v1@v0.31.2 k8s.io/apimachinery@v0.31.2 k8s.io/apimachinery/pkg/util/managedfields@v0.31.2 k8s.io/apimachinery/pkg/api/errors@v0.31.2 k8s.io/apimachinery/pkg/apis/meta/v1@v0.31.2 k8s.io/client-go/kubernetes@v0.31.2 k8s.io/client-go/rest@v0.31.2
 go get -a -u -v
 go mod tidy
 
