@@ -719,7 +719,6 @@ func ServerPackagesUpgrade() (err error) {
 		//log("helm. "+"repo address:%s username:%s password:%s", p.HelmRepo.Address, p.HelmRepo.Username, p.HelmRepo.Password)
 
 		var chartpath string
-		var chartversion *helmrepo.ChartVersion
 
 		if p.HelmChartLocalFilename == "" {
 
@@ -750,6 +749,7 @@ func ServerPackagesUpgrade() (err error) {
 				return fmt.Errorf("LoadIndexFile %w", err)
 			}
 
+			var chartversion *helmrepo.ChartVersion
 			for chartname, chartversions := range idx.Entries {
 				if chartname != p.HelmName {
 					continue
@@ -802,10 +802,10 @@ func ServerPackagesUpgrade() (err error) {
 		} else {
 
 			chartpath = p.HelmChartLocalFilename
-			chartversion = nil
 
 		}
 
+		// https://pkg.go.dev/helm.sh/helm/v3/pkg/chart/loader#Load
 		chartfull, err := helmloader.Load(chartpath)
 		if err != nil {
 			return fmt.Errorf("helmloader.Load `%s`: %w", chartpath, err)
@@ -819,7 +819,8 @@ func ServerPackagesUpgrade() (err error) {
 
 		p.ImagesValuesMap = make(map[string]string)
 
-		p.ImagesValuesMap[p.HelmChartVersionKey] = chartversion.Version
+		// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/chart#Metadata
+		p.ImagesValuesMap[p.HelmChartVersionKey] = chartfull.Metadata.Version
 
 		err = drlatestyaml(p.HelmEnvValues, Config.DrLatestYaml, &p.ImagesValuesMap)
 		if err != nil {
@@ -1075,7 +1076,7 @@ func ServerPackagesUpgrade() (err error) {
 
 			var pkgrelease *helmrelease.Release
 			if isinstalled {
-				// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/action#Upgrade
+				// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Upgrade
 				helmupgrade := helmaction.NewUpgrade(helmactioncfg)
 				helmupgrade.DryRun = true
 				helmupgrade.Namespace = p.Namespace
@@ -1091,7 +1092,7 @@ func ServerPackagesUpgrade() (err error) {
 					return err
 				}
 			} else {
-				// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/action#Install
+				// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Install
 				helminstall := helmaction.NewInstall(helmactioncfg)
 				helminstall.DryRun = true
 				helminstall.CreateNamespace = true
