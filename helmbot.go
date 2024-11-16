@@ -603,10 +603,9 @@ func ServerPackagesUpgrade() (err error) {
 		}
 	}
 
-	configlocalpath := path.Join(ConfigLocalDir, ConfigLocalFilename)
-	err = GetValuesFile(configlocalpath, nil, &ConfigLocal)
+	err = GetValuesFile(ConfigLocalFilename, nil, &ConfigLocal)
 	if err != nil {
-		log("WARNING ServerPackagesUpgrade GetValuesFile `%s`: %v", configlocalpath, err)
+		log("WARNING ServerPackagesUpgrade GetValuesFile `%s`: %v", ConfigLocalFilename, err)
 	}
 
 	if DEBUG {
@@ -615,7 +614,7 @@ func ServerPackagesUpgrade() (err error) {
 
 	PackagesLocal, err = ProcessServersPackages(ConfigLocal.Servers)
 	if err != nil {
-		log("WARNING ServerPackagesUpgrade ProcessServersPackages `%s`: %v", configlocalpath, err)
+		log("WARNING ServerPackagesUpgrade ProcessServersPackages `%s`: %v", ConfigLocalFilename, err)
 	}
 
 	log("ServerPackagesUpgrade PackagesLocal count:%v", len(PackagesLocal))
@@ -624,7 +623,7 @@ func ServerPackagesUpgrade() (err error) {
 		for _, p := range PackagesLocal {
 			log(
 				"ServerPackagesUpgrade `%s` package Name:%s HelmChartLocalFilename:%s ",
-				configlocalpath, p.Name, p.HelmChartLocalFilename,
+				ConfigLocalFilename, p.Name, p.HelmChartLocalFilename,
 			)
 		}
 	}
@@ -723,6 +722,20 @@ func ServerPackagesUpgrade() (err error) {
 				return fmt.Errorf("GetValues `%s.%s.values.yaml`: %w", p.HelmName, p.EnvName, err)
 			}
 		} else {
+			err = GetValuesFile("global.values.yaml", &p.HelmGlobalValuesText, p.HelmGlobalValues)
+			if err != nil {
+				return fmt.Errorf("GetValues `global.values.yaml`: %w", err)
+			}
+
+			err = GetValuesFile(fmt.Sprintf("%s.values.yaml", p.HelmName), &p.HelmValuesText, p.HelmValues)
+			if err != nil {
+				return fmt.Errorf("GetValues `%s.values.yaml`: %w", p.HelmName, err)
+			}
+
+			err = GetValuesFile(fmt.Sprintf("%s.%s.values.yaml", p.HelmName, p.EnvName), &p.HelmEnvValuesText, p.HelmEnvValues)
+			if err != nil {
+				return fmt.Errorf("GetValues `%s.%s.values.yaml`: %w", p.HelmName, p.EnvName, err)
+			}
 		}
 
 		//log("helm. "+"package config:%+v / "+NL+"// ", p)
@@ -1393,6 +1406,8 @@ func GetValues(name string, valuestext *string, values interface{}) (err error) 
 }
 
 func GetValuesFile(filepath string, valuestext *string, values interface{}) (err error) {
+	filepath = path.Join(ConfigLocalDir, filepath)
+
 	bb, err := os.ReadFile(filepath)
 	if err != nil {
 		return err
