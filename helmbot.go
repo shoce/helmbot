@@ -84,7 +84,6 @@ var (
 	UpdateHashIdRe *regexp.Regexp
 
 	ServerHostname string
-	PackagesDir    string
 
 	ConfigLocalDir      string
 	ConfigLocalFilename string
@@ -141,12 +140,6 @@ func init() {
 	ServerHostname = os.Getenv("ServerHostname")
 	if ServerHostname == "" {
 		log("ERROR Empty ServerHostname env var")
-		os.Exit(1)
-	}
-
-	PackagesDir = os.Getenv("PackagesDir")
-	if PackagesDir == "" {
-		log("ERROR Empty PackagesDir env var")
 		os.Exit(1)
 	}
 
@@ -410,16 +403,16 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	log("Webhook update values hash: %s", UpdateValuesHash)
 
 	/*
-		if s, err := script.ListFiles(PackagesDir).EachLine(func(l string, o *strings.Builder) { o.WriteString(l + NL) }).Join().String(); err == nil {
-			log("%s: %s", PackagesDir, s)
+		if s, err := script.ListFiles(ConfigLocalDir).EachLine(func(l string, o *strings.Builder) { o.WriteString(l + NL) }).Join().String(); err == nil {
+			log("%s: %s", ConfigLocalDir, s)
 		} else {
-			log("ERROR %s: %v", PackagesDir, err)
+			log("ERROR %s: %v", ConfigLocalDir, err)
 			return
 		}
 	*/
 
 	PackageName := fmt.Sprintf("%s-%s", UpdateHelmName, UpdateEnvName)
-	PackageDir := fmt.Sprintf("%s/%s/", PackagesDir, PackageName)
+	PackageDir := fmt.Sprintf("%s/%s/", ConfigLocalDir, PackageName)
 	PackageLatestDir := fmt.Sprintf("%s/latest/", PackageDir)
 	PackageReportedDir := fmt.Sprintf("%s/reported/", PackageDir)
 	PackageDeployedDir := fmt.Sprintf("%s/deployed/", PackageDir)
@@ -696,7 +689,7 @@ func ServerPackagesUpgrade() (err error) {
 		log("helm. "+"%s AlwaysForceNow:%v AllowedHours:%v Timezone:%s TimeNowHour:%v ", p.Name, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour)
 
 		PackageName := fmt.Sprintf("%s-%s", p.HelmName, p.EnvName)
-		PackageDir := fmt.Sprintf("%s/%s/", PackagesDir, PackageName)
+		PackageDir := fmt.Sprintf("%s/%s/", ConfigLocalDir, PackageName)
 		PackageLatestDir := fmt.Sprintf("%s/latest/", PackageDir)
 		PackageReportedDir := fmt.Sprintf("%s/reported/", PackageDir)
 		PackageDeployedDir := fmt.Sprintf("%s/deployed/", PackageDir)

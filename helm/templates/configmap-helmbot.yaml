@@ -15,7 +15,6 @@ data:
   LoggingTag: "{{ $.Release.Namespace }}-helmbot"
 
   ServerHostname: "{{ $.Values.ServerHostname }}"
-  PackagesDir: "{{ $.Values.PackagesDir }}"
 
   ConfigLocalDir: "{{ $.Values.ConfigLocalDir }}"
   ConfigLocalFilename: "{{ $.Values.ConfigLocalFilename }}"

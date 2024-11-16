@@ -9,8 +9,6 @@ ImageNameGithubHelmbot: ""
 
 ServerHostname: ""
 
-PackagesDir: "/opt/helmbot/"
-
 ConfigLocalDir: "/opt/helmbot/"
 ConfigLocalFilename: "helmbot.config.local.yaml"
 ConfigMinioFilename: "helmbot.config.yaml"
