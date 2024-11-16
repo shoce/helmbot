@@ -702,16 +702,27 @@ func ServerPackagesUpgrade() (err error) {
 		PackageReportedDir := fmt.Sprintf("%s/reported/", PackageDir)
 		PackageDeployedDir := fmt.Sprintf("%s/deployed/", PackageDir)
 
+		p.HelmGlobalValues = make(map[string]interface{})
 		p.HelmValues = make(map[string]interface{})
-		err = GetValues(fmt.Sprintf("%s.values.yaml", p.HelmName), &p.HelmValuesText, p.HelmValues)
-		if err != nil {
-			return fmt.Errorf("GetValues %s.values.yaml: %w", p.HelmName, err)
-		}
-
 		p.HelmEnvValues = make(map[string]interface{})
-		err = GetValues(fmt.Sprintf("%s.%s.values.yaml", p.HelmName, p.EnvName), &p.HelmEnvValuesText, p.HelmEnvValues)
-		if err != nil {
-			return fmt.Errorf("GetValues %s.%s.values.yaml: %w", p.HelmName, p.EnvName, err)
+		p.HelmImagesValues = make(map[string]interface{})
+
+		if p.HelmChartLocalFilename == "" {
+			err = GetValues("global.values.yaml", &p.HelmGlobalValuesText, p.HelmGlobalValues)
+			if err != nil {
+				return fmt.Errorf("GetValues `global.values.yaml`: %w", err)
+			}
+
+			err = GetValues(fmt.Sprintf("%s.values.yaml", p.HelmName), &p.HelmValuesText, p.HelmValues)
+			if err != nil {
+				return fmt.Errorf("GetValues `%s.values.yaml`: %w", p.HelmName, err)
+			}
+
+			err = GetValues(fmt.Sprintf("%s.%s.values.yaml", p.HelmName, p.EnvName), &p.HelmEnvValuesText, p.HelmEnvValues)
+			if err != nil {
+				return fmt.Errorf("GetValues `%s.%s.values.yaml`: %w", p.HelmName, p.EnvName, err)
+			}
+		} else {
 		}
 
 		//log("helm. "+"package config:%+v / "+NL+"// ", p)
@@ -817,19 +828,17 @@ func ServerPackagesUpgrade() (err error) {
 
 		//log("helm. "+SPAC+"chart from repo version:%s len(values):%d", chartfull.Metadata.Version, len(chartfull.Values))
 
-		p.ImagesValuesMap = make(map[string]string)
-
 		// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/chart#Metadata
-		p.ImagesValuesMap[p.HelmChartVersionKey] = chartfull.Metadata.Version
+		p.HelmImagesValues[p.HelmChartVersionKey] = chartfull.Metadata.Version
 
-		err = drlatestyaml(p.HelmEnvValues, Config.DrLatestYaml, &p.ImagesValuesMap)
+		err = drlatestyaml(p.HelmEnvValues, Config.DrLatestYaml, &p.HelmImagesValues)
 		if err != nil {
 			return fmt.Errorf("drlatestyaml %s.%s: %w", p.HelmName, p.EnvName, err)
 		}
 
-		p.ImagesValuesList, p.ImagesValuesText, err = ImagesValuesMapToList(p.ImagesValuesMap)
+		p.HelmImagesValuesList, p.HelmImagesValuesText, err = ImagesValuesToList(p.HelmImagesValues)
 
-		allvaluestext := p.HelmValuesText + p.HelmEnvValuesText + p.ImagesValuesText
+		allvaluestext := p.HelmValuesText + p.HelmEnvValuesText + p.HelmImagesValuesText
 		p.ValuesHash = fmt.Sprintf("%x", sha256.Sum256([]byte(allvaluestext)))[:10]
 
 		/*
@@ -897,7 +906,7 @@ func ServerPackagesUpgrade() (err error) {
 			toreport = true
 		}
 
-		if p.ImagesValuesText != DeployedImagesValuesText {
+		if p.HelmImagesValuesText != DeployedImagesValuesText {
 			log("helm. " + SPAC + "ImagesValuesText diff ")
 			toreport = true
 
@@ -920,7 +929,7 @@ func ServerPackagesUpgrade() (err error) {
 			//ansired := func(s string) string { return "\033[31m" + s + "\033[0m" }
 			//ansibrightred := func(s string) string { return "\033[91m" + s + "\033[0m" }
 			imagesvaluesdiff := ""
-			iv1, iv2 := DeployedImagesValuesMap, p.ImagesValuesMap
+			iv1, iv2 := DeployedImagesValuesMap, p.HelmImagesValues
 			for name, v1 := range iv1 {
 				if v2, ok := iv2[name]; ok {
 					if v2 != v1 {
@@ -975,7 +984,7 @@ func ServerPackagesUpgrade() (err error) {
 			}
 
 			ImagesValuesTextPath := fmt.Sprintf("%s/%s.%s.images.values.yaml", PackageLatestDir, p.HelmName, p.EnvName)
-			err = os.WriteFile(ImagesValuesTextPath, []byte(p.ImagesValuesText), 0600)
+			err = os.WriteFile(ImagesValuesTextPath, []byte(p.HelmImagesValuesText), 0600)
 			if err != nil {
 				return fmt.Errorf("os.WriteFile `%s`: %w", ImagesValuesTextPath, err)
 			}
@@ -1479,7 +1488,7 @@ func (vv DrVersions) Swap(i, j int) {
 	vv[i], vv[j] = vv[j], vv[i]
 }
 
-func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLatestYamlItem, imagesvalues *map[string]string) (err error) {
+func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLatestYamlItem, imagesvalues *map[string]interface{}) (err error) {
 	for helmvalueskey, helmvaluesvalue := range helmvalues {
 		//log("drlatestyaml helmvalueskey %s", helmvalueskey)
 		for _, e := range drlatestyamlitems {
@@ -1567,15 +1576,16 @@ type PackageConfig struct {
 	TimezoneLocation *time.Location
 	AllowedHoursList []string
 
-	HelmValuesText string
-	HelmValues     map[string]interface{}
+	HelmGlobalValuesText string
+	HelmValuesText       string
+	HelmEnvValuesText    string
+	HelmImagesValuesText string
 
-	HelmEnvValuesText string
-	HelmEnvValues     map[string]interface{}
-
-	ImagesValuesText string
-	ImagesValuesList []map[string]string
-	ImagesValuesMap  map[string]string
+	HelmGlobalValues     map[string]interface{}
+	HelmValues           map[string]interface{}
+	HelmEnvValues        map[string]interface{}
+	HelmImagesValuesList []map[string]interface{}
+	HelmImagesValues     map[string]interface{}
 
 	ValuesHash string `yaml:"ValuesHash"`
 }
@@ -1601,10 +1611,10 @@ type HelmbotConfig struct {
 	Servers      []ServerConfig     `yaml:"Servers"`
 }
 
-func ImagesValuesMapToList(imagesvaluesmap map[string]string) (imagesvalueslist []map[string]string, imagesvaluesyamltext string, err error) {
-	imagesvalueslist = make([]map[string]string, 0)
+func ImagesValuesToList(imagesvaluesmap map[string]interface{}) (imagesvalueslist []map[string]interface{}, imagesvaluesyamltext string, err error) {
+	imagesvalueslist = make([]map[string]interface{}, 0)
 	for k, v := range imagesvaluesmap {
-		imagesvalueslist = append(imagesvalueslist, map[string]string{k: v})
+		imagesvalueslist = append(imagesvalueslist, map[string]interface{}{k: v})
 	}
 	sort.Slice(
 		imagesvalueslist,
