@@ -5,10 +5,10 @@ GoBuildNull
 
 go get -u -v gopkg.in/yaml.v3
 go get -u -v github.com/rusenask/docker-registry-client/registry
-go get -u -v helm.sh/helm/v3@v3.16.2
+go get -u -v helm.sh/helm/v3/...@v3.16.3
 go get -u -v golang.org/x/crypto golang.org/x/net golang.org/x/oauth2 golang.org/x/sync golang.org/x/sys golang.org/x/term golang.org/x/text golang.org/x/time google.golang.org/protobuf
 go get -u -v k8s.io/api/core/v1@v0.31.2 k8s.io/apimachinery@v0.31.2 k8s.io/apimachinery/pkg/util/managedfields@v0.31.2 k8s.io/apimachinery/pkg/api/errors@v0.31.2 k8s.io/apimachinery/pkg/apis/meta/v1@v0.31.2 k8s.io/client-go/kubernetes@v0.31.2 k8s.io/client-go/rest@v0.31.2
-go get -a -u -v
+go get -u -v
 go mod tidy
 
 */
@@ -1062,7 +1062,7 @@ func ServerPackagesUpgrade() (err error) {
 
 			var pkgrelease *helmrelease.Release
 			if isinstalled {
-				// https://pkg.go.dev/helm.sh/helm/v3@v3.12.3/pkg/action#Upgrade
+				// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/action#Upgrade
 				helmupgrade := helmaction.NewUpgrade(helmactioncfg)
 				helmupgrade.DryRun = true
 				helmupgrade.Namespace = p.Namespace
@@ -1078,7 +1078,7 @@ func ServerPackagesUpgrade() (err error) {
 					return err
 				}
 			} else {
-				// https://pkg.go.dev/helm.sh/helm/v3@v3.12.3/pkg/action#Install
+				// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/action#Install
 				helminstall := helmaction.NewInstall(helmactioncfg)
 				helminstall.DryRun = true
 				helminstall.CreateNamespace = true
