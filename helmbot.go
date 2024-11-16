@@ -687,7 +687,9 @@ func ServerPackagesUpgrade() (err error) {
 
 	return nil
 
+	//
 	// RETURN
+	//
 
 	for _, p := range Packages {
 		timenowhour := fmt.Sprintf("%02d", time.Now().In(p.TimezoneLocation).Hour())
@@ -716,86 +718,97 @@ func ServerPackagesUpgrade() (err error) {
 
 		//log("helm. "+"repo address:%s username:%s password:%s", p.HelmRepo.Address, p.HelmRepo.Username, p.HelmRepo.Password)
 
-		chartrepo, err := helmrepo.NewChartRepository(
-			&helmrepo.Entry{
-				Name:                  fmt.Sprintf("helm.%s.%s", p.HelmName, p.EnvName),
-				URL:                   p.HelmRepo.Address,
-				Username:              p.HelmRepo.Username,
-				Password:              p.HelmRepo.Password,
-				InsecureSkipTLSverify: false,
-				PassCredentialsAll:    false,
-			},
-			helmgetterall,
-		)
-		if err != nil {
-			return fmt.Errorf("NewChartRepository %w", err)
-		}
-		//log("helm. "+"chart repo: %+v", chartrepo)
-
-		indexfilepath, err := chartrepo.DownloadIndexFile()
-		if err != nil {
-			return fmt.Errorf("DownloadIndexFile %w", err)
-		}
-		//log("helm. "+"chart repo index file path: %v", indexfilepath)
-
-		idx, err := helmrepo.LoadIndexFile(indexfilepath)
-		if err != nil {
-			return fmt.Errorf("LoadIndexFile %w", err)
-		}
-
+		var chartpath string
 		var chartversion *helmrepo.ChartVersion
-		for chartname, chartversions := range idx.Entries {
-			if chartname != p.HelmName {
-				continue
+
+		if p.HelmChartLocalFilename == "" {
+
+			chartrepo, err := helmrepo.NewChartRepository(
+				&helmrepo.Entry{
+					Name:                  fmt.Sprintf("helm.%s.%s", p.HelmName, p.EnvName),
+					URL:                   p.HelmRepo.Address,
+					Username:              p.HelmRepo.Username,
+					Password:              p.HelmRepo.Password,
+					InsecureSkipTLSverify: false,
+					PassCredentialsAll:    false,
+				},
+				helmgetterall,
+			)
+			if err != nil {
+				return fmt.Errorf("NewChartRepository %w", err)
+			}
+			//log("helm. "+"chart repo: %+v", chartrepo)
+
+			indexfilepath, err := chartrepo.DownloadIndexFile()
+			if err != nil {
+				return fmt.Errorf("DownloadIndexFile %w", err)
+			}
+			//log("helm. "+"chart repo index file path: %v", indexfilepath)
+
+			idx, err := helmrepo.LoadIndexFile(indexfilepath)
+			if err != nil {
+				return fmt.Errorf("LoadIndexFile %w", err)
 			}
 
-			if len(chartversions) == 0 {
-				return fmt.Errorf("chart repo index: %s: zero chart versions")
-			}
-
-			if p.HelmChartVersion != "" {
-				for _, v := range chartversions {
-					if v.Version == p.HelmChartVersion {
-						chartversion = v
-					}
+			for chartname, chartversions := range idx.Entries {
+				if chartname != p.HelmName {
+					continue
 				}
-			} else {
-				sort.Sort(sort.Reverse(chartversions))
-				chartversion = chartversions[0]
+
+				if len(chartversions) == 0 {
+					return fmt.Errorf("chart repo index: %s: zero chart versions")
+				}
+
+				if p.HelmChartVersion != "" {
+					for _, v := range chartversions {
+						if v.Version == p.HelmChartVersion {
+							chartversion = v
+						}
+					}
+				} else {
+					sort.Sort(sort.Reverse(chartversions))
+					chartversion = chartversions[0]
+				}
 			}
+
+			if chartversion == nil {
+				return fmt.Errorf("helm. "+"chart repo index: helm chart %s: ERROR no chart version found ", p.HelmName)
+			}
+
+			if len(chartversion.URLs) < 1 {
+				return fmt.Errorf("helm. "+"chart %s: ERROR no chart urls ", p.HelmName)
+			}
+
+			charturl, err := helmrepo.ResolveReferenceURL(p.HelmRepo.Address, chartversion.URLs[0])
+			if err != nil {
+				return err
+			}
+
+			//log("helm. "+SPAC+"chart url: %v ", charturl)
+
+			chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetterall}
+			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
+			if p.HelmRepo.Username != "" {
+				chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithBasicAuth(p.HelmRepo.Username, p.HelmRepo.Password))
+			}
+
+			chartpath, _, err = chartdownloader.DownloadTo(charturl, chartversion.Version, "")
+			if err != nil {
+				return err
+			}
+
+			//log("helm. "+SPAC+"chart downloaded path: %s ", chartpath)
+
+		} else {
+
+			chartpath = p.HelmChartLocalFilename
+			chartversion = nil
+
 		}
-
-		if chartversion == nil {
-			return fmt.Errorf("helm. "+"chart repo index: helm chart %s: ERROR no chart version found ", p.HelmName)
-		}
-
-		if len(chartversion.URLs) < 1 {
-			return fmt.Errorf("helm. "+"chart %s: ERROR no chart urls ", p.HelmName)
-		}
-
-		charturl, err := helmrepo.ResolveReferenceURL(p.HelmRepo.Address, chartversion.URLs[0])
-		if err != nil {
-			return err
-		}
-
-		//log("helm. "+SPAC+"chart url: %v ", charturl)
-
-		chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetterall}
-		chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
-		if p.HelmRepo.Username != "" {
-			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithBasicAuth(p.HelmRepo.Username, p.HelmRepo.Password))
-		}
-
-		chartpath, _, err := chartdownloader.DownloadTo(charturl, chartversion.Version, "")
-		if err != nil {
-			return err
-		}
-
-		//log("helm. "+SPAC+"chart downloaded path: %s ", chartpath)
 
 		chartfull, err := helmloader.Load(chartpath)
 		if err != nil {
-			return err
+			return fmt.Errorf("helmloader.Load `%s`: %w", chartpath, err)
 		}
 
 		if chartfull == nil {
@@ -840,26 +853,26 @@ func ServerPackagesUpgrade() (err error) {
 		DeployedHelmValuesTextPath := fmt.Sprintf("%s/deployed/%s.values.yaml", PackageDir, p.HelmName)
 		DeployedHelmValuesTextBytes, err := os.ReadFile(DeployedHelmValuesTextPath)
 		if err != nil {
-			log("ReadFile %s", err)
+			log("os.ReadFile: %s", err)
 		}
 
 		DeployedHelmEnvValuesTextPath := fmt.Sprintf("%s/deployed/%s.%s.values.yaml", PackageDir, p.HelmName, p.EnvName)
 		DeployedHelmEnvValuesTextBytes, err := os.ReadFile(DeployedHelmEnvValuesTextPath)
 		if err != nil {
-			log("ReadFile %s", err)
+			log("os.ReadFile: %s", err)
 		}
 
 		DeployedImagesValuesTextPath := fmt.Sprintf("%s/deployed/%s.%s.images.values.yaml", PackageDir, p.HelmName, p.EnvName)
 		DeployedImagesValuesTextBytes, err := os.ReadFile(DeployedImagesValuesTextPath)
 		if err != nil {
-			log("ReadFile %s", err)
+			log("os.ReadFile: %s", err)
 		}
 		DeployedImagesValuesText := string(DeployedImagesValuesTextBytes)
 
 		ReportedValuesHashPath := fmt.Sprintf("%s.%s.%s", PackageDir, p.HelmName, p.EnvName, ValuesReportedHashFilenameSuffix)
 		ReportedValuesHashBytes, err := os.ReadFile(ReportedValuesHashPath)
 		if err != nil {
-			//log("ReadFile %s", err)
+			//log("os.ReadFile: %s", err)
 			ReportedValuesHashBytes = []byte{}
 		}
 		ReportedValuesHash := string(ReportedValuesHashBytes)
@@ -940,36 +953,36 @@ func ServerPackagesUpgrade() (err error) {
 
 			err = os.RemoveAll(PackageLatestDir)
 			if err != nil {
-				return fmt.Errorf("RemoveAll %s: %w", PackageLatestDir, err)
+				return fmt.Errorf("os.RemoveAll `%s`: %w", PackageLatestDir, err)
 			}
 
 			err = os.MkdirAll(PackageLatestDir, 0700)
 			if err != nil {
-				return fmt.Errorf("MkdirAll %s: %w", PackageLatestDir, err)
+				return fmt.Errorf("os.MkdirAll `%s`: %w", PackageLatestDir, err)
 			}
 
 			HelmValuesTextPath := fmt.Sprintf("%s/%s.values.yaml", PackageLatestDir, p.HelmName)
 			err = os.WriteFile(HelmValuesTextPath, []byte(p.HelmValuesText), 0600)
 			if err != nil {
-				return fmt.Errorf("WriteFile %s: %w", HelmValuesTextPath, err)
+				return fmt.Errorf("os.WriteFile `%s`: %w", HelmValuesTextPath, err)
 			}
 
 			HelmEnvValuesTextPath := fmt.Sprintf("%s/%s.%s.values.yaml", PackageLatestDir, p.HelmName, p.EnvName)
 			err = os.WriteFile(HelmEnvValuesTextPath, []byte(p.HelmEnvValuesText), 0600)
 			if err != nil {
-				return fmt.Errorf("WriteFile %s: %w", HelmEnvValuesTextPath, err)
+				return fmt.Errorf("os.WriteFile `%s`: %w", HelmEnvValuesTextPath, err)
 			}
 
 			ImagesValuesTextPath := fmt.Sprintf("%s/%s.%s.images.values.yaml", PackageLatestDir, p.HelmName, p.EnvName)
 			err = os.WriteFile(ImagesValuesTextPath, []byte(p.ImagesValuesText), 0600)
 			if err != nil {
-				return fmt.Errorf("WriteFile %s: %w", ImagesValuesTextPath, err)
+				return fmt.Errorf("os.WriteFile `%s`: %w", ImagesValuesTextPath, err)
 			}
 
 			ValuesHashPath := fmt.Sprintf("%s.%s.%s", p.HelmName, p.EnvName, ValuesLatestHashFilenameSuffix)
 			err = os.WriteFile(ValuesHashPath, []byte(p.ValuesHash), 0600)
 			if err != nil {
-				return fmt.Errorf("WriteFile %s: %w", ValuesHashPath, err)
+				return fmt.Errorf("os.WriteFile `%s`: %w", ValuesHashPath, err)
 			}
 
 			log("helm. "+SPAC+"#%s#%s#%s latest ", p.HelmName, p.EnvName, p.ValuesHash)
@@ -980,12 +993,12 @@ func ServerPackagesUpgrade() (err error) {
 
 			err = os.RemoveAll(PackageReportedDir)
 			if err != nil {
-				return fmt.Errorf("RemoveAll %s: %w", PackageReportedDir, err)
+				return fmt.Errorf("os.RemoveAll `%s`: %w", PackageReportedDir, err)
 			}
 
 			err = os.Rename(PackageLatestDir, PackageReportedDir)
 			if err != nil {
-				return fmt.Errorf("Rename %s %s: %w", PackageLatestDir, PackageReportedDir, err)
+				return fmt.Errorf("os.Rename `%s` `%s`: %w", PackageLatestDir, PackageReportedDir, err)
 			}
 
 			log("helm. "+SPAC+"#%s#%s#%s reported ", p.HelmName, p.EnvName, p.ValuesHash)
@@ -1025,12 +1038,12 @@ func ServerPackagesUpgrade() (err error) {
 
 			err = os.RemoveAll(PackageDeployedDir)
 			if err != nil {
-				return fmt.Errorf("RemoveAll %s: %w", PackageDeployedDir, err)
+				return fmt.Errorf("os.RemoveAll `%s`: %w", PackageDeployedDir, err)
 			}
 
 			err = os.Rename(PackageReportedDir, PackageDeployedDir)
 			if err != nil {
-				return fmt.Errorf("Rename %s %s: %w", PackageReportedDir, PackageDeployedDir, err)
+				return fmt.Errorf("os.Rename `%s` `%s`: %w", PackageReportedDir, PackageDeployedDir, err)
 			}
 
 			namespaceexists := false
