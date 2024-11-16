@@ -4,7 +4,8 @@ ImageRegistryAddress: ""
 ImageRegistryUsername: ""
 ImageRegistryPassword: ""
 
-ImageNameGithubHelmbot: ""
+ImageNameGithubHelmbot: "ghcr.io/shoce/helmbot/dev"
+ImageTagGithubHelmbot: ""
 
 
 ServerHostname: ""
