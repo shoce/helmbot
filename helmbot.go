@@ -301,10 +301,10 @@ func main() {
 		for {
 			err := ServerPackagesUpgrade()
 			if err != nil {
-				log("ERROR update: %+v", err)
+				log("ERROR packages: %+v", err)
 			}
 			if DEBUG {
-				log("update: sleeping %s.", ServerPackagesUpgradeInterval)
+				log("packages: sleeping %s.", ServerPackagesUpgradeInterval)
 			}
 			time.Sleep(ServerPackagesUpgradeInterval)
 		}

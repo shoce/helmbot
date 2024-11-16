@@ -35,3 +35,5 @@ data:
   PutValuesUsername: "{{ $.Values.PutValuesUsername }}"
   PutValuesPassword: "{{ $.Values.PutValuesPassword }}"
 
+  DEBUG: "{{ $.Values.DEBUG }}"
+

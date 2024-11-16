@@ -5,7 +5,7 @@ RUN mkdir -p /root/helmbot/
 COPY helmbot.go go.mod /root/helmbot/
 WORKDIR /root/helmbot/
 RUN go version
-RUN go get -a -v
+RUN go get -v
 RUN ls -l -a
 RUN go build -o helmbot helmbot.go
 RUN ls -l -a
