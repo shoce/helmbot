@@ -129,7 +129,7 @@ func init() {
 
 	UpdateHashIdRe, err = regexp.Compile(UpdateHashIdReString)
 	if err != nil {
-		log("ERROR %v regexp compile error: %s", UpdateHashIdReString, err)
+		log("ERROR `%s` regexp compile error: %s", UpdateHashIdReString, err)
 		os.Exit(1)
 	}
 
@@ -140,7 +140,7 @@ func init() {
 
 	ServerHostname = os.Getenv("ServerHostname")
 	if ServerHostname == "" {
-		log("ERROR Empty ServerHostname env var")
+		log("ERROR empty ServerHostname env var")
 		os.Exit(1)
 	}
 
@@ -155,7 +155,7 @@ func init() {
 
 	TgToken = os.Getenv("TgToken")
 	if TgToken == "" {
-		log("ERROR Empty TgToken env var")
+		log("ERROR empty TgToken env var")
 		os.Exit(1)
 	}
 
@@ -163,29 +163,29 @@ func init() {
 		botuserid := strings.Split(TgToken, ":")[0]
 		userid, err := strconv.Atoi(botuserid)
 		if err != nil {
-			log("ERROR Invalid bot user id:`%s`", botuserid)
+			log("ERROR invalid bot user id:`%s`", botuserid)
 			os.Exit(1)
 		}
 		TgBotUserId = int64(userid)
 	}
 	if TgBotUserId == 0 {
-		log("ERROR Empty or invalid bot user id")
+		log("ERROR empty or invalid bot user id")
 		os.Exit(1)
 	}
 
 	TgWebhookHost = os.Getenv("TgWebhookHost")
 	if TgWebhookHost == "" {
-		log("WARNING Empty TgWebhookHost env var")
+		log("WARNING empty TgWebhookHost env var")
 	}
 
 	TgWebhookUrl = os.Getenv("TgWebhookUrl")
 	if TgWebhookUrl == "" {
-		log("WARNING Empty TgWebhookUrl env var")
+		log("WARNING empty TgWebhookUrl env var")
 	}
 
 	TgWebhookToken = os.Getenv("TgWebhookToken")
 	if TgWebhookToken == "" {
-		log("WARNING Empty TgWebhookToken env var")
+		log("WARNING empty TgWebhookToken env var")
 	}
 
 	for _, i := range strings.Split(strings.TrimSpace(os.Getenv("TgChatIds")), " ") {
@@ -194,12 +194,12 @@ func init() {
 		}
 		chatid, err := strconv.Atoi(i)
 		if err != nil || chatid == 0 {
-			log("WARNING Invalid chat id:`%s`", i)
+			log("WARNING invalid chat id:`%s`", i)
 		}
 		TgChatIds = append(TgChatIds, int64(chatid))
 	}
 	if len(TgChatIds) == 0 && TgWebhookUrl != "" {
-		log("ERROR Empty or invalid TgChatIds env var")
+		log("ERROR empty or invalid TgChatIds env var")
 		os.Exit(1)
 	}
 
@@ -209,18 +209,17 @@ func init() {
 		}
 		userid, err := strconv.Atoi(i)
 		if err != nil || userid == 0 {
-			log("WARNING Invalid user id `%s`", i)
+			log("WARNING invalid user id `%s`", i)
 		}
 		TgBossUserIds = append(TgBossUserIds, int64(userid))
 	}
 	if len(TgBossUserIds) == 0 {
-		log("WARNING Empty or invalid TgBossUserIds env var")
+		log("WARNING empty or invalid TgBossUserIds env var")
 	}
 
 	GetValuesUrlPrefix = os.Getenv("GetValuesUrlPrefix")
 	if GetValuesUrlPrefix == "" {
-		log("ERROR Empty GetValuesUrlPrefix env var")
-		os.Exit(1)
+		log("WARNING empty GetValuesUrlPrefix env var")
 	}
 	if getvaluesurl, err := url.Parse(GetValuesUrlPrefix); err != nil {
 		log("ERROR url.Parse GetValuesUrlPrefix: %v", err)
@@ -232,19 +231,19 @@ func init() {
 
 	GetValuesUsername = os.Getenv("GetValuesUsername")
 	if GetValuesUsername == "" {
-		log("ERROR Empty GetValuesUsername env var")
+		log("ERROR empty GetValuesUsername env var")
 		os.Exit(1)
 	}
 
 	GetValuesPassword = os.Getenv("GetValuesPassword")
 	if GetValuesPassword == "" {
-		log("ERROR Empty GetValuesPassword env var")
+		log("ERROR empty GetValuesPassword env var")
 		os.Exit(1)
 	}
 
 	PutValuesUrlPrefix = os.Getenv("PutValuesUrlPrefix")
 	if PutValuesUrlPrefix == "" {
-		log("ERROR Empty PutValuesUrlPrefix env var")
+		log("ERROR empty PutValuesUrlPrefix env var")
 		os.Exit(1)
 	}
 	if putvaluesurl, err := url.Parse(PutValuesUrlPrefix); err != nil {
@@ -257,13 +256,13 @@ func init() {
 
 	PutValuesUsername = os.Getenv("PutValuesUsername")
 	if PutValuesUsername == "" {
-		log("ERROR Empty PutValuesUsername env var")
+		log("ERROR empty PutValuesUsername env var")
 		os.Exit(1)
 	}
 
 	PutValuesPassword = os.Getenv("PutValuesPassword")
 	if PutValuesPassword == "" {
-		log("ERROR Empty PutValuesPassword env var")
+		log("ERROR empty PutValuesPassword env var")
 		os.Exit(1)
 	}
 
@@ -1341,6 +1340,9 @@ type TgChat struct {
 // https://gist.github.com/gabo89/5e3e316bd4be0fb99369eac512a66537
 // https://stackoverflow.com/questions/72047783/how-do-i-download-files-from-a-minio-s3-bucket-using-curl
 func GetValuesText(name string, valuestext *string) (err error) {
+	if GetValuesUrlPrefix == "" {
+		return fmt.Errorf("empty GetValuesUrlPrefix")
+	}
 	r, err := http.NewRequest("GET", GetValuesUrlPrefix+name, nil)
 	if err != nil {
 		return err
