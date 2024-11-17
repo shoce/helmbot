@@ -135,6 +135,7 @@ func init() {
 
 	if os.Getenv("DEBUG") != "" {
 		DEBUG = true
+		log("DEBUG:true")
 	}
 
 	ServerHostname = os.Getenv("ServerHostname")
@@ -197,7 +198,7 @@ func init() {
 		}
 		TgChatIds = append(TgChatIds, int64(chatid))
 	}
-	if len(TgChatIds) == 0 {
+	if len(TgChatIds) == 0 && TgWebhookUrl != "" {
 		log("ERROR Empty or invalid TgChatIds env var")
 		os.Exit(1)
 	}
