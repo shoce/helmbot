@@ -1,15 +1,8 @@
 /*
 
+GoGet
 GoFmt
 GoBuildNull
-
-go get -u -v gopkg.in/yaml.v3
-go get -u -v github.com/rusenask/docker-registry-client/registry
-go get -u -v helm.sh/helm/v3/...@v3.16.3
-go get -u -v golang.org/x/crypto golang.org/x/net golang.org/x/oauth2 golang.org/x/sync golang.org/x/sys golang.org/x/term golang.org/x/text golang.org/x/time google.golang.org/protobuf
-go get -u -v k8s.io/api/core/v1@v0.31.2 k8s.io/apimachinery@v0.31.2 k8s.io/apimachinery/pkg/util/managedfields@v0.31.2 k8s.io/apimachinery/pkg/api/errors@v0.31.2 k8s.io/apimachinery/pkg/apis/meta/v1@v0.31.2 k8s.io/client-go/kubernetes@v0.31.2 k8s.io/client-go/rest@v0.31.2
-go get -u -v
-go mod tidy
 
 */
 
@@ -230,21 +223,20 @@ func init() {
 	}
 
 	GetValuesUsername = os.Getenv("GetValuesUsername")
-	if GetValuesUsername == "" {
+	if GetValuesUsername == "" && GetValuesUrlPrefix != "" {
 		log("ERROR empty GetValuesUsername env var")
 		os.Exit(1)
 	}
 
 	GetValuesPassword = os.Getenv("GetValuesPassword")
-	if GetValuesPassword == "" {
+	if GetValuesPassword == "" && GetValuesUrlPrefix != "" {
 		log("ERROR empty GetValuesPassword env var")
 		os.Exit(1)
 	}
 
 	PutValuesUrlPrefix = os.Getenv("PutValuesUrlPrefix")
 	if PutValuesUrlPrefix == "" {
-		log("ERROR empty PutValuesUrlPrefix env var")
-		os.Exit(1)
+		log("WARNING empty PutValuesUrlPrefix env var")
 	}
 	if putvaluesurl, err := url.Parse(PutValuesUrlPrefix); err != nil {
 		log("ERROR url.Parse PutValuesUrlPrefix: %v", err)
@@ -255,13 +247,13 @@ func init() {
 	}
 
 	PutValuesUsername = os.Getenv("PutValuesUsername")
-	if PutValuesUsername == "" {
+	if PutValuesUsername == "" && PutValuesUrlPrefix != "" {
 		log("ERROR empty PutValuesUsername env var")
 		os.Exit(1)
 	}
 
 	PutValuesPassword = os.Getenv("PutValuesPassword")
-	if PutValuesPassword == "" {
+	if PutValuesPassword == "" && PutValuesUrlPrefix != "" {
 		log("ERROR empty PutValuesPassword env var")
 		os.Exit(1)
 	}
@@ -596,9 +588,9 @@ func ServerPackagesUpgrade() (err error) {
 		}
 	}
 
-	err = GetValuesFile(ConfigLocalFilename, nil, &ConfigLocal)
+	err = GetValues(ConfigLocalFilename, nil, &ConfigLocal)
 	if err != nil {
-		log("WARNING ServerPackagesUpgrade GetValuesFile `%s`: %v", ConfigLocalFilename, err)
+		log("WARNING ServerPackagesUpgrade GetValues `%s`: %v", ConfigLocalFilename, err)
 	}
 
 	if DEBUG {
@@ -699,36 +691,19 @@ func ServerPackagesUpgrade() (err error) {
 		p.HelmEnvValues = make(map[string]interface{})
 		p.HelmImagesValues = make(map[string]interface{})
 
-		if p.HelmChartLocalFilename == "" {
-			err = GetValues("global.values.yaml", &p.HelmGlobalValuesText, p.HelmGlobalValues)
-			if err != nil {
-				return fmt.Errorf("GetValues `global.values.yaml`: %w", err)
-			}
+		err = GetValues("global.values.yaml", &p.HelmGlobalValuesText, p.HelmGlobalValues)
+		if err != nil {
+			return fmt.Errorf("GetValues `global.values.yaml`: %w", err)
+		}
 
-			err = GetValues(fmt.Sprintf("%s.values.yaml", p.HelmName), &p.HelmValuesText, p.HelmValues)
-			if err != nil {
-				return fmt.Errorf("GetValues `%s.values.yaml`: %w", p.HelmName, err)
-			}
+		err = GetValues(fmt.Sprintf("%s.values.yaml", p.HelmName), &p.HelmValuesText, p.HelmValues)
+		if err != nil {
+			return fmt.Errorf("GetValues `%s.values.yaml`: %w", p.HelmName, err)
+		}
 
-			err = GetValues(fmt.Sprintf("%s.%s.values.yaml", p.HelmName, p.EnvName), &p.HelmEnvValuesText, p.HelmEnvValues)
-			if err != nil {
-				return fmt.Errorf("GetValues `%s.%s.values.yaml`: %w", p.HelmName, p.EnvName, err)
-			}
-		} else {
-			err = GetValuesFile("global.values.yaml", &p.HelmGlobalValuesText, p.HelmGlobalValues)
-			if err != nil {
-				return fmt.Errorf("GetValues `global.values.yaml`: %w", err)
-			}
-
-			err = GetValuesFile(fmt.Sprintf("%s.values.yaml", p.HelmName), &p.HelmValuesText, p.HelmValues)
-			if err != nil {
-				return fmt.Errorf("GetValues `%s.values.yaml`: %w", p.HelmName, err)
-			}
-
-			err = GetValuesFile(fmt.Sprintf("%s.%s.values.yaml", p.HelmName, p.EnvName), &p.HelmEnvValuesText, p.HelmEnvValues)
-			if err != nil {
-				return fmt.Errorf("GetValues `%s.%s.values.yaml`: %w", p.HelmName, p.EnvName, err)
-			}
+		err = GetValues(fmt.Sprintf("%s.%s.values.yaml", p.HelmName, p.EnvName), &p.HelmEnvValuesText, p.HelmEnvValues)
+		if err != nil {
+			return fmt.Errorf("GetValues `%s.%s.values.yaml`: %w", p.HelmName, p.EnvName, err)
 		}
 
 		//log("helm. "+"package config:%+v / "+NL+"// ", p)
@@ -1341,8 +1316,9 @@ type TgChat struct {
 // https://stackoverflow.com/questions/72047783/how-do-i-download-files-from-a-minio-s3-bucket-using-curl
 func GetValuesText(name string, valuestext *string) (err error) {
 	if GetValuesUrlPrefix == "" {
-		return fmt.Errorf("empty GetValuesUrlPrefix")
+		return GetValuesFileText(name, valuestext)
 	}
+
 	r, err := http.NewRequest("GET", GetValuesUrlPrefix+name, nil)
 	if err != nil {
 		return err
@@ -1381,28 +1357,8 @@ func GetValuesText(name string, valuestext *string) (err error) {
 	return nil
 }
 
-func GetValues(name string, valuestext *string, values interface{}) (err error) {
-	var tempvaluestext string
-	if valuestext == nil {
-		valuestext = &tempvaluestext
-	}
-
-	err = GetValuesText(name, valuestext)
-	if err != nil {
-		return err
-	}
-
-	d := yaml.NewDecoder(strings.NewReader(*valuestext))
-	err = d.Decode(values)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func GetValuesFile(filepath string, valuestext *string, values interface{}) (err error) {
-	filepath = path.Join(ConfigLocalDir, filepath)
+func GetValuesFileText(name string, valuestext *string) (err error) {
+	filepath := path.Join(ConfigLocalDir, name)
 
 	bb, err := os.ReadFile(filepath)
 	if err != nil {
@@ -1414,6 +1370,20 @@ func GetValuesFile(filepath string, valuestext *string, values interface{}) (err
 		valuestext = &tempvaluestext
 	} else {
 		*valuestext = string(bb)
+	}
+
+	return nil
+}
+
+func GetValues(name string, valuestext *string, values interface{}) (err error) {
+	var tempvaluestext string
+	if valuestext == nil {
+		valuestext = &tempvaluestext
+	}
+
+	err = GetValuesText(name, valuestext)
+	if err != nil {
+		return err
 	}
 
 	d := yaml.NewDecoder(strings.NewReader(*valuestext))
