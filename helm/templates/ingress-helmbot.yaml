@@ -1,9 +1,9 @@
----
 {{ if $.Values.TgWebhookHost -}}
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ $.Release.Namespace }}-ingress-helmbot
+  name: helmbot
   annotations:
     kubernetes.io/ingress.allow-http: "false"
     nginx.ingress.kubernetes.io/proxy-body-size: "{{ $.Values.IngressRequestMaxBodySizeString }}"
@@ -23,7 +23,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: {{ $.Release.Namespace }}-helmbot-service
+            name: helmbot
             port:
               number: 80
 

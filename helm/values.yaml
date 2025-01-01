@@ -1,19 +1,16 @@
 ---
 
-ImageRegistryAddress: ""
-ImageRegistryUsername: ""
-ImageRegistryPassword: ""
-
 ImageNameGithubHelmbot: "ghcr.io/shoce/helmbot/dev"
 ImageTagGithubHelmbot: ""
 
 
 ServerHostname: ""
 
+KubeDir: "/root/.kube/"
+
 ConfigLocalDir: "/opt/helmbot/"
 ConfigLocalFilename: "helmbot.config.local.yaml"
 ConfigMinioFilename: "helmbot.config.yaml"
-
 
 TgToken: ""
 TgWebhookHost: ""

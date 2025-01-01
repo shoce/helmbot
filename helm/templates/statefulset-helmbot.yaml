@@ -24,10 +24,7 @@ spec:
 
     spec:
 
-      serviceAccountName: helmbot-admin-user
-
-      imagePullSecrets:
-      - name: registry-helmbot-pull-secret
+      serviceAccountName: helmbot-admin
 
       containers:
 
@@ -46,16 +43,12 @@ spec:
 
           volumeMounts:
             - mountPath: {{ $.Values.ConfigLocalDir }}
-              name: helmbot-configlocaldir-volume
-            - mountPath: /root/.kube2/
-              name: helmbot-rootkubedir-volume
-
-      volumes:
-        - name: helmbot-configlocaldir-volume
-          persistentVolumeClaim:
-            claimName: helmbot-configlocaldir-persistentvolumeclaim
-        - name: helmbot-rootkubedir-volume
-          persistentVolumeClaim:
-            claimName: helmbot-rootkubedir-persistentvolumeclaim
+              hostPath:
+                path: {{ $.Values.ConfigLocalDir }}
+                type: DirectoryOrCreate
+            - mountPath: {{ $.Values.KubeDir }}
+              hostPath:
+                path: {{ $.Values.KubeDir }}
+                type: Directory
 
 
