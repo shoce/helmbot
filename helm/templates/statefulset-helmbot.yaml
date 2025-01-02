@@ -31,10 +31,6 @@ spec:
           hostPath:
             path: "{{ $.Values.ConfigLocalDir }}"
             type: DirectoryOrCreate
-        - name: kube-dir
-          hostPath:
-            path: "{{ $.Values.KubeDir }}"
-            type: Directory
 
       containers:
 
@@ -45,8 +41,6 @@ spec:
           volumeMounts:
             - name: config-local-dir
               mountPath: "{{ $.Values.ConfigLocalDir }}"
-            - name: kube-dir
-              mountPath: "{{ $.Values.KubeDir }}"
 
           {{ if $.Values.TgWebhookHost -}}
           ports:
