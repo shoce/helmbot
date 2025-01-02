@@ -119,6 +119,9 @@ func init() {
 	var err error
 
 	LocalZone = time.Now().Local().Format("-0700")
+	if LocalZone == "+0000" {
+		LocalZone = "z"
+	}
 
 	UpdateHashIdRe, err = regexp.Compile(UpdateHashIdReString)
 	if err != nil {
@@ -1196,7 +1199,7 @@ func log(msg string, args ...interface{}) {
 		tzone = LocalZone
 	}
 	ts := fmt.Sprintf(
-		"%03d.%02d%02d.%02d%02d%s",
+		"%03d:%02d%02d:%02d%02d%s",
 		t.Year()%1000, t.Month(), t.Day(), t.Hour(), t.Minute(), tzone,
 	)
 	fmt.Fprintf(os.Stderr, ts+" "+msg+NL, args...)
