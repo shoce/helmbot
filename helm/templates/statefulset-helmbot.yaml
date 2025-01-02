@@ -27,13 +27,13 @@ spec:
       serviceAccountName: helmbot-admin
 
       volumes:
-        - name: ConfigLocalDir
+        - name: config-local-dir
           hostPath:
-            path: {{ $.Values.ConfigLocalDir }}
+            path: "{{ $.Values.ConfigLocalDir }}"
             type: DirectoryOrCreate
-        - name: KubeDir
+        - name: kube-dir
           hostPath:
-            path: {{ $.Values.KubeDir }}
+            path: "{{ $.Values.KubeDir }}"
             type: Directory
 
       containers:
@@ -43,10 +43,10 @@ spec:
           imagePullPolicy: IfNotPresent
 
           volumeMounts:
-            - name: ConfigLocalDir
-              mountPath: {{ $.Values.ConfigLocalDir }}
-            - name: KubeDir
-              mountPath: {{ $.Values.KubeDir }}
+            - name: config-local-dir
+              mountPath: "{{ $.Values.ConfigLocalDir }}"
+            - name: kube-dir
+              mountPath: "{{ $.Values.KubeDir }}"
 
           {{ if $.Values.TgWebhookHost -}}
           ports:
