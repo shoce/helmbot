@@ -26,11 +26,27 @@ spec:
 
       serviceAccountName: helmbot-admin
 
+      volumes:
+        - name: ConfigLocalDir
+          hostPath:
+            path: {{ $.Values.ConfigLocalDir }}
+            type: DirectoryOrCreate
+        - name: KubeDir
+          hostPath:
+            path: {{ $.Values.KubeDir }}
+            type: Directory
+
       containers:
 
         - name: helmbot
-          imagePullPolicy: IfNotPresent
           image: "{{ $.Values.ImageNameGithubHelmbot }}:{{ $.Values.ImageTagGithubHelmbot }}"
+          imagePullPolicy: IfNotPresent
+
+          volumeMounts:
+            - name: ConfigLocalDir
+              mountPath: {{ $.Values.ConfigLocalDir }}
+            - name: KubeDir
+              mountPath: {{ $.Values.KubeDir }}
 
           {{ if $.Values.TgWebhookHost -}}
           ports:
@@ -40,15 +56,5 @@ spec:
           envFrom:
             - configMapRef:
                 name: helmbot
-
-          volumeMounts:
-            - mountPath: {{ $.Values.ConfigLocalDir }}
-              hostPath:
-                path: {{ $.Values.ConfigLocalDir }}
-                type: DirectoryOrCreate
-            - mountPath: {{ $.Values.KubeDir }}
-              hostPath:
-                path: {{ $.Values.KubeDir }}
-                type: Directory
 
 
