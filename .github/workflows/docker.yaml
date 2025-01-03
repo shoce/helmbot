@@ -15,6 +15,7 @@ on:
       - main
     paths-ignore:
       - 'helm/**'
+      - '.github/workflows/helm.yaml'
 
 env:
   REGISTRY: ghcr.io
@@ -25,10 +26,7 @@ jobs:
     steps:
 
       - name: version
-        run: |
-          VERSION=$( date '+%y.%m%d.%H%M' )
-          echo "VERSION:$VERSION"
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
+        run: echo "VERSION=$( date '+%y.%m%d.%H%M' | sed 's/\.0/./g' )" >> $GITHUB_ENV
 
       - uses: actions/checkout@v4
 
@@ -54,4 +52,12 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: tag
+        run: |
+          git config user.name github-actions
+          git config user.email "github-actions@users.noreply.github.com"
+          git tag $VERSION
+          git push origin $VERSION
+
 
