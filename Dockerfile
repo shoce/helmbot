@@ -1,13 +1,13 @@
 
 # https://hub.docker.com/_/golang/tags
-FROM golang:1.23.2-alpine3.20 AS build
+FROM golang:1.23.4-alpine3.20 AS build
 RUN mkdir -p /root/helmbot/
-COPY helmbot.go go.mod /root/helmbot/
+COPY *.go go.mod /root/helmbot/
 WORKDIR /root/helmbot/
 RUN go version
 RUN go get -v
 RUN ls -l -a
-RUN go build -o helmbot helmbot.go
+RUN go build -o helmbot .
 RUN ls -l -a
 
 
