@@ -94,7 +94,7 @@ func init() {
 
 	LocalZone = time.Now().Local().Format("-0700")
 	if LocalZone == "+0000" {
-		LocalZone = "z"
+		LocalZone = "Z"
 	}
 
 	UpdateHashIdRe, err = regexp.Compile(UpdateHashIdReString)
@@ -127,6 +127,7 @@ func init() {
 		log("ERROR ConfigDir `%s` does not exist", ConfigDir)
 		os.Exit(1)
 	}
+	log("DEBUG ConfigDir==%s", ConfigDir)
 
 	ConfigFilename = os.Getenv("ConfigFilename")
 	if ConfigFilename == "" {
@@ -143,6 +144,7 @@ func init() {
 		ValuesMinioUrlHost = u.Host
 		ValuesMinioUrlPath = u.Path
 	}
+	log("DEBUG ValuesMinioUrl==`%s`", ValuesMinioUrl)
 
 	ValuesMinioUsername = os.Getenv("ValuesMinioUsername")
 	if ValuesMinioUsername == "" && ValuesMinioUrlHost != "" {
@@ -228,7 +230,7 @@ func main() {
 	var err error
 
 	if TgWebhookUrl != "" {
-		log("TgWebhookUrl=`%s` so setting webhook with telegram to receive updates.", TgWebhookUrl)
+		log("TgWebhookUrl==`%s` so setting webhook with telegram to receive updates.", TgWebhookUrl)
 		err = TgSetWebhook(TgWebhookUrl, []string{"message", "channel_post"}, TgWebhookToken)
 		if err != nil {
 			log("TgSetWebhook: %+v", err)
@@ -262,8 +264,9 @@ func main() {
 			}
 			tdur := time.Now().Sub(t0)
 			if tdur < ServerPackagesUpgradeInterval {
-				log("DEBUG packages sleeping %s", ServerPackagesUpgradeInterval-tdur)
-				time.Sleep(ServerPackagesUpgradeInterval - tdur)
+				sleepdur := ServerPackagesUpgradeInterval - tdur
+				log("DEBUG packages sleeping %s", sleepdur.Truncate(time.Second))
+				time.Sleep(sleepdur)
 			}
 		}
 	}()
@@ -1212,7 +1215,7 @@ func log(msg string, args ...interface{}) {
 	var tzone string
 	if LogUTCTime {
 		t = t.UTC()
-		tzone = "z"
+		tzone = "Z"
 	} else {
 		t = t.Local()
 		tzone = LocalZone
