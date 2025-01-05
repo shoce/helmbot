@@ -27,7 +27,7 @@ spec:
       serviceAccountName: helmbot-admin
 
       volumes:
-        - name: config-local-dir
+        - name: config-dir
           hostPath:
             path: "{{ $.Values.ConfigDir }}"
             type: DirectoryOrCreate
