@@ -30,6 +30,7 @@ import (
 	yaml "gopkg.in/yaml.v3"
 
 	helmaction "helm.sh/helm/v3/pkg/action"
+	helmloader "helm.sh/helm/v3/pkg/chart/loader"
 	helmcli "helm.sh/helm/v3/pkg/cli"
 	helmgetter "helm.sh/helm/v3/pkg/getter"
 
@@ -1072,9 +1073,22 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 				} else {
 					sort.Strings(ff)
 					p.HelmChartLocalFilename = ff[len(ff)-1]
-					log("DEBUG HelmChartLocalFilename %s", p.HelmChartLocalFilename)
+					log("DEBUG HelmChartLocalFilename %s %s", p.Name, p.HelmChartLocalFilename)
+					if strings.HasSuffix(p.HelmChartLocalFilename, ".tgz") {
+						if chartfile, err := os.Open(p.HelmChartLocalFilename); err != nil {
+							log("ERROR HelmChartLocalFilename %s %s os.Open: %v", p.Name, p.HelmChartLocalFilename, err)
+						} else {
+							defer chartfile.Close()
+							if c, err := helmloader.LoadArchive(chartfile); err != nil {
+								log("ERROR HelmChartLocalFilename %s %s LoadArchive: %v", p.Name, p.HelmChartLocalFilename, err)
+							} else {
+								log("DEBUG HelmChartLocalFilename %s %s Metadata.Version==%s", p.Name, p.HelmChartLocalFilename, c.Metadata.Version)
+							}
+						}
+					} else {
+						log("WARNING HelmChartLocalFilename %s is not a .tgz file", p.HelmChartLocalFilename)
+					}
 				}
-
 			}
 
 			packages = append(packages, p)
