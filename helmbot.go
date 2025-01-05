@@ -17,8 +17,10 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1060,6 +1062,19 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 			}
 			if p.TgMentions == nil {
 				p.TgMentions = s.TgMentions
+			}
+
+			if p.HelmChartLocalFilename != "" {
+				if ff, err := filepath.Glob(path.Join(ConfigDir, p.HelmChartLocalFilename)); err != nil {
+					log("WARNING filepath.Glob %s: %s", p.HelmChartLocalFilename, err)
+				} else if len(ff) == 0 {
+					log("WARNING no files for %s glob found", p.HelmChartLocalFilename)
+				} else {
+					sort.Strings(ff)
+					p.HelmChartLocalFilename = ff[len(ff)-1]
+					log("DEBUG HelmChartLocalFilename %s", p.HelmChartLocalFilename)
+				}
+
 			}
 
 			packages = append(packages, p)
