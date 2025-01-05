@@ -22,15 +22,19 @@ func MinioNewRequest(method, name string, payload *bytes.Buffer) (r *http.Reques
 	if err != nil {
 		return nil, err
 	}
+
 	r.Header.Set("User-Agent", "helmbot")
 	r.Header.Set("Content-Type", "application/octet-stream")
 	r.Header.Set("Host", ValuesMinioUrl)
 	r.Header.Set("Date", time.Now().UTC().Format(time.RFC1123Z))
-	hdrauthsig := method + NL + NL + r.Header.Get("Content-Type") + NL + r.Header.Get("Date") + NL + ValuesMinioPath + name
+
+	hdrauthsig := method + NL + NL + r.Header.Get("Content-Type") + NL + r.Header.Get("Date") + NL + ValuesMinioUrlPath + name
 	hdrauthsighmac := hmac.New(sha1.New, []byte(ValuesMinioPassword))
 	hdrauthsighmac.Write([]byte(hdrauthsig))
 	hdrauthsig = base64.StdEncoding.EncodeToString(hdrauthsighmac.Sum(nil))
 	r.Header.Set("Authorization", fmt.Sprintf("AWS %s:%s", ValuesMinioUsername, hdrauthsig))
+
+	return r, nil
 }
 
 func GetValuesTextMinio(name string, valuestext *string) (err error) {
@@ -64,7 +68,7 @@ func GetValuesMinio(name string, valuestext *string, values interface{}) (err er
 		valuestext = &valuestext1
 	}
 
-	err = GetValuesTextMinio(name, location, valuestext)
+	err = GetValuesTextMinio(name, valuestext)
 	if err != nil {
 		return err
 	}

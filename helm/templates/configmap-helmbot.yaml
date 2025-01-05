@@ -8,17 +8,17 @@ metadata:
 
 data:
 
-  LoggingHost: "{{ $.Values.LoggingHost }}"
-  LoggingPort: "{{ $.Values.LoggingPort }}"
-  LoggingUsername: "{{ $.Values.LoggingUsername }}"
-  LoggingPassword: "{{ $.Values.LoggingPassword }}"
-  LoggingTag: "{{ $.Release.Namespace }}-helmbot"
+  DEBUG: "{{ $.Values.DEBUG }}"
 
   ServerHostname: "{{ $.Values.ServerHostname }}"
 
-  ConfigLocalDir: "{{ $.Values.ConfigLocalDir }}"
-  ConfigLocalFilename: "{{ $.Values.ConfigLocalFilename }}"
-  ConfigMinioFilename: "{{ $.Values.ConfigMinioFilename }}"
+  ConfigDir: "{{ $.Values.ConfigDir }}"
+
+  ValuesMinioUrl: "{{ $.Values.ValuesMinioUrl }}"
+  ValuesMinioUsername: "{{ $.Values.ValuesMinioUsername }}"
+  ValuesMinioPassword: "{{ $.Values.ValuesMinioPassword }}"
+
+  ConfigFilename: "{{ $.Values.ConfigFilename }}"
 
   TgToken: "{{ $.Values.TgToken }}"
   TgWebhookHost: "{{ $.Values.TgWebhookHost }}"
@@ -27,13 +27,9 @@ data:
   TgChatIds: "{{ $.Values.TgChatIds }}"
   TgBossUserIds: "{{ $.Values.TgBossUserIds }}"
 
-  GetValuesUrlPrefix: "{{ $.Values.GetValuesUrlPrefix }}"
-  GetValuesUsername: "{{ $.Values.GetValuesUsername }}"
-  GetValuesPassword: "{{ $.Values.GetValuesPassword }}"
-
-  PutValuesUrlPrefix: "{{ $.Values.PutValuesUrlPrefix }}"
-  PutValuesUsername: "{{ $.Values.PutValuesUsername }}"
-  PutValuesPassword: "{{ $.Values.PutValuesPassword }}"
-
-  DEBUG: "{{ $.Values.DEBUG }}"
+  LoggingHost: "{{ $.Values.LoggingHost }}"
+  LoggingPort: "{{ $.Values.LoggingPort }}"
+  LoggingUsername: "{{ $.Values.LoggingUsername }}"
+  LoggingPassword: "{{ $.Values.LoggingPassword }}"
+  LoggingTag: "{{ $.Values.LoggingTag }}"
 

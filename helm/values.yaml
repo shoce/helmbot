@@ -4,13 +4,17 @@ ImageNameGithubHelmbot: "ghcr.io/shoce/helmbot/dev"
 ImageTagGithubHelmbot: ""
 
 
+DEBUG: ""
+
 ServerHostname: ""
 
-KubeDir: "/root/.kube/"
+ConfigDir: /opt/helmbot/
 
-ConfigLocalDir: "/opt/helmbot/"
-ConfigLocalFilename: "helmbot.config.local.yaml"
-ConfigMinioFilename: "helmbot.config.yaml"
+ValuesMinioUrl: ""
+ValuesMinioUsername: ""
+ValuesMinioPassword: ""
+
+ConfigFilename: helmbot.config.yaml
 
 TgToken: ""
 TgWebhookHost: ""
@@ -19,24 +23,13 @@ TgWebhookToken: ""
 TgChatIds: ""
 TgBossUserIds: ""
 
-GetValuesUrlPrefix: ""
-GetValuesUsername: ""
-GetValuesPassword: ""
-
-PutValuesUrlPrefix: ""
-PutValuesUsername: ""
-PutValuesPassword: ""
-
-
 LoggingHost: ""
 LoggingPort: ""
+LoggingUsername: ""
+LoggingPassword: ""
+LoggingTag: "helmbot"
 
 
 IngressRequestMaxBodySizeString: "1m"
-
 IngressWhitelistSourceRange: []
-
-
-DEBUG: ""
-
 

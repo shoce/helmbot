@@ -10,8 +10,6 @@ package main
 
 import (
 	"bytes"
-	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -21,7 +19,6 @@ import (
 	"path"
 	"regexp"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -31,17 +28,9 @@ import (
 	yaml "gopkg.in/yaml.v3"
 
 	helmaction "helm.sh/helm/v3/pkg/action"
-	helmchart "helm.sh/helm/v3/pkg/chart"
-	helmloader "helm.sh/helm/v3/pkg/chart/loader"
 	helmcli "helm.sh/helm/v3/pkg/cli"
-	helmdownloader "helm.sh/helm/v3/pkg/downloader"
 	helmgetter "helm.sh/helm/v3/pkg/getter"
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	helmrepo "helm.sh/helm/v3/pkg/repo"
 
-	kcorev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	kmetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubernetes "k8s.io/client-go/kubernetes"
 	krest "k8s.io/client-go/rest"
 )
@@ -51,7 +40,7 @@ const (
 	TAB  = "\t"
 	NL   = "\n"
 
-	ServerPackagesUpgradeInterval = 43 * time.Second
+	ServerPackagesUpgradeInterval = 33 * time.Second
 
 	UpdateHashIdReString = "#([-a-z]+)#([-a-z]+)#([a-z0-9]+)$"
 
@@ -77,8 +66,8 @@ var (
 	ValuesMinioUsername string
 	ValuesMinioPassword string
 
-	ValuesMinioHost string
-	ValuesMinioPath string
+	ValuesMinioUrlHost string
+	ValuesMinioUrlPath string
 
 	Config   HelmbotConfig
 	Packages []PackageConfig
@@ -151,17 +140,17 @@ func init() {
 		log("ERROR ValuesMinioUrl `%s` parse error: %s", ValuesMinioUrl, err)
 		os.Exit(1)
 	} else {
-		ValuesMinioHost = u.Host
-		ValuesMinioPath = u.Path
+		ValuesMinioUrlHost = u.Host
+		ValuesMinioUrlPath = u.Path
 	}
 
 	ValuesMinioUsername = os.Getenv("ValuesMinioUsername")
-	if ValuesMinioUsername == "" && ValuesMinioHost != "" {
+	if ValuesMinioUsername == "" && ValuesMinioUrlHost != "" {
 		log("WARNING empty ValuesMinioUsername env var")
 	}
 
 	ValuesMinioPassword = os.Getenv("ValuesMinioPassword")
-	if ValuesMinioPassword == "" && ValuesMinioHost != "" {
+	if ValuesMinioPassword == "" && ValuesMinioUrlHost != "" {
 		log("WARNING empty ValuesMinioPassword env var")
 	}
 
@@ -266,14 +255,16 @@ func main() {
 
 	go func() {
 		for {
+			t0 := time.Now()
 			err := ServerPackagesUpgrade()
 			if err != nil {
 				log("ERROR packages: %+v", err)
 			}
-			if DEBUG {
-				log("packages: sleeping %s.", ServerPackagesUpgradeInterval)
+			tdur := time.Now().Sub(t0)
+			if tdur < ServerPackagesUpgradeInterval {
+				log("DEBUG packages sleeping %s", ServerPackagesUpgradeInterval-tdur)
+				time.Sleep(ServerPackagesUpgradeInterval - tdur)
 			}
-			time.Sleep(ServerPackagesUpgradeInterval)
 		}
 	}()
 
@@ -392,7 +383,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
 	deployedvalueshashpath := fmt.Sprintf("%s.%s.%s", UpdateHelmName, UpdateEnvName, ValuesDeployedHashFilenameSuffix)
 	var deployedvalueshash string
-	if err := GetValuesTextMinio(deployedvalueshashpath, &deployedvalueshash); err != nil {
+	if err := GetValuesText(deployedvalueshashpath, &deployedvalueshash); err != nil {
 		log("ERROR `%s` could not be read: %v", deployedvalueshashpath, err)
 		if err := tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
@@ -417,7 +408,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
 	reportedvalueshashpath := fmt.Sprintf("%s.%s.%s", UpdateHelmName, UpdateEnvName, ValuesReportedHashFilenameSuffix)
 	var reportedvalueshash string
-	if err := GetValuesTextMinio(reportedvalueshashpath, &reportedvalueshash); err != nil {
+	if err := GetValuesText(reportedvalueshashpath, &reportedvalueshash); err != nil {
 		log("ERROR `%s` could not be read: %v", reportedvalueshashpath, err)
 		if err := tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
@@ -446,7 +437,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	permithashpath := fmt.Sprintf("%s.%s.%s", UpdateHelmName, UpdateEnvName, PermitHashFilenameSuffix)
 	log("DEBUG Webhook creating %s file", permithashpath)
 
-	if err := PutValuesTextMinio(permithashpath, UpdateValuesHash); err != nil {
+	if err := PutValuesText(permithashpath, UpdateValuesHash); err != nil {
 		log("ERROR Webhook %s file could not be written: %v", permithashpath, err)
 		if err := tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
@@ -499,34 +490,10 @@ func ServerPackagesUpgrade() (err error) {
 		}
 	}
 
-	err = GetValuesFile(ConfigLocalFilename, nil, &ConfigLocal)
+	err = GetValuesFile(ConfigFilename, nil, &Config)
 	if err != nil {
-		log("WARNING ServerPackagesUpgrade GetValues `%s`: %v", ConfigLocalFilename, err)
-	}
-
-	if DEBUG {
-		log("DEBUG ServerPackagesUpgrade ConfigLocal: %+v", ConfigLocal)
-	}
-
-	PackagesLocal, err = ProcessServersPackages(ConfigLocal.Servers)
-	if err != nil {
-		log("WARNING ServerPackagesUpgrade ProcessServersPackages `%s`: %v", ConfigLocalFilename, err)
-	}
-
-	log("ServerPackagesUpgrade PackagesLocal count:%v", len(PackagesLocal))
-
-	if DEBUG {
-		for _, p := range PackagesLocal {
-			log(
-				"ServerPackagesUpgrade `%s` package Name:%s HelmChartLocalFilename:%s ",
-				ConfigLocalFilename, p.Name, p.HelmChartLocalFilename,
-			)
-		}
-	}
-
-	err = GetValuesMinio(ConfigMinioFilename, nil, &Config)
-	if err != nil {
-		log("WARNING ServerPackagesUpgrade GetValues `%s`: %v", ConfigMinioFilename, err)
+		log("WARNING ServerPackagesUpgrade GetValues %s: %v", ConfigFilename, err)
+		return
 	}
 
 	if DEBUG {
@@ -535,16 +502,17 @@ func ServerPackagesUpgrade() (err error) {
 
 	Packages, err = ProcessServersPackages(Config.Servers)
 	if err != nil {
-		log("WARNING ServerPackagesUpgrade ProcessServersPackages: %v", err)
+		log("WARNING ServerPackagesUpgrade ProcessServersPackages: %v", ConfigFilename, err)
+		return
 	}
 
-	log("ServerPackagesUpgrade Packages count:%v", len(Packages))
+	log("ServerPackagesUpgrade Packages count: %d", len(Packages))
 
 	if DEBUG {
 		for _, p := range Packages {
 			log(
-				"DEBUG ServerPackagesUpgrade package Name:%s AlwaysForceNow:%v ",
-				p.Name, *p.AlwaysForceNow,
+				"DEBUG ServerPackagesUpgrade package Name:%s HelmChartLocalFilename:%s ",
+				p.Name, p.HelmChartLocalFilename,
 			)
 		}
 	}
@@ -563,6 +531,9 @@ func ServerPackagesUpgrade() (err error) {
 	*/
 
 	helmgetterall := helmgetter.All(helmenvsettings)
+	if DEBUG {
+		log("DEBUG ServerPackagesUpgrade helmgetterall: %+v", helmgetterall)
+	}
 
 	kconfig, err := krest.InClusterConfig()
 	if err != nil {
@@ -586,441 +557,444 @@ func ServerPackagesUpgrade() (err error) {
 	// RETURN
 	//
 
-	for _, p := range Packages {
-		timenowhour := fmt.Sprintf("%02d", time.Now().In(p.TimezoneLocation).Hour())
+	/*
 
-		log("helm. "+"%s AlwaysForceNow:%v AllowedHours:%v Timezone:%s TimeNowHour:%v ", p.Name, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour)
+		for _, p := range Packages {
+			timenowhour := fmt.Sprintf("%02d", time.Now().In(p.TimezoneLocation).Hour())
 
-		PackageName := fmt.Sprintf("%s-%s", p.HelmName, p.EnvName)
-		PackageDir := fmt.Sprintf("%s/%s/", ConfigLocalDir, PackageName)
-		PackageLatestDir := fmt.Sprintf("%s/latest/", PackageDir)
-		PackageReportedDir := fmt.Sprintf("%s/reported/", PackageDir)
-		PackageDeployedDir := fmt.Sprintf("%s/deployed/", PackageDir)
+			log("helm. "+"%s AlwaysForceNow:%v AllowedHours:%v Timezone:%s TimeNowHour:%v ", p.Name, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour)
 
-		p.HelmGlobalValues = make(map[string]interface{})
-		p.HelmValues = make(map[string]interface{})
-		p.HelmEnvValues = make(map[string]interface{})
-		p.HelmImagesValues = make(map[string]interface{})
+			PackageName := fmt.Sprintf("%s-%s", p.HelmName, p.EnvName)
+			PackageDir := path.Join(ConfigDir, PackageName)
 
-		err = GetValues("global.values.yaml", &p.HelmGlobalValuesText, p.HelmGlobalValues)
-		if err != nil {
-			return fmt.Errorf("GetValues `global.values.yaml`: %w", err)
-		}
+			PackageLatestDir := path.Join(PackageDir, "latest")
+			PackageReportedDir := path.Join(PackageDir, "reported")
+			PackageDeployedDir := path.Join(PackageDir, "deployed")
 
-		err = GetValues(fmt.Sprintf("%s.values.yaml", p.HelmName), &p.HelmValuesText, p.HelmValues)
-		if err != nil {
-			return fmt.Errorf("GetValues `%s.values.yaml`: %w", p.HelmName, err)
-		}
+			p.HelmGlobalValues = make(map[string]interface{})
+			p.HelmValues = make(map[string]interface{})
+			p.HelmEnvValues = make(map[string]interface{})
+			p.HelmImagesValues = make(map[string]interface{})
 
-		err = GetValues(fmt.Sprintf("%s.%s.values.yaml", p.HelmName, p.EnvName), &p.HelmEnvValuesText, p.HelmEnvValues)
-		if err != nil {
-			return fmt.Errorf("GetValues `%s.%s.values.yaml`: %w", p.HelmName, p.EnvName, err)
-		}
-
-		//log("helm. "+"package config:%+v / "+NL+"// ", p)
-
-		//log("helm. "+"repo address:%s username:%s password:%s", p.HelmRepo.Address, p.HelmRepo.Username, p.HelmRepo.Password)
-
-		var chartpath string
-
-		if p.HelmChartLocalFilename == "" {
-
-			chartrepo, err := helmrepo.NewChartRepository(
-				&helmrepo.Entry{
-					Name:                  fmt.Sprintf("helm.%s.%s", p.HelmName, p.EnvName),
-					URL:                   p.HelmRepo.Address,
-					Username:              p.HelmRepo.Username,
-					Password:              p.HelmRepo.Password,
-					InsecureSkipTLSverify: false,
-					PassCredentialsAll:    false,
-				},
-				helmgetterall,
-			)
+			err = GetValues("global.values.yaml", &p.HelmGlobalValuesText, p.HelmGlobalValues)
 			if err != nil {
-				return fmt.Errorf("NewChartRepository %w", err)
+				return fmt.Errorf("GetValues `global.values.yaml`: %w", err)
 			}
-			//log("helm. "+"chart repo: %+v", chartrepo)
 
-			indexfilepath, err := chartrepo.DownloadIndexFile()
+			err = GetValues(fmt.Sprintf("%s.values.yaml", p.HelmName), &p.HelmValuesText, p.HelmValues)
 			if err != nil {
-				return fmt.Errorf("DownloadIndexFile %w", err)
+				return fmt.Errorf("GetValues `%s.values.yaml`: %w", p.HelmName, err)
 			}
-			//log("helm. "+"chart repo index file path: %v", indexfilepath)
 
-			idx, err := helmrepo.LoadIndexFile(indexfilepath)
+			err = GetValues(fmt.Sprintf("%s.%s.values.yaml", p.HelmName, p.EnvName), &p.HelmEnvValuesText, p.HelmEnvValues)
 			if err != nil {
-				return fmt.Errorf("LoadIndexFile %w", err)
+				return fmt.Errorf("GetValues `%s.%s.values.yaml`: %w", p.HelmName, p.EnvName, err)
 			}
 
-			var chartversion *helmrepo.ChartVersion
-			for chartname, chartversions := range idx.Entries {
-				if chartname != p.HelmName {
-					continue
-				}
+			//log("helm. "+"package config:%+v / "+NL+"// ", p)
 
-				if len(chartversions) == 0 {
-					return fmt.Errorf("chart repo index: %s: zero chart versions")
-				}
+			//log("helm. "+"repo address:%s username:%s password:%s", p.HelmRepo.Address, p.HelmRepo.Username, p.HelmRepo.Password)
 
-				if p.HelmChartVersion != "" {
-					for _, v := range chartversions {
-						if v.Version == p.HelmChartVersion {
-							chartversion = v
-						}
-					}
-				} else {
-					sort.Sort(sort.Reverse(chartversions))
-					chartversion = chartversions[0]
-				}
-			}
+			var chartpath string
 
-			if chartversion == nil {
-				return fmt.Errorf("helm. "+"chart repo index: helm chart %s: ERROR no chart version found ", p.HelmName)
-			}
+			if p.HelmChartLocalFilename == "" {
 
-			if len(chartversion.URLs) < 1 {
-				return fmt.Errorf("helm. "+"chart %s: ERROR no chart urls ", p.HelmName)
-			}
-
-			charturl, err := helmrepo.ResolveReferenceURL(p.HelmRepo.Address, chartversion.URLs[0])
-			if err != nil {
-				return err
-			}
-
-			//log("helm. "+SPAC+"chart url: %v ", charturl)
-
-			chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetterall}
-			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
-			if p.HelmRepo.Username != "" {
-				chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithBasicAuth(p.HelmRepo.Username, p.HelmRepo.Password))
-			}
-
-			chartpath, _, err = chartdownloader.DownloadTo(charturl, chartversion.Version, "")
-			if err != nil {
-				return err
-			}
-
-			//log("helm. "+SPAC+"chart downloaded path: %s ", chartpath)
-
-		} else {
-
-			chartpath = p.HelmChartLocalFilename
-
-		}
-
-		// https://pkg.go.dev/helm.sh/helm/v3/pkg/chart/loader#Load
-		chartfull, err := helmloader.Load(chartpath)
-		if err != nil {
-			return fmt.Errorf("helmloader.Load `%s`: %w", chartpath, err)
-		}
-
-		if chartfull == nil {
-			return fmt.Errorf("chart downloaded from repo is nil")
-		}
-
-		//log("helm. "+SPAC+"chart from repo version:%s len(values):%d", chartfull.Metadata.Version, len(chartfull.Values))
-
-		// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/chart#Metadata
-		p.HelmImagesValues[p.HelmChartVersionKey] = chartfull.Metadata.Version
-
-		err = drlatestyaml(p.HelmEnvValues, Config.DrLatestYaml, &p.HelmImagesValues)
-		if err != nil {
-			return fmt.Errorf("drlatestyaml %s.%s: %w", p.HelmName, p.EnvName, err)
-		}
-
-		p.HelmImagesValuesList, p.HelmImagesValuesText, err = ImagesValuesToList(p.HelmImagesValues)
-
-		allvaluestext := p.HelmValuesText + p.HelmEnvValuesText + p.HelmImagesValuesText
-		p.ValuesHash = fmt.Sprintf("%x", sha256.Sum256([]byte(allvaluestext)))[:10]
-
-		/*
-			installedhelmversion := ""
-			for _, r := range installedreleases {
-				if r.Name == p.Name && r.Namespace == p.Namespace {
-					installedhelmversion = r.Chart.Metadata.Version
-				}
-			}
-
-			helmversionstatus := "=>"
-			if installedhelmversion == chartversion.Version {
-				helmversionstatus = "=="
-			}
-			log("helm. "+SPAC+"chart version: %s %s %s ", installedhelmversion, helmversionstatus, chartversion.Version)
-		*/
-
-		//
-		// READ DEPLOYED
-		//
-
-		DeployedHelmValuesTextPath := fmt.Sprintf("%s/deployed/%s.values.yaml", PackageDir, p.HelmName)
-		DeployedHelmValuesTextBytes, err := os.ReadFile(DeployedHelmValuesTextPath)
-		if err != nil {
-			log("os.ReadFile: %s", err)
-		}
-
-		DeployedHelmEnvValuesTextPath := fmt.Sprintf("%s/deployed/%s.%s.values.yaml", PackageDir, p.HelmName, p.EnvName)
-		DeployedHelmEnvValuesTextBytes, err := os.ReadFile(DeployedHelmEnvValuesTextPath)
-		if err != nil {
-			log("os.ReadFile: %s", err)
-		}
-
-		DeployedImagesValuesTextPath := fmt.Sprintf("%s/deployed/%s.%s.images.values.yaml", PackageDir, p.HelmName, p.EnvName)
-		DeployedImagesValuesTextBytes, err := os.ReadFile(DeployedImagesValuesTextPath)
-		if err != nil {
-			log("os.ReadFile: %s", err)
-		}
-		DeployedImagesValuesText := string(DeployedImagesValuesTextBytes)
-
-		ReportedValuesHashPath := fmt.Sprintf("%s.%s.%s", PackageDir, p.HelmName, p.EnvName, ValuesReportedHashFilenameSuffix)
-		ReportedValuesHashBytes, err := os.ReadFile(ReportedValuesHashPath)
-		if err != nil {
-			//log("os.ReadFile: %s", err)
-			ReportedValuesHashBytes = []byte{}
-		}
-		ReportedValuesHash := string(ReportedValuesHashBytes)
-
-		var ReportedPermitHash string
-		permithashpath := fmt.Sprintf("%s.%s.%s", p.HelmName, p.EnvName, PermitHashFilenameSuffix)
-		err = GetValuesText(permithashpath, &ReportedPermitHash)
-		if err != nil {
-			log("GetValuesText `%s`: %v", permithashpath, err)
-		}
-
-		toreport := false
-
-		if p.HelmValuesText != string(DeployedHelmValuesTextBytes) {
-			log("helm. " + SPAC + "HelmValuesText diff ")
-			toreport = true
-		}
-
-		if p.HelmEnvValuesText != string(DeployedHelmEnvValuesTextBytes) {
-			log("helm. " + SPAC + "HelmEnvValuesText diff ")
-			toreport = true
-		}
-
-		if p.HelmImagesValuesText != DeployedImagesValuesText {
-			log("helm. " + SPAC + "ImagesValuesText diff ")
-			toreport = true
-
-			DeployedImagesValuesMap := make(map[string]string)
-			d := yaml.NewDecoder(bytes.NewReader(DeployedImagesValuesTextBytes))
-			for {
-				if err := d.Decode(&DeployedImagesValuesMap); err != nil {
-					if err != io.EOF {
-						return fmt.Errorf("yaml Decode %w", err)
-					}
-					break
-				}
-			}
-
-			//ansibold := func(s string) string { return "\033[1m" + s + "\033[0m" }
-			//ansidim := func(s string) string { return "\033[2m" + s + "\033[0m" }
-			//ansiitalic := func(s string) string { return "\033[3m" + s + "\033[0m" }
-			//ansiunderline := func(s string) string { return "\033[4m" + s + "\033[0m" }
-			//ansistrikethru := func(s string) string { return "\033[9m" + s + "\033[0m" }
-			//ansired := func(s string) string { return "\033[31m" + s + "\033[0m" }
-			//ansibrightred := func(s string) string { return "\033[91m" + s + "\033[0m" }
-			imagesvaluesdiff := ""
-			iv1, iv2 := DeployedImagesValuesMap, p.HelmImagesValues
-			for name, v1 := range iv1 {
-				if v2, ok := iv2[name]; ok {
-					if v2 != v1 {
-						imagesvaluesdiff += fmt.Sprintf("<> "+"%s: %#v => %#v"+" / ", name, v1, v2)
-					}
-				} else {
-					imagesvaluesdiff += fmt.Sprintf("-- "+"%s: %#v"+" / ", name, v1)
-				}
-			}
-			for name, v2 := range iv2 {
-				if _, ok := iv1[name]; !ok {
-					imagesvaluesdiff += fmt.Sprintf("++ "+"%s: %#v"+" / ", name, v2)
-				}
-			}
-			log("helm. "+SPAC+"ImagesValues diff: // %s // ", imagesvaluesdiff)
-
-		}
-
-		if p.ValuesHash == ReportedValuesHash {
-			log("helm. " + SPAC + "ValuesHash same ")
-			toreport = false
-		}
-
-		reported := false
-
-		if toreport {
-
-			//
-			// WRITE LATEST
-			//
-
-			err = os.RemoveAll(PackageLatestDir)
-			if err != nil {
-				return fmt.Errorf("os.RemoveAll `%s`: %w", PackageLatestDir, err)
-			}
-
-			err = os.MkdirAll(PackageLatestDir, 0700)
-			if err != nil {
-				return fmt.Errorf("os.MkdirAll `%s`: %w", PackageLatestDir, err)
-			}
-
-			HelmValuesTextPath := fmt.Sprintf("%s/%s.values.yaml", PackageLatestDir, p.HelmName)
-			err = os.WriteFile(HelmValuesTextPath, []byte(p.HelmValuesText), 0600)
-			if err != nil {
-				return fmt.Errorf("os.WriteFile `%s`: %w", HelmValuesTextPath, err)
-			}
-
-			HelmEnvValuesTextPath := fmt.Sprintf("%s/%s.%s.values.yaml", PackageLatestDir, p.HelmName, p.EnvName)
-			err = os.WriteFile(HelmEnvValuesTextPath, []byte(p.HelmEnvValuesText), 0600)
-			if err != nil {
-				return fmt.Errorf("os.WriteFile `%s`: %w", HelmEnvValuesTextPath, err)
-			}
-
-			ImagesValuesTextPath := fmt.Sprintf("%s/%s.%s.images.values.yaml", PackageLatestDir, p.HelmName, p.EnvName)
-			err = os.WriteFile(ImagesValuesTextPath, []byte(p.HelmImagesValuesText), 0600)
-			if err != nil {
-				return fmt.Errorf("os.WriteFile `%s`: %w", ImagesValuesTextPath, err)
-			}
-
-			ValuesHashPath := fmt.Sprintf("%s.%s.%s", p.HelmName, p.EnvName, ValuesLatestHashFilenameSuffix)
-			err = os.WriteFile(ValuesHashPath, []byte(p.ValuesHash), 0600)
-			if err != nil {
-				return fmt.Errorf("os.WriteFile `%s`: %w", ValuesHashPath, err)
-			}
-
-			log("helm. "+SPAC+"#%s#%s#%s latest ", p.HelmName, p.EnvName, p.ValuesHash)
-
-			//
-			// REPORT
-			//
-
-			err = os.RemoveAll(PackageReportedDir)
-			if err != nil {
-				return fmt.Errorf("os.RemoveAll `%s`: %w", PackageReportedDir, err)
-			}
-
-			err = os.Rename(PackageLatestDir, PackageReportedDir)
-			if err != nil {
-				return fmt.Errorf("os.Rename `%s` `%s`: %w", PackageLatestDir, PackageReportedDir, err)
-			}
-
-			log("helm. "+SPAC+"#%s#%s#%s reported ", p.HelmName, p.EnvName, p.ValuesHash)
-
-			ReportedValuesHash = p.ValuesHash
-
-		}
-
-		if ReportedValuesHash != "" {
-			reported = true
-		}
-
-		ForceNow := false
-		if reported && ReportedPermitHash == ReportedValuesHash {
-			ForceNow = true
-		}
-
-		todeploy := false
-
-		if p.AlwaysForceNow != nil && *p.AlwaysForceNow {
-			todeploy = true
-		}
-
-		if slices.Contains(p.AllowedHoursList, timenowhour) {
-			todeploy = true
-		}
-
-		if ForceNow {
-			todeploy = true
-		}
-
-		if reported && todeploy {
-
-			//
-			// DEPLOY
-			//
-
-			err = os.RemoveAll(PackageDeployedDir)
-			if err != nil {
-				return fmt.Errorf("os.RemoveAll `%s`: %w", PackageDeployedDir, err)
-			}
-
-			err = os.Rename(PackageReportedDir, PackageDeployedDir)
-			if err != nil {
-				return fmt.Errorf("os.Rename `%s` `%s`: %w", PackageReportedDir, PackageDeployedDir, err)
-			}
-
-			namespaceexists := false
-			if kns, err := kclientset.CoreV1().Namespaces().Get(context.TODO(), p.Namespace, kmetav1.GetOptions{}); kerrors.IsNotFound(err) {
-				// namespaceexists = false
-			} else if err != nil {
-				return err
-			} else if kns.Name == p.Namespace {
-				namespaceexists = true
-			}
-
-			if !namespaceexists {
-				pnamespace := &kcorev1.Namespace{
-					ObjectMeta: kmetav1.ObjectMeta{
-						Name: p.Namespace,
+				chartrepo, err := helmrepo.NewChartRepository(
+					&helmrepo.Entry{
+						Name:                  fmt.Sprintf("helm.%s.%s", p.HelmName, p.EnvName),
+						URL:                   p.HelmRepo.Address,
+						Username:              p.HelmRepo.Username,
+						Password:              p.HelmRepo.Password,
+						InsecureSkipTLSverify: false,
+						PassCredentialsAll:    false,
 					},
-				}
-				if _, err := kclientset.CoreV1().Namespaces().Create(context.TODO(), pnamespace, kmetav1.CreateOptions{}); err != nil {
-					return err
-				}
-			}
-
-			isinstalled := false
-			for _, r := range installedreleases {
-				if r.Name == p.Name && r.Namespace == p.Namespace {
-					isinstalled = true
-				}
-			}
-
-			var pkgrelease *helmrelease.Release
-			if isinstalled {
-				// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Upgrade
-				helmupgrade := helmaction.NewUpgrade(helmactioncfg)
-				helmupgrade.DryRun = true
-				helmupgrade.Namespace = p.Namespace
-
-				chart := new(helmchart.Chart)
-				values := make(map[string]interface{})
-				pkgrelease, err = helmupgrade.Run(
-					p.PackageName,
-					chart,
-					values,
+					helmgetterall,
 				)
+				if err != nil {
+					return fmt.Errorf("NewChartRepository %w", err)
+				}
+				//log("helm. "+"chart repo: %+v", chartrepo)
+
+				indexfilepath, err := chartrepo.DownloadIndexFile()
+				if err != nil {
+					return fmt.Errorf("DownloadIndexFile %w", err)
+				}
+				//log("helm. "+"chart repo index file path: %v", indexfilepath)
+
+				idx, err := helmrepo.LoadIndexFile(indexfilepath)
+				if err != nil {
+					return fmt.Errorf("LoadIndexFile %w", err)
+				}
+
+				var chartversion *helmrepo.ChartVersion
+				for chartname, chartversions := range idx.Entries {
+					if chartname != p.HelmName {
+						continue
+					}
+
+					if len(chartversions) == 0 {
+						return fmt.Errorf("chart repo index: %s: zero chart versions")
+					}
+
+					if p.HelmChartVersion != "" {
+						for _, v := range chartversions {
+							if v.Version == p.HelmChartVersion {
+								chartversion = v
+							}
+						}
+					} else {
+						sort.Sort(sort.Reverse(chartversions))
+						chartversion = chartversions[0]
+					}
+				}
+
+				if chartversion == nil {
+					return fmt.Errorf("helm. "+"chart repo index: helm chart %s: ERROR no chart version found ", p.HelmName)
+				}
+
+				if len(chartversion.URLs) < 1 {
+					return fmt.Errorf("helm. "+"chart %s: ERROR no chart urls ", p.HelmName)
+				}
+
+				charturl, err := helmrepo.ResolveReferenceURL(p.HelmRepo.Address, chartversion.URLs[0])
 				if err != nil {
 					return err
 				}
-			} else {
-				// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Install
-				helminstall := helmaction.NewInstall(helmactioncfg)
-				helminstall.DryRun = true
-				helminstall.CreateNamespace = true
-				helminstall.Namespace = p.Namespace
-				helminstall.ReleaseName = p.PackageName
 
-				chart := new(helmchart.Chart)
-				values := make(map[string]interface{})
-				pkgrelease, err = helminstall.Run(
-					chart,
-					values,
-				)
+				//log("helm. "+SPAC+"chart url: %v ", charturl)
+
+				chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetterall}
+				chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
+				if p.HelmRepo.Username != "" {
+					chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithBasicAuth(p.HelmRepo.Username, p.HelmRepo.Password))
+				}
+
+				chartpath, _, err = chartdownloader.DownloadTo(charturl, chartversion.Version, "")
 				if err != nil {
 					return err
 				}
+
+				//log("helm. "+SPAC+"chart downloaded path: %s ", chartpath)
+
+			} else {
+
+				chartpath = p.HelmChartLocalFilename
+
 			}
 
-			log("helm. "+SPAC+"#%s#%s#%s deployed ", p.HelmName, p.EnvName, p.ValuesHash)
-			if pkgrelease == nil {
-				log("helm. "+SPAC+"release: %+v ", pkgrelease)
-			} else {
-				log("helm. "+SPAC+"release info: %s ", pkgrelease.Info.Status)
+			// https://pkg.go.dev/helm.sh/helm/v3/pkg/chart/loader#Load
+			chartfull, err := helmloader.Load(chartpath)
+			if err != nil {
+				return fmt.Errorf("helmloader.Load `%s`: %w", chartpath, err)
+			}
+
+			if chartfull == nil {
+				return fmt.Errorf("chart downloaded from repo is nil")
+			}
+
+			//log("helm. "+SPAC+"chart from repo version:%s len(values):%d", chartfull.Metadata.Version, len(chartfull.Values))
+
+			// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/chart#Metadata
+			p.HelmImagesValues[p.HelmChartVersionKey] = chartfull.Metadata.Version
+
+			err = drlatestyaml(p.HelmEnvValues, Config.DrLatestYaml, &p.HelmImagesValues)
+			if err != nil {
+				return fmt.Errorf("drlatestyaml %s.%s: %w", p.HelmName, p.EnvName, err)
+			}
+
+			p.HelmImagesValuesList, p.HelmImagesValuesText, err = ImagesValuesToList(p.HelmImagesValues)
+
+			allvaluestext := p.HelmValuesText + p.HelmEnvValuesText + p.HelmImagesValuesText
+			p.ValuesHash = fmt.Sprintf("%x", sha256.Sum256([]byte(allvaluestext)))[:10]
+
+				installedhelmversion := ""
+				for _, r := range installedreleases {
+					if r.Name == p.Name && r.Namespace == p.Namespace {
+						installedhelmversion = r.Chart.Metadata.Version
+					}
+				}
+
+				helmversionstatus := "=>"
+				if installedhelmversion == chartversion.Version {
+					helmversionstatus = "=="
+				}
+				log("helm. "+SPAC+"chart version: %s %s %s ", installedhelmversion, helmversionstatus, chartversion.Version)
+
+			//
+			// READ DEPLOYED
+			//
+
+			DeployedHelmValuesTextPath := fmt.Sprintf("%s/deployed/%s.values.yaml", PackageDir, p.HelmName)
+			DeployedHelmValuesTextBytes, err := os.ReadFile(DeployedHelmValuesTextPath)
+			if err != nil {
+				log("os.ReadFile: %s", err)
+			}
+
+			DeployedHelmEnvValuesTextPath := fmt.Sprintf("%s/deployed/%s.%s.values.yaml", PackageDir, p.HelmName, p.EnvName)
+			DeployedHelmEnvValuesTextBytes, err := os.ReadFile(DeployedHelmEnvValuesTextPath)
+			if err != nil {
+				log("os.ReadFile: %s", err)
+			}
+
+			DeployedImagesValuesTextPath := fmt.Sprintf("%s/deployed/%s.%s.images.values.yaml", PackageDir, p.HelmName, p.EnvName)
+			DeployedImagesValuesTextBytes, err := os.ReadFile(DeployedImagesValuesTextPath)
+			if err != nil {
+				log("os.ReadFile: %s", err)
+			}
+			DeployedImagesValuesText := string(DeployedImagesValuesTextBytes)
+
+			ReportedValuesHashPath := fmt.Sprintf("%s.%s.%s", PackageDir, p.HelmName, p.EnvName, ValuesReportedHashFilenameSuffix)
+			ReportedValuesHashBytes, err := os.ReadFile(ReportedValuesHashPath)
+			if err != nil {
+				//log("os.ReadFile: %s", err)
+				ReportedValuesHashBytes = []byte{}
+			}
+			ReportedValuesHash := string(ReportedValuesHashBytes)
+
+			var ReportedPermitHash string
+			permithashpath := fmt.Sprintf("%s.%s.%s", p.HelmName, p.EnvName, PermitHashFilenameSuffix)
+			err = GetValuesText(permithashpath, &ReportedPermitHash)
+			if err != nil {
+				log("GetValuesText `%s`: %v", permithashpath, err)
+			}
+
+			toreport := false
+
+			if p.HelmValuesText != string(DeployedHelmValuesTextBytes) {
+				log("helm. " + SPAC + "HelmValuesText diff ")
+				toreport = true
+			}
+
+			if p.HelmEnvValuesText != string(DeployedHelmEnvValuesTextBytes) {
+				log("helm. " + SPAC + "HelmEnvValuesText diff ")
+				toreport = true
+			}
+
+			if p.HelmImagesValuesText != DeployedImagesValuesText {
+				log("helm. " + SPAC + "ImagesValuesText diff ")
+				toreport = true
+
+				DeployedImagesValuesMap := make(map[string]string)
+				d := yaml.NewDecoder(bytes.NewReader(DeployedImagesValuesTextBytes))
+				for {
+					if err := d.Decode(&DeployedImagesValuesMap); err != nil {
+						if err != io.EOF {
+							return fmt.Errorf("yaml Decode %w", err)
+						}
+						break
+					}
+				}
+
+				//ansibold := func(s string) string { return "\033[1m" + s + "\033[0m" }
+				//ansidim := func(s string) string { return "\033[2m" + s + "\033[0m" }
+				//ansiitalic := func(s string) string { return "\033[3m" + s + "\033[0m" }
+				//ansiunderline := func(s string) string { return "\033[4m" + s + "\033[0m" }
+				//ansistrikethru := func(s string) string { return "\033[9m" + s + "\033[0m" }
+				//ansired := func(s string) string { return "\033[31m" + s + "\033[0m" }
+				//ansibrightred := func(s string) string { return "\033[91m" + s + "\033[0m" }
+				imagesvaluesdiff := ""
+				iv1, iv2 := DeployedImagesValuesMap, p.HelmImagesValues
+				for name, v1 := range iv1 {
+					if v2, ok := iv2[name]; ok {
+						if v2 != v1 {
+							imagesvaluesdiff += fmt.Sprintf("<> "+"%s: %#v => %#v"+" / ", name, v1, v2)
+						}
+					} else {
+						imagesvaluesdiff += fmt.Sprintf("-- "+"%s: %#v"+" / ", name, v1)
+					}
+				}
+				for name, v2 := range iv2 {
+					if _, ok := iv1[name]; !ok {
+						imagesvaluesdiff += fmt.Sprintf("++ "+"%s: %#v"+" / ", name, v2)
+					}
+				}
+				log("helm. "+SPAC+"ImagesValues diff: // %s // ", imagesvaluesdiff)
+
+			}
+
+			if p.ValuesHash == ReportedValuesHash {
+				log("helm. " + SPAC + "ValuesHash same ")
+				toreport = false
+			}
+
+			reported := false
+
+			if toreport {
+
+				//
+				// WRITE LATEST
+				//
+
+				err = os.RemoveAll(PackageLatestDir)
+				if err != nil {
+					return fmt.Errorf("os.RemoveAll `%s`: %w", PackageLatestDir, err)
+				}
+
+				err = os.MkdirAll(PackageLatestDir, 0700)
+				if err != nil {
+					return fmt.Errorf("os.MkdirAll `%s`: %w", PackageLatestDir, err)
+				}
+
+				HelmValuesTextPath := fmt.Sprintf("%s/%s.values.yaml", PackageLatestDir, p.HelmName)
+				err = os.WriteFile(HelmValuesTextPath, []byte(p.HelmValuesText), 0600)
+				if err != nil {
+					return fmt.Errorf("os.WriteFile `%s`: %w", HelmValuesTextPath, err)
+				}
+
+				HelmEnvValuesTextPath := fmt.Sprintf("%s/%s.%s.values.yaml", PackageLatestDir, p.HelmName, p.EnvName)
+				err = os.WriteFile(HelmEnvValuesTextPath, []byte(p.HelmEnvValuesText), 0600)
+				if err != nil {
+					return fmt.Errorf("os.WriteFile `%s`: %w", HelmEnvValuesTextPath, err)
+				}
+
+				ImagesValuesTextPath := fmt.Sprintf("%s/%s.%s.images.values.yaml", PackageLatestDir, p.HelmName, p.EnvName)
+				err = os.WriteFile(ImagesValuesTextPath, []byte(p.HelmImagesValuesText), 0600)
+				if err != nil {
+					return fmt.Errorf("os.WriteFile `%s`: %w", ImagesValuesTextPath, err)
+				}
+
+				ValuesHashPath := fmt.Sprintf("%s.%s.%s", p.HelmName, p.EnvName, ValuesLatestHashFilenameSuffix)
+				err = os.WriteFile(ValuesHashPath, []byte(p.ValuesHash), 0600)
+				if err != nil {
+					return fmt.Errorf("os.WriteFile `%s`: %w", ValuesHashPath, err)
+				}
+
+				log("helm. "+SPAC+"#%s#%s#%s latest ", p.HelmName, p.EnvName, p.ValuesHash)
+
+				//
+				// REPORT
+				//
+
+				err = os.RemoveAll(PackageReportedDir)
+				if err != nil {
+					return fmt.Errorf("os.RemoveAll `%s`: %w", PackageReportedDir, err)
+				}
+
+				err = os.Rename(PackageLatestDir, PackageReportedDir)
+				if err != nil {
+					return fmt.Errorf("os.Rename `%s` `%s`: %w", PackageLatestDir, PackageReportedDir, err)
+				}
+
+				log("helm. "+SPAC+"#%s#%s#%s reported ", p.HelmName, p.EnvName, p.ValuesHash)
+
+				ReportedValuesHash = p.ValuesHash
+
+			}
+
+			if ReportedValuesHash != "" {
+				reported = true
+			}
+
+			ForceNow := false
+			if reported && ReportedPermitHash == ReportedValuesHash {
+				ForceNow = true
+			}
+
+			todeploy := false
+
+			if p.AlwaysForceNow != nil && *p.AlwaysForceNow {
+				todeploy = true
+			}
+
+			if slices.Contains(p.AllowedHoursList, timenowhour) {
+				todeploy = true
+			}
+
+			if ForceNow {
+				todeploy = true
+			}
+
+			if reported && todeploy {
+
+				//
+				// DEPLOY
+				//
+
+				err = os.RemoveAll(PackageDeployedDir)
+				if err != nil {
+					return fmt.Errorf("os.RemoveAll `%s`: %w", PackageDeployedDir, err)
+				}
+
+				err = os.Rename(PackageReportedDir, PackageDeployedDir)
+				if err != nil {
+					return fmt.Errorf("os.Rename `%s` `%s`: %w", PackageReportedDir, PackageDeployedDir, err)
+				}
+
+				namespaceexists := false
+				if kns, err := kclientset.CoreV1().Namespaces().Get(context.TODO(), p.Namespace, kmetav1.GetOptions{}); kerrors.IsNotFound(err) {
+					// namespaceexists = false
+				} else if err != nil {
+					return err
+				} else if kns.Name == p.Namespace {
+					namespaceexists = true
+				}
+
+				if !namespaceexists {
+					pnamespace := &kcorev1.Namespace{
+						ObjectMeta: kmetav1.ObjectMeta{
+							Name: p.Namespace,
+						},
+					}
+					if _, err := kclientset.CoreV1().Namespaces().Create(context.TODO(), pnamespace, kmetav1.CreateOptions{}); err != nil {
+						return err
+					}
+				}
+
+				isinstalled := false
+				for _, r := range installedreleases {
+					if r.Name == p.Name && r.Namespace == p.Namespace {
+						isinstalled = true
+					}
+				}
+
+				var pkgrelease *helmrelease.Release
+				if isinstalled {
+					// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Upgrade
+					helmupgrade := helmaction.NewUpgrade(helmactioncfg)
+					helmupgrade.DryRun = true
+					helmupgrade.Namespace = p.Namespace
+
+					chart := new(helmchart.Chart)
+					values := make(map[string]interface{})
+					pkgrelease, err = helmupgrade.Run(
+						p.PackageName,
+						chart,
+						values,
+					)
+					if err != nil {
+						return err
+					}
+				} else {
+					// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Install
+					helminstall := helmaction.NewInstall(helmactioncfg)
+					helminstall.DryRun = true
+					helminstall.CreateNamespace = true
+					helminstall.Namespace = p.Namespace
+					helminstall.ReleaseName = p.PackageName
+
+					chart := new(helmchart.Chart)
+					values := make(map[string]interface{})
+					pkgrelease, err = helminstall.Run(
+						chart,
+						values,
+					)
+					if err != nil {
+						return err
+					}
+				}
+
+				log("helm. "+SPAC+"#%s#%s#%s deployed ", p.HelmName, p.EnvName, p.ValuesHash)
+				if pkgrelease == nil {
+					log("helm. "+SPAC+"release: %+v ", pkgrelease)
+				} else {
+					log("helm. "+SPAC+"release info: %s ", pkgrelease.Info.Status)
+				}
+
 			}
 
 		}
 
-	}
+	*/
 
 	return nil
 }
@@ -1096,8 +1070,29 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 	return packages, nil
 }
 
-func GetValuesTextFile(name, location string, valuestext *string) (err error) {
-	filepath := path.Join(location, name)
+func GetValuesText(name string, valuestext *string) (err error) {
+	if ValuesMinioUrlHost != "" {
+		return GetValuesTextMinio(name, valuestext)
+	}
+	return GetValuesTextFile(name, valuestext)
+}
+
+func GetValues(name string, valuestext *string, values interface{}) (err error) {
+	if ValuesMinioUrlHost != "" {
+		return GetValuesMinio(name, valuestext, values)
+	}
+	return GetValuesFile(name, valuestext, values)
+}
+
+func PutValuesText(name string, valuestext string) (err error) {
+	if ValuesMinioUrlHost != "" {
+		return PutValuesTextMinio(name, valuestext)
+	}
+	return PutValuesTextFile(name, valuestext)
+}
+
+func GetValuesTextFile(name string, valuestext *string) (err error) {
+	filepath := path.Join(ConfigDir, name)
 
 	bb, err := os.ReadFile(filepath)
 	if err != nil {
@@ -1114,13 +1109,13 @@ func GetValuesTextFile(name, location string, valuestext *string) (err error) {
 	return nil
 }
 
-func GetValuesFile(name, location string, valuestext *string, values interface{}) (err error) {
+func GetValuesFile(name string, valuestext *string, values interface{}) (err error) {
 	if valuestext == nil {
 		var valuestext1 string
 		valuestext = &valuestext1
 	}
 
-	err = GetValuesTextLocal(name, location, valuestext)
+	err = GetValuesTextFile(name, valuestext)
 	if err != nil {
 		return err
 	}
@@ -1131,6 +1126,15 @@ func GetValuesFile(name, location string, valuestext *string, values interface{}
 		return err
 	}
 
+	return nil
+}
+
+func PutValuesTextFile(name string, valuestext string) (err error) {
+	err = os.WriteFile(name, []byte(valuestext), 0644)
+	if err != nil {
+		log("ERROR WriteFile %s: %v", name, err)
+		return err
+	}
 	return nil
 }
 
