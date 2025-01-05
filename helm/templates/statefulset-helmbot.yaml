@@ -29,7 +29,7 @@ spec:
       volumes:
         - name: config-local-dir
           hostPath:
-            path: "{{ $.Values.ConfigLocalDir }}"
+            path: "{{ $.Values.ConfigDir }}"
             type: DirectoryOrCreate
 
       containers:
@@ -39,8 +39,8 @@ spec:
           imagePullPolicy: IfNotPresent
 
           volumeMounts:
-            - name: config-local-dir
-              mountPath: "{{ $.Values.ConfigLocalDir }}"
+            - name: config-dir
+              mountPath: "{{ $.Values.ConfigDir }}"
 
           {{ if $.Values.TgWebhookHost -}}
           ports:
