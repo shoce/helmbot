@@ -11,14 +11,10 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/hmac"
-	"crypto/sha1"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -42,8 +38,6 @@ import (
 	helmgetter "helm.sh/helm/v3/pkg/getter"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	helmrepo "helm.sh/helm/v3/pkg/repo"
-
-	dregistry "github.com/rusenask/docker-registry-client/registry"
 
 	kcorev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -74,19 +68,20 @@ var (
 
 	LocalZone string
 
-	UpdateHashIdRe *regexp.Regexp
-
 	ServerHostname string
 
-	ConfigLocalDir      string
-	ConfigLocalFilename string
-	ConfigMinioFilename string
+	ConfigDir      string
+	ConfigFilename string
 
-	ConfigLocal HelmbotConfig
-	Config      HelmbotConfig
+	ValuesMinioUrl      string
+	ValuesMinioUsername string
+	ValuesMinioPassword string
 
-	PackagesLocal []PackageConfig
-	Packages      []PackageConfig
+	ValuesMinioHost string
+	ValuesMinioPath string
+
+	Config   HelmbotConfig
+	Packages []PackageConfig
 
 	ListenAddr string
 
@@ -102,17 +97,7 @@ var (
 	TgParseMode           = "MarkdownV2"
 	TgDisableNotification = false
 
-	GetValuesUrlPrefix     string
-	GetValuesUrlHost       string
-	GetValuesUrlPrefixPath string
-	GetValuesUsername      string
-	GetValuesPassword      string
-
-	PutValuesUrlPrefix     string
-	PutValuesUrlHost       string
-	PutValuesUrlPrefixPath string
-	PutValuesUsername      string
-	PutValuesPassword      string
+	UpdateHashIdRe *regexp.Regexp
 )
 
 func init() {
@@ -131,7 +116,7 @@ func init() {
 
 	if os.Getenv("DEBUG") != "" {
 		DEBUG = true
-		log("DEBUG:true")
+		log("DEBUG==true")
 	}
 
 	ServerHostname = os.Getenv("ServerHostname")
@@ -140,9 +125,45 @@ func init() {
 		os.Exit(1)
 	}
 
-	ConfigLocalDir = os.Getenv("ConfigLocalDir")
-	ConfigLocalFilename = os.Getenv("ConfigLocalFilename")
-	ConfigMinioFilename = os.Getenv("ConfigMinioFilename")
+	ConfigDir = os.Getenv("ConfigDir")
+	if ConfigDir == "" {
+		log("ERROR empty ConfigDir env var")
+		os.Exit(1)
+	}
+	if !path.IsAbs(ConfigDir) {
+		log("ERROR ConfigDir `%s` must be an absolute path", ConfigDir)
+		os.Exit(1)
+	}
+	if !dirExists(ConfigDir) {
+		log("ERROR ConfigDir `%s` does not exist", ConfigDir)
+		os.Exit(1)
+	}
+
+	ConfigFilename = os.Getenv("ConfigFilename")
+	if ConfigFilename == "" {
+		log("ERROR empty ConfigFilename env var")
+	}
+
+	ValuesMinioUrl = os.Getenv("ValuesMinioUrl")
+	if ValuesMinioUrl == "" {
+		log("WARNING empty ValuesMinioUrl env var")
+	} else if u, err := url.Parse(ValuesMinioUrl); err != nil {
+		log("ERROR ValuesMinioUrl `%s` parse error: %s", ValuesMinioUrl, err)
+		os.Exit(1)
+	} else {
+		ValuesMinioHost = u.Host
+		ValuesMinioPath = u.Path
+	}
+
+	ValuesMinioUsername = os.Getenv("ValuesMinioUsername")
+	if ValuesMinioUsername == "" && ValuesMinioHost != "" {
+		log("WARNING empty ValuesMinioUsername env var")
+	}
+
+	ValuesMinioPassword = os.Getenv("ValuesMinioPassword")
+	if ValuesMinioPassword == "" && ValuesMinioHost != "" {
+		log("WARNING empty ValuesMinioPassword env var")
+	}
 
 	ListenAddr = os.Getenv("ListenAddr")
 	if ListenAddr == "" {
@@ -212,55 +233,6 @@ func init() {
 	if len(TgBossUserIds) == 0 {
 		log("WARNING empty or invalid TgBossUserIds env var")
 	}
-
-	GetValuesUrlPrefix = os.Getenv("GetValuesUrlPrefix")
-	if GetValuesUrlPrefix == "" {
-		log("WARNING empty GetValuesUrlPrefix env var")
-	}
-	if getvaluesurl, err := url.Parse(GetValuesUrlPrefix); err != nil {
-		log("ERROR url.Parse GetValuesUrlPrefix: %v", err)
-		os.Exit(1)
-	} else {
-		GetValuesUrlHost = getvaluesurl.Host
-		GetValuesUrlPrefixPath = getvaluesurl.Path
-	}
-
-	GetValuesUsername = os.Getenv("GetValuesUsername")
-	if GetValuesUsername == "" && GetValuesUrlPrefix != "" {
-		log("ERROR empty GetValuesUsername env var")
-		os.Exit(1)
-	}
-
-	GetValuesPassword = os.Getenv("GetValuesPassword")
-	if GetValuesPassword == "" && GetValuesUrlPrefix != "" {
-		log("ERROR empty GetValuesPassword env var")
-		os.Exit(1)
-	}
-
-	PutValuesUrlPrefix = os.Getenv("PutValuesUrlPrefix")
-	if PutValuesUrlPrefix == "" {
-		log("WARNING empty PutValuesUrlPrefix env var")
-	}
-	if putvaluesurl, err := url.Parse(PutValuesUrlPrefix); err != nil {
-		log("ERROR url.Parse PutValuesUrlPrefix: %v", err)
-		os.Exit(1)
-	} else {
-		PutValuesUrlHost = putvaluesurl.Host
-		PutValuesUrlPrefixPath = putvaluesurl.Path
-	}
-
-	PutValuesUsername = os.Getenv("PutValuesUsername")
-	if PutValuesUsername == "" && PutValuesUrlPrefix != "" {
-		log("ERROR empty PutValuesUsername env var")
-		os.Exit(1)
-	}
-
-	PutValuesPassword = os.Getenv("PutValuesPassword")
-	if PutValuesPassword == "" && PutValuesUrlPrefix != "" {
-		log("ERROR empty PutValuesPassword env var")
-		os.Exit(1)
-	}
-
 }
 
 func main() {
@@ -315,78 +287,85 @@ func main() {
 func Webhook(w http.ResponseWriter, r *http.Request) {
 	var err error
 	if TgWebhookToken != "" && r.Header.Get("X-Telegram-Bot-Api-Secret-Token") != TgWebhookToken {
-		log("Webhook request with invalid X-Telegram-Bot-Api-Secret-Token header")
+		log("WARNING Webhook request with invalid X-Telegram-Bot-Api-Secret-Token header")
+		w.WriteHeader(http.StatusOK)
 		return
 	}
+
 	var rbody []byte
 	rbody, err = io.ReadAll(r.Body)
 	if err != nil {
-		log("Webhook io.ReadAll r.Body: %s", err)
+		log("ERROR Webhook io.ReadAll r.Body: %v", err)
+		w.WriteHeader(http.StatusOK)
+		return
 	}
+
 	if DEBUG {
-		log("Webhook %s %s %s: %s", r.Method, r.URL, r.Header.Get("Content-Type"), strings.ReplaceAll(string(rbody), NL, ""))
+		log("DEBUG Webhook %s %s %s: %s", r.Method, r.URL, r.Header.Get("Content-Type"), strings.ReplaceAll(string(rbody), NL, " <nl> "))
 	}
+
+	w.WriteHeader(http.StatusOK)
+
 	var rupdate TgUpdate
 	err = json.NewDecoder(bytes.NewBuffer(rbody)).Decode(&rupdate)
 	if err != nil {
-		log("Webhook json.Decoder.Decode: %s", err)
+		log("ERROR Webhook json.Decoder.Decode: %v", err)
+		return
 	}
-	w.WriteHeader(http.StatusOK)
 
 	if rupdate.ChannelPost.MessageId != 0 {
 		rupdate.Message = rupdate.ChannelPost
 	}
 
 	if DEBUG {
-		log("Webhook TgUpdate: %+v", rupdate)
+		log("DEBUG Webhook TgUpdate: %+v", rupdate)
 	}
 
 	if !slices.Contains(TgChatIds, rupdate.Message.Chat.Id) {
-		log("Webhook reply to message chat id not valid")
+		log("DEBUG Webhook reply to message chat id not valid")
 		return
 	}
-	log("Webhook reply to message chat id valid")
+	log("DEBUG Webhook reply to message chat id valid")
 
 	if rupdate.Message.ReplyToMessage.From.Id != TgBotUserId && !slices.Contains(TgChatIds, rupdate.Message.ReplyToMessage.SenderChat.Id) {
-		log("Webhook reply to message user id not valid")
+		log("DEBUG Webhook reply to message user id not valid")
 		return
 	}
-	log("Webhook reply to message user id valid")
+	log("DEBUG Webhook reply to message user id valid")
 
 	UpdateHashIdSubmatch := UpdateHashIdRe.FindStringSubmatch(rupdate.Message.ReplyToMessage.Text)
 	if len(UpdateHashIdSubmatch) == 0 {
-		log("Webhook reply to message text not valid")
+		log("DEBUG Webhook reply to message text not valid")
 		return
 	}
-	log("Webhook reply to message text valid")
+	log("DEBUG Webhook reply to message text valid")
 
 	if !slices.Contains(TgChatIds, rupdate.Message.Chat.Id) {
-		log("Webhook message chat id not valid")
+		log("DEBUG Webhook message chat id not valid")
 		return
 	}
-	log("Webhook message chat id valid")
+	log("DEBUG Webhook message chat id valid")
 
 	msgtext := strings.TrimSpace(rupdate.Message.Text)
 	if msgtext != "NOW" {
-		log("Webhook message text not valid")
+		log("DEBUG Webhook message text not valid")
 		return
 	}
-	log("Webhook message text valid")
+	log("DEBUG Webhook message text valid")
 
 	if !slices.Contains(TgBossUserIds, rupdate.Message.From.Id) && !slices.Contains(TgChatIds, rupdate.Message.ReplyToMessage.SenderChat.Id) {
-		log("Webhook message user id not valid")
-		err = tglog(
+		log("DEBUG Webhook message user id not valid")
+		if err := tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
 			"*Your request to force update %s is NOT accepted.*"+NL+NL+"Check helmbot TgBossUserIds config value.",
-		)
-		if err != nil {
+		); err != nil {
 			log("ERROR tglog: %v", err)
 		}
 		return
 	}
-	log("Webhook message user id valid")
+	log("DEBUG Webhook message user id valid")
 
-	log("Webhook update hash id submatch: %+v", UpdateHashIdSubmatch)
+	log("DEBUG Webhook update hash id submatch: %+v", UpdateHashIdSubmatch)
 
 	UpdateHashId := UpdateHashIdSubmatch[0]
 	log("Webhook update hash id: %s", UpdateHashId)
@@ -397,48 +376,40 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	UpdateValuesHash := UpdateHashIdSubmatch[3]
 	log("Webhook update values hash: %s", UpdateValuesHash)
 
-	/*
-		if s, err := script.ListFiles(ConfigLocalDir).EachLine(func(l string, o *strings.Builder) { o.WriteString(l + NL) }).Join().String(); err == nil {
-			log("%s: %s", ConfigLocalDir, s)
-		} else {
-			log("ERROR %s: %v", ConfigLocalDir, err)
-			return
-		}
-	*/
-
 	PackageName := fmt.Sprintf("%s-%s", UpdateHelmName, UpdateEnvName)
-	PackageDir := fmt.Sprintf("%s/%s/", ConfigLocalDir, PackageName)
-	PackageLatestDir := fmt.Sprintf("%s/latest/", PackageDir)
-	PackageReportedDir := fmt.Sprintf("%s/reported/", PackageDir)
-	PackageDeployedDir := fmt.Sprintf("%s/deployed/", PackageDir)
+	PackageDir := path.Join(ConfigDir, PackageName)
+
+	PackageLatestDir := path.Join(PackageDir, "latest")
+	PackageReportedDir := path.Join(PackageDir, "reported")
+	PackageDeployedDir := path.Join(PackageDir, "deployed")
+
 	if DEBUG {
-		log("PackageLatestDir:%s PackageReportedDir:%s PackageDeployedDir:%s",
+		log(
+			"DEBUG PackageLatestDir:%s PackageReportedDir:%s PackageDeployedDir:%s",
 			PackageLatestDir, PackageReportedDir, PackageDeployedDir,
 		)
 	}
 
 	deployedvalueshashpath := fmt.Sprintf("%s.%s.%s", UpdateHelmName, UpdateEnvName, ValuesDeployedHashFilenameSuffix)
 	var deployedvalueshash string
-	if err := GetValuesText(deployedvalueshashpath, &deployedvalueshash); err == nil {
-		log("deployed values hash: %s", deployedvalueshash)
-		if UpdateValuesHash == deployedvalueshash {
-			log("latest and deployed values hashes match")
-			err = tglog(
-				rupdate.Message.Chat.Id, rupdate.Message.MessageId,
-				"*THIS UPDATE IS ALREADY DEPLOYED*",
-			)
-			if err != nil {
-				log("ERROR tglog: %v", err)
-			}
-			return
-		}
-	} else {
+	if err := GetValuesTextMinio(deployedvalueshashpath, &deployedvalueshash); err != nil {
 		log("ERROR `%s` could not be read: %v", deployedvalueshashpath, err)
-		err = tglog(
+		if err := tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
 			"*INTERNAL ERROR*",
-		)
-		if err != nil {
+		); err != nil {
+			log("ERROR tglog: %v", err)
+		}
+		return
+	}
+
+	log("deployed values hash: %s", deployedvalueshash)
+	if UpdateValuesHash == deployedvalueshash {
+		log("DEBUG latest and deployed values hashes match")
+		if err := tglog(
+			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
+			"*THIS UPDATE IS ALREADY DEPLOYED*",
+		); err != nil {
 			log("ERROR tglog: %v", err)
 		}
 		return
@@ -446,53 +417,49 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
 	reportedvalueshashpath := fmt.Sprintf("%s.%s.%s", UpdateHelmName, UpdateEnvName, ValuesReportedHashFilenameSuffix)
 	var reportedvalueshash string
-	if err := GetValuesText(reportedvalueshashpath, &reportedvalueshash); err == nil {
-		log("reported values hash: %s", reportedvalueshash)
-		if UpdateValuesHash == reportedvalueshash {
-			log("latest and reported values hashes match")
-		} else {
-			log("latest and reported values hashes mismatch")
-			err = tglog(
-				rupdate.Message.Chat.Id, rupdate.Message.MessageId,
-				"*THIS IS NOT THE LAST AVAILABLE UPDATE*"+NL+NL+"Only the last available update can be forced.",
-			)
-			if err != nil {
-				log("ERROR tglog: %v", err)
-			}
-			return
-		}
-	} else {
+	if err := GetValuesTextMinio(reportedvalueshashpath, &reportedvalueshash); err != nil {
 		log("ERROR `%s` could not be read: %v", reportedvalueshashpath, err)
-		err = tglog(
+		if err := tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
 			"*INTERNAL ERROR*",
-		)
-		if err != nil {
+		); err != nil {
 			log("ERROR tglog: %v", err)
 		}
 		return
 	}
 
-	log("Webhook all checks passed")
+	log("DEBUG reported values hash: %s", reportedvalueshash)
+	if UpdateValuesHash != reportedvalueshash {
+		log("DEBUG latest and reported values hashes mismatch")
+		if err := tglog(
+			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
+			"*THIS IS NOT THE LAST AVAILABLE UPDATE*"+NL+NL+"Only the last available update can be forced.",
+		); err != nil {
+			log("ERROR tglog: %v", err)
+		}
+		return
+	}
+	log("DEBUG latest and reported values hashes match")
+
+	log("DEBUG Webhook all checks passed")
 
 	permithashpath := fmt.Sprintf("%s.%s.%s", UpdateHelmName, UpdateEnvName, PermitHashFilenameSuffix)
-	log("Webhook creating %s file", permithashpath)
+	log("DEBUG Webhook creating %s file", permithashpath)
 
-	if err := PutValuesText(permithashpath, UpdateValuesHash); err == nil {
-		log("Webhook created %s file", permithashpath)
-	} else {
-		log("Webhook %s file could not be written: %v", permithashpath, err)
-		err = tglog(
+	if err := PutValuesTextMinio(permithashpath, UpdateValuesHash); err != nil {
+		log("ERROR Webhook %s file could not be written: %v", permithashpath, err)
+		if err := tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
 			"*INTERNAL ERROR*",
-		)
-		if err != nil {
+		); err != nil {
 			log("ERROR tglog: %v", err)
 		}
 		return
 	}
 
-	err = tglog(
+	log("DEBUG Webhook created %s file", permithashpath)
+
+	if err := tglog(
 		rupdate.Message.Chat.Id, rupdate.Message.MessageId,
 		"*FORCE UPDATE NOW IS ACCEPTED.*"+
 			NL+NL+
@@ -500,70 +467,11 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 			NL+NL+
 			"`%s`",
 		UpdateHashId,
-	)
-	if err != nil {
+	); err != nil {
 		log("ERROR tglog: %v", err)
 	}
 
-	log("Webhook finished %s", UpdateHashId)
-}
-
-func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error {
-	if DEBUG {
-		log("TgSetWebhook: url:%s allowedupdates:%s secrettoken:%s", url, allowedupdates, secrettoken)
-	}
-
-	type TgSetWebhookRequest struct {
-		Url            string   `json:"url"`
-		MaxConnections int64    `json:"max_connections"`
-		AllowedUpdates []string `json:"allowed_updates"`
-		SecretToken    string   `json:"secret_token,omitempty"`
-	}
-
-	type TgSetWebhookResponse struct {
-		OK          bool   `json:"ok"`
-		Description string `json:"description"`
-		Result      bool   `json:"result"`
-	}
-
-	swreq := TgSetWebhookRequest{
-		Url:            url,
-		MaxConnections: TgWebhookMaxConnections,
-		AllowedUpdates: allowedupdates,
-		SecretToken:    secrettoken,
-	}
-	swreqjs, err := json.Marshal(swreq)
-	if err != nil {
-		return err
-	}
-	swreqjsBuffer := bytes.NewBuffer(swreqjs)
-
-	var resp *http.Response
-	tgapiurl := fmt.Sprintf("https://api.telegram.org/bot%s/setWebhook", TgToken)
-	resp, err = http.Post(
-		tgapiurl,
-		"application/json",
-		swreqjsBuffer,
-	)
-	if err != nil {
-		return fmt.Errorf("apiurl:`%s` apidata:`%s` %v", tgapiurl, swreqjs, err)
-	}
-
-	var swresp TgSetWebhookResponse
-	var swrespbody []byte
-	swrespbody, err = io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("io.ReadAll: %w", err)
-	}
-	err = json.NewDecoder(bytes.NewBuffer(swrespbody)).Decode(&swresp)
-	if err != nil {
-		return fmt.Errorf("json.Decoder.Decode: %w", err)
-	}
-	if !swresp.OK || !swresp.Result {
-		return fmt.Errorf("apiurl:`%s` apidata:`%s` api response not ok: %+v", tgapiurl, swreqjs, swresp)
-	}
-
-	return nil
+	log("DEBUG Webhook finished %s", UpdateHashId)
 }
 
 func ServerPackagesUpgrade() (err error) {
@@ -591,7 +499,7 @@ func ServerPackagesUpgrade() (err error) {
 		}
 	}
 
-	err = GetValues(ConfigLocalFilename, nil, &ConfigLocal)
+	err = GetValuesFile(ConfigLocalFilename, nil, &ConfigLocal)
 	if err != nil {
 		log("WARNING ServerPackagesUpgrade GetValues `%s`: %v", ConfigLocalFilename, err)
 	}
@@ -616,7 +524,7 @@ func ServerPackagesUpgrade() (err error) {
 		}
 	}
 
-	err = GetValues(ConfigMinioFilename, nil, &Config)
+	err = GetValuesMinio(ConfigMinioFilename, nil, &Config)
 	if err != nil {
 		log("WARNING ServerPackagesUpgrade GetValues `%s`: %v", ConfigMinioFilename, err)
 	}
@@ -1188,180 +1096,8 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 	return packages, nil
 }
 
-func log(msg string, args ...interface{}) {
-	var t time.Time
-	var tzone string
-	if LogUTCTime {
-		t = time.Now().UTC()
-		tzone = "z"
-	} else {
-		t = time.Now().Local()
-		tzone = LocalZone
-	}
-	ts := fmt.Sprintf(
-		"%03d:%02d%02d:%02d%02d%s",
-		t.Year()%1000, t.Month(), t.Day(), t.Hour(), t.Minute(), tzone,
-	)
-	fmt.Fprintf(os.Stderr, ts+" "+msg+NL, args...)
-}
-
-func tglog(chatid int64, replyid int64, msg string, args ...interface{}) error {
-	type TgSendMessageRequest struct {
-		ChatId              int64  `json:"chat_id"`
-		ReplyToMessageId    int64  `json:"reply_to_message_id,omitempty"`
-		Text                string `json:"text"`
-		ParseMode           string `json:"parse_mode,omitempty"`
-		DisableNotification bool   `json:"disable_notification"`
-	}
-
-	type TgSendMessageResponse struct {
-		OK          bool   `json:"ok"`
-		Description string `json:"description"`
-		Result      struct {
-			MessageId int64 `json:"message_id"`
-		} `json:"result"`
-	}
-
-	text := fmt.Sprintf(msg, args...)
-	text = strings.NewReplacer(
-		"(", "\\(",
-		")", "\\)",
-		"[", "\\[",
-		"]", "\\]",
-		"{", "\\{",
-		"}", "\\}",
-		"~", "\\~",
-		">", "\\>",
-		"#", "\\#",
-		"+", "\\+",
-		"-", "\\-",
-		"=", "\\=",
-		"|", "\\|",
-		"!", "\\!",
-		".", "\\.",
-	).Replace(text)
-
-	smreq := TgSendMessageRequest{
-		ChatId:              chatid,
-		ReplyToMessageId:    replyid,
-		Text:                text,
-		ParseMode:           TgParseMode,
-		DisableNotification: TgDisableNotification,
-	}
-	smreqjs, err := json.Marshal(smreq)
-	if err != nil {
-		return fmt.Errorf("%v", err)
-	}
-	smreqjsBuffer := bytes.NewBuffer(smreqjs)
-
-	var resp *http.Response
-	tgapiurl := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", TgToken)
-	resp, err = http.Post(
-		tgapiurl,
-		"application/json",
-		smreqjsBuffer,
-	)
-	if err != nil {
-		return fmt.Errorf("apiurl:`%s` apidata:`%s` %v", tgapiurl, smreqjs, err)
-	}
-
-	var smresp TgSendMessageResponse
-	err = json.NewDecoder(resp.Body).Decode(&smresp)
-	if err != nil {
-		return fmt.Errorf("%v", err)
-	}
-	if !smresp.OK {
-		return fmt.Errorf("apiurl:`%s` apidata:`%s` api response not ok: %+v", tgapiurl, smreqjs, smresp)
-	}
-
-	return nil
-}
-
-type TgUpdate struct {
-	UpdateId    int64     `json:"update_id"`
-	Message     TgMessage `json:"message"`
-	ChannelPost TgMessage `json:"channel_post"`
-}
-
-type TgMessage struct {
-	MessageId      int64  `json:"message_id"`
-	From           TgUser `json:"from"`
-	SenderChat     TgChat `json:"sender_chat"`
-	Chat           TgChat `json:"chat"`
-	Date           int64  `json:"date"`
-	Text           string `json:"text"`
-	ReplyToMessage struct {
-		MessageId  int64  `json:"message_id"`
-		From       TgUser `json:"from"`
-		SenderChat TgChat `json:"sender_chat"`
-		Chat       TgChat `json:"chat"`
-		Date       int64  `json:"date"`
-		Text       string `json:"text"`
-	} `json:"reply_to_message"`
-}
-
-type TgUser struct {
-	Id        int64  `json:"id"`
-	IsBot     bool   `json:"is_bot"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Username  string `json:"username"`
-}
-
-type TgChat struct {
-	Id    int64  `json:"id"`
-	Title string `json:"title"`
-	Type  string `json:"type"`
-}
-
-// get values file from a minio storage
-// https://gist.github.com/gabo89/5e3e316bd4be0fb99369eac512a66537
-// https://stackoverflow.com/questions/72047783/how-do-i-download-files-from-a-minio-s3-bucket-using-curl
-func GetValuesText(name string, valuestext *string) (err error) {
-	if GetValuesUrlPrefix == "" {
-		return GetValuesFileText(name, valuestext)
-	}
-
-	r, err := http.NewRequest("GET", GetValuesUrlPrefix+name, nil)
-	if err != nil {
-		return err
-	}
-	r.Header.Set("User-Agent", "helmbot")
-	hdrcontenttype := "application/octet-stream"
-	r.Header.Set("Content-Type", hdrcontenttype)
-	r.Header.Set("Host", GetValuesUrlPrefix)
-	hdrdate := time.Now().UTC().Format(time.RFC1123Z)
-	r.Header.Set("Date", hdrdate)
-	hdrauthsig := "GET" + NL + NL + hdrcontenttype + NL + hdrdate + NL + GetValuesUrlPrefixPath + name
-	hdrauthsighmac := hmac.New(sha1.New, []byte(GetValuesPassword))
-	hdrauthsighmac.Write([]byte(hdrauthsig))
-	hdrauthsig = base64.StdEncoding.EncodeToString(hdrauthsighmac.Sum(nil))
-	r.Header.Set("Authorization", fmt.Sprintf("AWS %s:%s", GetValuesUsername, hdrauthsig))
-
-	resp, err := http.DefaultClient.Do(r)
-	if err != nil {
-		return err
-	}
-
-	valuesbytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	*valuestext = string(valuesbytes)
-
-	if DEBUG {
-		log("DEBUG GetValuesText %s: %d length: %s...", name, len(*valuestext), strings.ReplaceAll((*valuestext), NL, " <nl> "))
-	}
-
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("minio server response status: %s", resp.Status)
-	}
-
-	return nil
-}
-
-func GetValuesFileText(name string, valuestext *string) (err error) {
-	filepath := path.Join(ConfigLocalDir, name)
+func GetValuesTextFile(name, location string, valuestext *string) (err error) {
+	filepath := path.Join(location, name)
 
 	bb, err := os.ReadFile(filepath)
 	if err != nil {
@@ -1378,13 +1114,13 @@ func GetValuesFileText(name string, valuestext *string) (err error) {
 	return nil
 }
 
-func GetValues(name string, valuestext *string, values interface{}) (err error) {
-	var tempvaluestext string
+func GetValuesFile(name, location string, valuestext *string, values interface{}) (err error) {
 	if valuestext == nil {
-		valuestext = &tempvaluestext
+		var valuestext1 string
+		valuestext = &valuestext1
 	}
 
-	err = GetValuesText(name, valuestext)
+	err = GetValuesTextLocal(name, location, valuestext)
 	if err != nil {
 		return err
 	}
@@ -1393,134 +1129,6 @@ func GetValues(name string, valuestext *string, values interface{}) (err error) 
 	err = d.Decode(values)
 	if err != nil {
 		return err
-	}
-
-	return nil
-}
-
-// put values file to a minio storage
-// https://gist.github.com/gabo89/5e3e316bd4be0fb99369eac512a66537
-// https://stackoverflow.com/questions/72047783/how-do-i-download-files-from-a-minio-s3-bucket-using-curl
-func PutValuesText(name string, valuestext string) (err error) {
-	r, err := http.NewRequest("PUT", PutValuesUrlPrefix+name, bytes.NewBuffer([]byte(valuestext)))
-	if err != nil {
-		return err
-	}
-	r.Header.Set("User-Agent", "helmbot")
-	hdrcontenttype := "application/octet-stream"
-	r.Header.Set("Content-Type", hdrcontenttype)
-	r.Header.Set("Host", PutValuesUrlPrefix)
-	hdrdate := time.Now().UTC().Format(time.RFC1123Z)
-	r.Header.Set("Date", hdrdate)
-	hdrauthsig := "PUT" + NL + NL + hdrcontenttype + NL + hdrdate + NL + PutValuesUrlPrefixPath + name
-	hdrauthsighmac := hmac.New(sha1.New, []byte(PutValuesPassword))
-	hdrauthsighmac.Write([]byte(hdrauthsig))
-	hdrauthsig = base64.StdEncoding.EncodeToString(hdrauthsighmac.Sum(nil))
-	r.Header.Set("Authorization", fmt.Sprintf("AWS %s:%s", PutValuesUsername, hdrauthsig))
-
-	if DEBUG {
-		log("DEBUG PutValuesText %s: %d length: %s...", name, len(valuestext), strings.ReplaceAll((valuestext), NL, " <nl> "))
-	}
-
-	resp, err := http.DefaultClient.Do(r)
-	log("DEBUG PutValuesText resp.Status: %s", resp.Status)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode >= 300 {
-		return fmt.Errorf("minio server response status: %s", resp.Status)
-	}
-
-	return nil
-}
-
-type DrLatestYamlItem struct {
-	KeyPrefix        string `yaml:"KeyPrefix"`
-	KeyPrefixReplace string `yaml:"KeyPrefixReplace"`
-	RegistryUsername string `yaml:"RegistryUsername"`
-	RegistryPassword string `yaml:"RegistryPassword"`
-}
-
-type DrVersions []string
-
-func (vv DrVersions) Len() int {
-	return len(vv)
-}
-
-func (vv DrVersions) Less(i, j int) bool {
-	v1, v2 := vv[i], vv[j]
-	v1s := strings.Split(v1, ".")
-	v2s := strings.Split(v2, ".")
-	if len(v1s) < len(v2s) {
-		return true
-	} else if len(v1s) > len(v2s) {
-		return false
-	}
-	for e := 0; e < len(v1s); e++ {
-		d1, _ := strconv.Atoi(v1s[e])
-		d2, _ := strconv.Atoi(v2s[e])
-		if d1 < d2 {
-			return true
-		} else if d1 > d2 {
-			return false
-		}
-	}
-	return false
-}
-
-func (vv DrVersions) Swap(i, j int) {
-	vv[i], vv[j] = vv[j], vv[i]
-}
-
-func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLatestYamlItem, imagesvalues *map[string]interface{}) (err error) {
-	for helmvalueskey, helmvaluesvalue := range helmvalues {
-		//log("drlatestyaml helmvalueskey %s", helmvalueskey)
-		for _, e := range drlatestyamlitems {
-			//log("  drlatestyaml KeyPrefix %s", e.KeyPrefix)
-			if strings.HasPrefix(helmvalueskey, e.KeyPrefix) {
-				//log("drlatestyaml %s HasPrefix %s", helmvalueskey, e.KeyPrefix)
-
-				imagename := helmvalueskey
-				imageurl := helmvaluesvalue.(string)
-
-				if !strings.HasPrefix(imageurl, "https://") && !strings.HasPrefix(imageurl, "http://") {
-					imageurl = fmt.Sprintf("https://%s", imageurl)
-				}
-
-				var u *url.URL
-				if u, err = url.Parse(imageurl); err != nil {
-					return fmt.Errorf("url.Parse %s %v: %w", imagename, imageurl, err)
-				}
-
-				RegistryUrl := fmt.Sprintf("%s://%s", u.Scheme, u.Host)
-				RegistryRepository := u.Path
-
-				//log("drlatestyaml registry %s %s", RegistryUrl, RegistryRepository)
-
-				r := dregistry.NewInsecure(RegistryUrl, e.RegistryUsername, e.RegistryPassword)
-				r.Logf = dregistry.Quiet
-
-				imagetags, err := r.Tags(RegistryRepository)
-				if err != nil {
-					return fmt.Errorf("registry.Tags %s %v: %w", imagename, imageurl, err)
-				}
-
-				sort.Sort(sort.Reverse(DrVersions(imagetags)))
-
-				imagetag := ""
-
-				if len(imagetags) > 0 {
-					imagetag = imagetags[0]
-				} else {
-					imagetag = "latest"
-				}
-
-				imagenamereplace := e.KeyPrefixReplace + strings.TrimPrefix(imagename, e.KeyPrefix)
-				(*imagesvalues)[imagenamereplace] = imagetag
-
-				//log("drlatestyaml %s %s", imagenamereplace, imagetag)
-			}
-		}
 	}
 
 	return nil
@@ -1595,32 +1203,27 @@ type HelmbotConfig struct {
 	Servers      []ServerConfig     `yaml:"Servers"`
 }
 
-func ImagesValuesToList(imagesvaluesmap map[string]interface{}) (imagesvalueslist []map[string]interface{}, imagesvaluesyamltext string, err error) {
-	imagesvalueslist = make([]map[string]interface{}, 0)
-	for k, v := range imagesvaluesmap {
-		imagesvalueslist = append(imagesvalueslist, map[string]interface{}{k: v})
+func log(msg string, args ...interface{}) {
+	t := time.Now()
+	var tzone string
+	if LogUTCTime {
+		t = t.UTC()
+		tzone = "z"
+	} else {
+		t = t.Local()
+		tzone = LocalZone
 	}
-	sort.Slice(
-		imagesvalueslist,
-		func(i, j int) bool {
-			for ik := range imagesvalueslist[i] {
-				for jk := range imagesvalueslist[j] {
-					return ik < jk
-				}
-			}
-			return false
-		},
+	ts := fmt.Sprintf(
+		"%03d:%02d%02d:%02d%02d%s",
+		t.Year()%1000, t.Month(), t.Day(), t.Hour(), t.Minute(), tzone,
 	)
+	fmt.Fprintf(os.Stderr, ts+" "+msg+NL, args...)
+}
 
-	imagesvaluestext := new(strings.Builder)
-	e := yaml.NewEncoder(imagesvaluestext)
-	for _, iv := range imagesvalueslist {
-		err := e.Encode(iv)
-		if err != nil {
-			return nil, "", fmt.Errorf("yaml.Encoder: %w", err)
-		}
+func dirExists(path string) bool {
+	s, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false
 	}
-	imagesvaluesyamltext = imagesvaluestext.String()
-
-	return imagesvalueslist, imagesvaluesyamltext, nil
+	return err == nil && s.IsDir()
 }
