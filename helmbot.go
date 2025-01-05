@@ -516,9 +516,24 @@ func ServerPackagesUpgrade() (err error) {
 
 	if DEBUG {
 		for _, p := range Packages {
+			metadataversion := ""
+			if strings.HasSuffix(p.HelmChartLocalFilename, ".tgz") {
+				if chartfile, err := os.Open(p.HelmChartLocalFilename); err != nil {
+					log("ERROR HelmChartLocalFilename %s %s os.Open: %v", p.Name, p.HelmChartLocalFilename, err)
+				} else {
+					if c, err := helmloader.LoadArchive(chartfile); err != nil {
+						log("ERROR HelmChartLocalFilename %s %s LoadArchive: %v", p.Name, p.HelmChartLocalFilename, err)
+					} else {
+						metadataversion = c.Metadata.Version
+					}
+					chartfile.Close()
+				}
+			} else {
+				log("WARNING HelmChartLocalFilename %s is not a .tgz file", p.HelmChartLocalFilename)
+			}
 			log(
-				"DEBUG ServerPackagesUpgrade package Name:%s HelmChartLocalFilename:%s ",
-				p.Name, p.HelmChartLocalFilename,
+				"DEBUG ServerPackagesUpgrade package Name==%s HelmChartLocalFilename==%s Metadata.Version==%s",
+				p.Name, p.HelmChartLocalFilename, metadataversion,
 			)
 		}
 	}
@@ -1073,21 +1088,6 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 				} else {
 					sort.Strings(ff)
 					p.HelmChartLocalFilename = ff[len(ff)-1]
-					log("DEBUG HelmChartLocalFilename %s %s", p.Name, p.HelmChartLocalFilename)
-					if strings.HasSuffix(p.HelmChartLocalFilename, ".tgz") {
-						if chartfile, err := os.Open(p.HelmChartLocalFilename); err != nil {
-							log("ERROR HelmChartLocalFilename %s %s os.Open: %v", p.Name, p.HelmChartLocalFilename, err)
-						} else {
-							defer chartfile.Close()
-							if c, err := helmloader.LoadArchive(chartfile); err != nil {
-								log("ERROR HelmChartLocalFilename %s %s LoadArchive: %v", p.Name, p.HelmChartLocalFilename, err)
-							} else {
-								log("DEBUG HelmChartLocalFilename %s %s Metadata.Version==%s", p.Name, p.HelmChartLocalFilename, c.Metadata.Version)
-							}
-						}
-					} else {
-						log("WARNING HelmChartLocalFilename %s is not a .tgz file", p.HelmChartLocalFilename)
-					}
 				}
 			}
 
