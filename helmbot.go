@@ -585,6 +585,8 @@ func ServerPackagesUpgrade() (err error) {
 
 		if p.HelmRepo.Address != "" {
 
+			log("DEBUG package %s HelmRepo.Address==%s", p.Name, p.HelmRepo.Address)
+
 			chartrepo, err := helmrepo.NewChartRepository(
 				&helmrepo.Entry{
 					Name:                  fmt.Sprintf("helm.%s.%s", p.HelmName, p.EnvName),
@@ -682,7 +684,7 @@ func ServerPackagesUpgrade() (err error) {
 				log("WARNING package %s HelmChartAddress is not OCI", p.Name, p.HelmChartAddress)
 			}
 
-			hrclient, err := helmregistry.NewClient()
+			hrclient, err := helmregistry.NewClient(helmregistry.ClientOptDebug(true))
 			if err != nil {
 				log("ERROR helmregistry.NewClient: %v", err)
 				return err
@@ -698,7 +700,6 @@ func ServerPackagesUpgrade() (err error) {
 				continue
 			}
 
-			sort.Strings(tags)
 			log("DEBUG %s tags: %v", p.HelmChartAddress, tags)
 			chartversion := tags[len(tags)-1]
 
@@ -725,6 +726,8 @@ func ServerPackagesUpgrade() (err error) {
 			}
 
 		} else if p.HelmChartLocalFilename != "" {
+
+			log("DEBUG package %s HelmChartLocalFilename==%s", p.Name, p.HelmChartLocalFilename)
 
 			if !path.IsAbs(p.HelmChartLocalFilename) {
 				log("WARNING package %s HelmChartLocalFilename %s is not an absolute path", p.Name, p.HelmChartLocalFilename)
