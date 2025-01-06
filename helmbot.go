@@ -476,7 +476,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
 func ServerPackagesUpgrade() (err error) {
 	if DEBUG {
-		log("DEBUG ServerPackagesUpgrade hostname:%s ", ServerHostname)
+		log("DEBUG packages hostname:%s ", ServerHostname)
 	}
 
 	helmactioncfg := new(helmaction.Configuration)
@@ -491,11 +491,11 @@ func ServerPackagesUpgrade() (err error) {
 	}
 
 	if DEBUG {
-		log("DEBUG ServerPackagesUpgrade installed releases count: %d ", len(installedreleases))
+		log("DEBUG packages installed releases count: %d ", len(installedreleases))
 		/*
 			for _, r := range installedreleases {
 				log(
-					"DEBUG ServerPackagesUpgrade installed release name:%s version:%s namespace:%s ",
+					"DEBUG packages installed release name:%s version:%s namespace:%s ",
 					r.Name, r.Chart.Metadata.Version, r.Namespace,
 				)
 			}
@@ -504,38 +504,38 @@ func ServerPackagesUpgrade() (err error) {
 
 	err = GetValuesFile(ConfigFilename, nil, &Config)
 	if err != nil {
-		log("WARNING ServerPackagesUpgrade GetValues %s: %v", ConfigFilename, err)
+		log("WARNING packages GetValues %s: %v", ConfigFilename, err)
 		return
 	}
 
 	if DEBUG {
-		//log("DEBUG ServerPackagesUpgrade Config: %+v", Config)
+		//log("DEBUG packages Config: %+v", Config)
 	}
 
 	Packages, err = ProcessServersPackages(Config.Servers)
 	if err != nil {
-		log("WARNING ServerPackagesUpgrade ProcessServersPackages: %v", ConfigFilename, err)
+		log("ERROR packages ProcessServersPackages: %v", err)
 		return
 	}
 
-	//log("ServerPackagesUpgrade Packages count: %d", len(Packages))
+	//log("packages Packages count: %d", len(Packages))
 
 	helmenvsettings := helmcli.New()
 
 	/*
-		log("ServerPackagesUpgrade env settings %+v", helmenvsettings)
+		log("packages env settings %+v", helmenvsettings)
 		if err := os.MkdirAll("/opt/helmbot/helm/cache/", 0750); err != nil {
 			return err
 		}
 		helmenvsettings.RegistryConfig = "/opt/helmbot/helm/registry-config.yaml"
 		helmenvsettings.RepositoryConfig = "/opt/helmbot/helm/repository-config.yaml"
 		helmenvsettings.RepositoryCache = "/opt/helmbot/helm/cache/"
-		log("ServerPackagesUpgrade env settings %+v", helmenvsettings)
+		log("packages env settings %+v", helmenvsettings)
 	*/
 
 	helmgetterall := helmgetter.All(helmenvsettings)
 	if DEBUG {
-		//log("DEBUG ServerPackagesUpgrade helmgetterall: %+v", helmgetterall)
+		//log("DEBUG packages helmgetterall: %+v", helmgetterall)
 	}
 
 	/*
@@ -544,7 +544,7 @@ func ServerPackagesUpgrade() (err error) {
 			return err
 		}
 		if DEBUG {
-			//log("DEBUG ServerPackagesUpgrade kconfig: %+v", kconfig)
+			//log("DEBUG packages kconfig: %+v", kconfig)
 		}
 
 			kclientset, err := kubernetes.NewForConfig(kconfig)
@@ -552,7 +552,7 @@ func ServerPackagesUpgrade() (err error) {
 				return err
 			}
 			if DEBUG {
-				//log("DEBUG ServerPackagesUpgrade kclientset: %+v", kclientset)
+				//log("DEBUG packages kclientset: %+v", kclientset)
 			}
 	*/
 
@@ -582,7 +582,7 @@ func ServerPackagesUpgrade() (err error) {
 
 		//log("helm. "+"repo address:%s username:%s password:%s", p.HelmRepo.Address, p.HelmRepo.Username, p.HelmRepo.Password)
 
-		if p.HelmChartLocalFilename == "" {
+		if p.HelmRepo.Address != "" {
 
 			chartrepo, err := helmrepo.NewChartRepository(
 				&helmrepo.Entry{
@@ -661,7 +661,7 @@ func ServerPackagesUpgrade() (err error) {
 				return err
 			}
 
-			log("helm. DEBUG "+SPAC+"chart downloaded path: %s ", chartpath)
+			log("helm. DEBUG "+SPAC+"chart downloaded to %s ", chartpath)
 
 			// https://pkg.go.dev/helm.sh/helm/v3/pkg/chart/loader#Load
 			chartfull, err = helmloader.Load(chartpath)
@@ -673,7 +673,12 @@ func ServerPackagesUpgrade() (err error) {
 				return fmt.Errorf("chart downloaded from repo is nil")
 			}
 
-		} else {
+		} else if p.HelmChartAddress == "" {
+
+			log("DEBUG package %s HelmChartAddress==%s", p.Name, p.HelmChartAddress)
+			continue
+
+		} else if p.HelmChartLocalFilename == "" {
 
 			if path.IsAbs(p.HelmChartLocalFilename) && strings.HasSuffix(p.HelmChartLocalFilename, ".tgz") {
 				if chartfile, err := os.Open(p.HelmChartLocalFilename); err != nil {
@@ -689,9 +694,14 @@ func ServerPackagesUpgrade() (err error) {
 				log("WARNING package %s HelmChartLocalFilename==%s is not a .tgz file", p.Name, p.HelmChartLocalFilename)
 			}
 
+		} else {
+
+			log("WARNING PACKAGE %s has no HelmRepoAddress, HelmChartAddress, HelmChartLocalFilename", p.Name)
+			continue
+
 		}
 
-		log("helm. "+SPAC+"chart from repo version:%s len(values):%d", chartfull.Metadata.Version, len(chartfull.Values))
+		log("helm. "+SPAC+"chart version==%s len(values)==%d", chartfull.Metadata.Version, len(chartfull.Values))
 
 		// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/chart#Metadata
 		p.HelmImagesValues[p.HelmChartVersionKey] = chartfull.Metadata.Version
