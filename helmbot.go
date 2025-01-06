@@ -46,7 +46,7 @@ const (
 	TAB  = "\t"
 	NL   = "\n"
 
-	ServerPackagesUpgradeInterval = 33 * time.Second
+	ServerPackagesUpgradeInterval = 333 * time.Second
 
 	UpdateHashIdReString = "#([-a-z]+)#([-a-z]+)#([a-z0-9]+)$"
 
@@ -634,7 +634,7 @@ func ServerPackagesUpgrade() (err error) {
 			}
 
 			if chartversion == nil {
-				return fmt.Errorf("helm. "+"chart repo index: helm chart %s: ERROR no chart version found ", p.HelmName)
+				return fmt.Errorf("ERROR helm. "+"chart repo index: helm chart %s: no chart version found ", p.HelmName)
 			}
 
 			if len(chartversion.URLs) == 0 {
@@ -646,7 +646,7 @@ func ServerPackagesUpgrade() (err error) {
 				return err
 			}
 
-			//log("helm. "+SPAC+"chart url: %v ", charturl)
+			log("DEBUG helm. "+SPAC+"chart url %v ", charturl)
 
 			chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetterall}
 			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
@@ -676,25 +676,47 @@ func ServerPackagesUpgrade() (err error) {
 		} else if p.HelmChartAddress != "" {
 
 			log("DEBUG package %s HelmChartAddress==%s", p.Name, p.HelmChartAddress)
-			continue
+
+			chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetterall}
+			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
+
+			var chartpath string
+
+			chartpath, _, err = chartdownloader.DownloadTo(p.HelmChartAddress, "", "")
+			if err != nil {
+				return err
+			}
+
+			log("DEBUG helm. "+SPAC+"chart downloaded to %s ", chartpath)
+
+			// https://pkg.go.dev/helm.sh/helm/v3/pkg/chart/loader#Load
+			chartfull, err = helmloader.Load(chartpath)
+			if err != nil {
+				return fmt.Errorf("helmloader.Load `%s`: %w", chartpath, err)
+			}
+
+			if chartfull == nil {
+				return fmt.Errorf("chart downloaded from repo is nil")
+			}
 
 		} else if p.HelmChartLocalFilename != "" {
 
 			if !path.IsAbs(p.HelmChartLocalFilename) {
 				log("WARNING package %s HelmChartLocalFilename %s is not an absolute path", p.Name, p.HelmChartLocalFilename)
 			}
-			if strings.HasSuffix(p.HelmChartLocalFilename, ".tgz") {
-				if chartfile, err := os.Open(p.HelmChartLocalFilename); err != nil {
-					log("ERROR package %s HelmChartLocalFilename %s os.Open: %v", p.Name, p.HelmChartLocalFilename, err)
-				} else {
-					chartfull, err = helmloader.LoadArchive(chartfile)
-					if err != nil {
-						log("ERROR package %s HelmChartLocalFilename %s LoadArchive: %v", p.Name, p.HelmChartLocalFilename, err)
-					}
-					chartfile.Close()
-				}
-			} else {
+			if !strings.HasSuffix(p.HelmChartLocalFilename, ".tgz") {
 				log("WARNING package %s HelmChartLocalFilename==%s is not a .tgz file", p.Name, p.HelmChartLocalFilename)
+				continue
+			}
+
+			if chartfile, err := os.Open(p.HelmChartLocalFilename); err != nil {
+				log("ERROR package %s HelmChartLocalFilename %s os.Open: %v", p.Name, p.HelmChartLocalFilename, err)
+			} else {
+				chartfull, err = helmloader.LoadArchive(chartfile)
+				if err != nil {
+					log("ERROR package %s HelmChartLocalFilename %s LoadArchive: %v", p.Name, p.HelmChartLocalFilename, err)
+				}
+				chartfile.Close()
 			}
 
 		} else {
