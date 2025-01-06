@@ -562,7 +562,7 @@ func ServerPackagesUpgrade() (err error) {
 
 		timenowhour := fmt.Sprintf("%02d", time.Now().In(p.TimezoneLocation).Hour())
 
-		log("helm. "+"%s AlwaysForceNow==%v AllowedHours==%v Timezone==%s TimeNowHour==%v ", p.Name, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour)
+		log("DEBUG helm. "+"%s AlwaysForceNow==%v AllowedHours==%v Timezone==%s TimeNowHour==%v ", p.Name, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour)
 
 		err = GetValues("global.values.yaml", &p.HelmGlobalValuesText, p.HelmGlobalValues)
 		if err != nil {
@@ -754,7 +754,7 @@ func ServerPackagesUpgrade() (err error) {
 
 		}
 
-		log("helm. "+SPAC+"chart version==%s len(values)==%d", chartfull.Metadata.Version, len(chartfull.Values))
+		log("DEBUG helm. "+SPAC+"chart version==%s len(values)==%d", chartfull.Metadata.Version, len(chartfull.Values))
 
 		// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/chart#Metadata
 		p.HelmImagesValues[p.HelmChartVersionKey] = chartfull.Metadata.Version
