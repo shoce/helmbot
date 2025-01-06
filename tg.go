@@ -11,7 +11,7 @@ import (
 
 func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error {
 	if DEBUG {
-		log("TgSetWebhook: url:%s allowedupdates:%s secrettoken:%s", url, allowedupdates, secrettoken)
+		log("DEBUG TgSetWebhook url==%s allowedupdates==%s secrettoken==%s", url, allowedupdates, secrettoken)
 	}
 
 	swreq := TgSetWebhookRequest{

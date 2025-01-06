@@ -239,7 +239,7 @@ func main() {
 		log("TgWebhookUrl==`%s` so setting webhook with telegram to receive updates.", TgWebhookUrl)
 		err = TgSetWebhook(TgWebhookUrl, []string{"message", "channel_post"}, TgWebhookToken)
 		if err != nil {
-			log("TgSetWebhook: %+v", err)
+			log("ERROR TgSetWebhook: %+v", err)
 			os.Exit(1)
 		}
 
@@ -476,7 +476,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
 func ServerPackagesUpgrade() (err error) {
 	if DEBUG {
-		log("DEBUG packages hostname:%s ", ServerHostname)
+		log("DEBUG packages hostname %s ", ServerHostname)
 	}
 
 	helmactioncfg := new(helmaction.Configuration)
@@ -561,7 +561,7 @@ func ServerPackagesUpgrade() (err error) {
 
 		timenowhour := fmt.Sprintf("%02d", time.Now().In(p.TimezoneLocation).Hour())
 
-		log("helm. "+"%s AlwaysForceNow:%v AllowedHours:%v Timezone:%s TimeNowHour:%v ", p.Name, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour)
+		log("helm. "+"%s AlwaysForceNow==%v AllowedHours==%v Timezone==%s TimeNowHour==%v ", p.Name, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour)
 
 		err = GetValues("global.values.yaml", &p.HelmGlobalValuesText, p.HelmGlobalValues)
 		if err != nil {
@@ -661,7 +661,7 @@ func ServerPackagesUpgrade() (err error) {
 				return err
 			}
 
-			log("helm. DEBUG "+SPAC+"chart downloaded to %s ", chartpath)
+			log("DEBUG helm. "+SPAC+"chart downloaded to %s ", chartpath)
 
 			// https://pkg.go.dev/helm.sh/helm/v3/pkg/chart/loader#Load
 			chartfull, err = helmloader.Load(chartpath)
@@ -673,14 +673,17 @@ func ServerPackagesUpgrade() (err error) {
 				return fmt.Errorf("chart downloaded from repo is nil")
 			}
 
-		} else if p.HelmChartAddress == "" {
+		} else if p.HelmChartAddress != "" {
 
 			log("DEBUG package %s HelmChartAddress==%s", p.Name, p.HelmChartAddress)
 			continue
 
-		} else if p.HelmChartLocalFilename == "" {
+		} else if p.HelmChartLocalFilename != "" {
 
-			if path.IsAbs(p.HelmChartLocalFilename) && strings.HasSuffix(p.HelmChartLocalFilename, ".tgz") {
+			if !path.IsAbs(p.HelmChartLocalFilename) {
+				log("WARNING package %s HelmChartLocalFilename %s is not an absolute path", p.Name, p.HelmChartLocalFilename)
+			}
+			if strings.HasSuffix(p.HelmChartLocalFilename, ".tgz") {
 				if chartfile, err := os.Open(p.HelmChartLocalFilename); err != nil {
 					log("ERROR package %s HelmChartLocalFilename %s os.Open: %v", p.Name, p.HelmChartLocalFilename, err)
 				} else {
