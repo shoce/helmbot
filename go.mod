@@ -8,7 +8,6 @@ require (
 	github.com/rusenask/docker-registry-client v0.0.0-20200210164146-049272422097
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.16.4
-	k8s.io/client-go v0.32.0
 )
 
 require (
@@ -149,6 +148,7 @@ require (
 	k8s.io/apimachinery v0.32.0 // indirect
 	k8s.io/apiserver v0.32.0 // indirect
 	k8s.io/cli-runtime v0.32.0 // indirect
+	k8s.io/client-go v0.32.0 // indirect
 	k8s.io/component-base v0.32.0 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20241212222426-2c72e554b1e7 // indirect

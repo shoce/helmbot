@@ -37,9 +37,8 @@ import (
 	helmdownloader "helm.sh/helm/v3/pkg/downloader"
 	helmgetter "helm.sh/helm/v3/pkg/getter"
 	helmrepo "helm.sh/helm/v3/pkg/repo"
-
-	kubernetes "k8s.io/client-go/kubernetes"
-	krest "k8s.io/client-go/rest"
+	//kubernetes "k8s.io/client-go/kubernetes"
+	//krest "k8s.io/client-go/rest"
 )
 
 const (
@@ -493,12 +492,14 @@ func ServerPackagesUpgrade() (err error) {
 
 	if DEBUG {
 		log("DEBUG ServerPackagesUpgrade installed releases count: %d ", len(installedreleases))
-		for _, r := range installedreleases {
-			log(
-				"DEBUG ServerPackagesUpgrade installed release name:%s version:%s namespace:%s ",
-				r.Name, r.Chart.Metadata.Version, r.Namespace,
-			)
-		}
+		/*
+			for _, r := range installedreleases {
+				log(
+					"DEBUG ServerPackagesUpgrade installed release name:%s version:%s namespace:%s ",
+					r.Name, r.Chart.Metadata.Version, r.Namespace,
+				)
+			}
+		*/
 	}
 
 	err = GetValuesFile(ConfigFilename, nil, &Config)
@@ -508,7 +509,7 @@ func ServerPackagesUpgrade() (err error) {
 	}
 
 	if DEBUG {
-		log("DEBUG ServerPackagesUpgrade Config: %+v", Config)
+		//log("DEBUG ServerPackagesUpgrade Config: %+v", Config)
 	}
 
 	Packages, err = ProcessServersPackages(Config.Servers)
@@ -517,7 +518,7 @@ func ServerPackagesUpgrade() (err error) {
 		return
 	}
 
-	log("ServerPackagesUpgrade Packages count: %d", len(Packages))
+	//log("ServerPackagesUpgrade Packages count: %d", len(Packages))
 
 	helmenvsettings := helmcli.New()
 
@@ -534,24 +535,26 @@ func ServerPackagesUpgrade() (err error) {
 
 	helmgetterall := helmgetter.All(helmenvsettings)
 	if DEBUG {
-		log("DEBUG ServerPackagesUpgrade helmgetterall: %+v", helmgetterall)
+		//log("DEBUG ServerPackagesUpgrade helmgetterall: %+v", helmgetterall)
 	}
 
-	kconfig, err := krest.InClusterConfig()
-	if err != nil {
-		return err
-	}
-	if DEBUG {
-		log("DEBUG ServerPackagesUpgrade kconfig: %+v", kconfig)
-	}
+	/*
+		kconfig, err := krest.InClusterConfig()
+		if err != nil {
+			return err
+		}
+		if DEBUG {
+			//log("DEBUG ServerPackagesUpgrade kconfig: %+v", kconfig)
+		}
 
-	kclientset, err := kubernetes.NewForConfig(kconfig)
-	if err != nil {
-		return err
-	}
-	if DEBUG {
-		log("DEBUG ServerPackagesUpgrade kclientset: %+v", kclientset)
-	}
+			kclientset, err := kubernetes.NewForConfig(kconfig)
+			if err != nil {
+				return err
+			}
+			if DEBUG {
+				//log("DEBUG ServerPackagesUpgrade kclientset: %+v", kclientset)
+			}
+	*/
 
 	for _, p := range Packages {
 		var chartfull *helmchart.Chart
