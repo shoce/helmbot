@@ -36,6 +36,7 @@ import (
 	helmcli "helm.sh/helm/v3/pkg/cli"
 	helmdownloader "helm.sh/helm/v3/pkg/downloader"
 	helmgetter "helm.sh/helm/v3/pkg/getter"
+	helmregistry "helm.sh/helm/v3/pkg/registry"
 	helmrepo "helm.sh/helm/v3/pkg/repo"
 	//kubernetes "k8s.io/client-go/kubernetes"
 	//krest "k8s.io/client-go/rest"
@@ -677,12 +678,36 @@ func ServerPackagesUpgrade() (err error) {
 
 			log("DEBUG package %s HelmChartAddress==%s", p.Name, p.HelmChartAddress)
 
+			if !helmregistry.IsOCI(p.HelmChartAddress) {
+				log("WARNING package %s HelmChartAddress is not OCI", p.Name, p.HelmChartAddress)
+			}
+
+			hrclient, err := helmregistry.NewClient()
+			if err != nil {
+				log("ERROR helmregistry.NewClient: %v", err)
+				return err
+			}
+			tags, err := hrclient.Tags(p.HelmChartAddress)
+			if err != nil {
+				log("ERROR hrclient.Tags: %v", err)
+				continue
+			}
+
+			if len(tags) == 0 {
+				log("WARNING empty tags list", err)
+				continue
+			}
+
+			sort.Strings(tags)
+			log("DEBUG %s tags: %v", p.HelmChartAddress, tags)
+			chartversion := tags[len(tags)-1]
+
 			chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetterall}
 			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
 
 			var chartpath string
 
-			chartpath, _, err = chartdownloader.DownloadTo(p.HelmChartAddress, "", "")
+			chartpath, _, err = chartdownloader.DownloadTo(p.HelmChartAddress, chartversion, "")
 			if err != nil {
 				return err
 			}
