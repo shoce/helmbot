@@ -87,6 +87,7 @@ var (
 	TgWebhookUrl            string
 	TgWebhookToken          string
 	TgWebhookMaxConnections int64 = 1
+	TgAdminMention          string
 
 	TgChatIds             []int64
 	TgBossUserIds         []int64
@@ -188,6 +189,11 @@ func init() {
 		os.Exit(1)
 	}
 
+	TgAdminMention = os.Getenv("TgAdminMention")
+	if TgAdminMention == "" {
+		log("WARNING empty TgAdminMention env var")
+	}
+
 	TgWebhookHost = os.Getenv("TgWebhookHost")
 	if TgWebhookHost == "" {
 		log("WARNING empty TgWebhookHost env var")
@@ -269,8 +275,7 @@ func main() {
 			if err != nil {
 				log("ERROR packages: %+v", err)
 			}
-			tdur := time.Now().Sub(t0)
-			if tdur < ServerPackagesUpgradeInterval {
+			if tdur := time.Now().Sub(t0); tdur < ServerPackagesUpgradeInterval {
 				sleepdur := ServerPackagesUpgradeInterval - tdur
 				log("DEBUG packages sleeping %s", sleepdur.Truncate(time.Second))
 				time.Sleep(sleepdur)
@@ -397,7 +402,8 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		log("ERROR `%s` could not be read: %v", deployedvalueshashpath, err)
 		if err := tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
-			"*INTERNAL ERROR*",
+			"*INTERNAL ERROR*"+NL+
+				TgAdminMention,
 		); err != nil {
 			log("ERROR tglog: %v", err)
 		}
@@ -422,7 +428,8 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		log("ERROR `%s` could not be read: %v", reportedvalueshashpath, err)
 		if err := tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
-			"*INTERNAL ERROR*",
+			"*INTERNAL ERROR*"+NL+
+				TgAdminMention,
 		); err != nil {
 			log("ERROR tglog: %v", err)
 		}
@@ -451,7 +458,8 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		log("ERROR Webhook %s file could not be written: %v", permithashpath, err)
 		if err := tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
-			"*INTERNAL ERROR*",
+			"*INTERNAL ERROR*"+NL+
+				TgAdminMention,
 		); err != nil {
 			log("ERROR tglog: %v", err)
 		}
@@ -1308,7 +1316,7 @@ func log(msg string, args ...interface{}) {
 		tzone = LocalZone
 	}
 	ts := fmt.Sprintf(
-		"%03d:%02d%02d:%02d%02d%s",
+		"%d:%02d%02d:%02d%02d%s",
 		t.Year()%1000, t.Month(), t.Day(), t.Hour(), t.Minute(), tzone,
 	)
 	fmt.Fprintf(os.Stderr, ts+" "+msg+NL, args...)
