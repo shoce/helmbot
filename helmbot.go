@@ -382,20 +382,6 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	UpdateValuesHash := UpdateHashIdSubmatch[3]
 	log("Webhook update values hash: %s", UpdateValuesHash)
 
-	PackageName := fmt.Sprintf("%s-%s", UpdateHelmName, UpdateEnvName)
-	PackageDir := path.Join(ConfigDir, PackageName)
-
-	PackageLatestDir := path.Join(PackageDir, "latest")
-	PackageReportedDir := path.Join(PackageDir, "reported")
-	PackageDeployedDir := path.Join(PackageDir, "deployed")
-
-	if DEBUG {
-		log(
-			"DEBUG PackageLatestDir:%s PackageReportedDir:%s PackageDeployedDir:%s",
-			PackageLatestDir, PackageReportedDir, PackageDeployedDir,
-		)
-	}
-
 	deployedvalueshashpath := fmt.Sprintf("%s.%s.%s", UpdateHelmName, UpdateEnvName, ValuesDeployedHashFilenameSuffix)
 	var deployedvalueshash string
 	if err := GetValuesText(deployedvalueshashpath, &deployedvalueshash); err != nil {
