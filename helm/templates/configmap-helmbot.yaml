@@ -26,6 +26,7 @@ data:
   TgWebhookToken: "{{ $.Values.TgWebhookToken }}"
   TgChatIds: "{{ $.Values.TgChatIds }}"
   TgBossUserIds: "{{ $.Values.TgBossUserIds }}"
+  TgAdminMention: "{{ $.Values.TgAdminMention }}"
 
   LoggingHost: "{{ $.Values.LoggingHost }}"
   LoggingPort: "{{ $.Values.LoggingPort }}"
