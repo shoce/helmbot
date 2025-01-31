@@ -292,6 +292,7 @@ func main() {
 					sleepdur := PackagesUpgradeInterval - tdur
 					log("DEBUG packages sleeping %s", sleepdur.Truncate(time.Second))
 					time.Sleep(sleepdur)
+					log("DEBUG ---")
 				}
 			}
 		}()
@@ -591,7 +592,7 @@ func ServerPackagesUpgrade() (err error) {
 		}
 
 		if DEBUG {
-			log("packages "+"package config:%+v  "+NL, p)
+			log("packages "+"package config: %+v", p)
 			log("packages "+"repo address:%s username:%s password:%s", p.HelmRepo.Address, p.HelmRepo.Username, p.HelmRepo.Password)
 		}
 
@@ -782,7 +783,9 @@ func ServerPackagesUpgrade() (err error) {
 		p.ValuesHash = fmt.Sprintf("%x", sha256.Sum256([]byte(allvaluestext)))[:10]
 
 		log("DEBUG package HelmImagesValues: %v", p.HelmImagesValues)
-		log("DEBUG package ValuesHash: %v", p.ValuesHash)
+		log("DEBUG package ValuesHash: %s", p.ValuesHash)
+
+		log("packages ---")
 
 	}
 
@@ -1162,10 +1165,6 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 
 			packages = append(packages, p)
 		}
-	}
-
-	if DEBUG {
-		log("ProcessServersPackages servers:%d packages:%d", len(servers), len(packages))
 	}
 
 	return packages, nil
