@@ -14,11 +14,12 @@ data:
 
   ConfigDir: "{{ $.Values.ConfigDir }}"
 
+  PackagesConfigFilename: "{{ $.Values.PackagesConfigFilename }}"
+  PackagesUpgradeInterval: "{{ $.Values.PackagesUpgradeInterval }}"
+
   ValuesMinioUrl: "{{ $.Values.ValuesMinioUrl }}"
   ValuesMinioUsername: "{{ $.Values.ValuesMinioUsername }}"
   ValuesMinioPassword: "{{ $.Values.ValuesMinioPassword }}"
-
-  ConfigFilename: "{{ $.Values.ConfigFilename }}"
 
   TgToken: "{{ $.Values.TgToken }}"
   TgWebhookHost: "{{ $.Values.TgWebhookHost }}"

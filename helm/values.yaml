@@ -10,11 +10,12 @@ ServerHostname: ""
 
 ConfigDir: /opt/helmbot/
 
+PackagesConfigFilename: helmbot.config.yaml
+PackagesUpgradeInterval: 333s
+
 ValuesMinioUrl: ""
 ValuesMinioUsername: ""
 ValuesMinioPassword: ""
-
-ConfigFilename: helmbot.config.yaml
 
 TgToken: ""
 TgWebhookHost: ""

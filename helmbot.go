@@ -47,8 +47,6 @@ const (
 	TAB  = "\t"
 	NL   = "\n"
 
-	ServerPackagesUpgradeInterval = 333 * time.Second
-
 	UpdateHashIdReString = "#([-a-z]+)#([-a-z]+)#([a-z0-9]+)$"
 
 	ValuesLatestHashFilenameSuffix   = "values.latest.hash.text"
@@ -66,8 +64,10 @@ var (
 
 	ServerHostname string
 
-	ConfigDir      string
-	ConfigFilename string
+	ConfigDir string
+
+	PackagesConfigFilename  string
+	PackagesUpgradeInterval time.Duration
 
 	ValuesMinioUrl      string
 	ValuesMinioUsername string
@@ -107,13 +107,13 @@ func init() {
 
 	UpdateHashIdRe, err = regexp.Compile(UpdateHashIdReString)
 	if err != nil {
-		log("ERROR `%s` regexp compile error: %s", UpdateHashIdReString, err)
+		log("ERROR regexp %v compile error: %s", UpdateHashIdReString, err)
 		os.Exit(1)
 	}
 
 	if os.Getenv("DEBUG") != "" {
 		DEBUG = true
-		log("DEBUG==true")
+		log("DEBUG==%v", DEBUG)
 	}
 
 	ServerHostname = os.Getenv("ServerHostname")
@@ -128,19 +128,32 @@ func init() {
 		os.Exit(1)
 	}
 	if !path.IsAbs(ConfigDir) {
-		log("ERROR ConfigDir `%s` must be an absolute path", ConfigDir)
+		log("ERROR ConfigDir %v must be an absolute path", ConfigDir)
 		os.Exit(1)
 	}
 	if !dirExists(ConfigDir) {
-		log("ERROR ConfigDir `%s` does not exist", ConfigDir)
+		log("ERROR ConfigDir %v does not exist", ConfigDir)
 		os.Exit(1)
 	}
-	log("DEBUG ConfigDir==%s", ConfigDir)
+	log("DEBUG ConfigDir==%v", ConfigDir)
 
-	ConfigFilename = os.Getenv("ConfigFilename")
-	if ConfigFilename == "" {
-		log("ERROR empty ConfigFilename env var")
+	PackagesConfigFilename = os.Getenv("PackagesConfigFilename")
+	if PackagesConfigFilename == "" {
+		log("WARNING empty PackagesConfigFilename env var")
 	}
+
+	if v := os.Getenv("PackagesUpgradeInterval"); v != "" {
+		if d, err := time.ParseDuration(v); err != nil {
+			log("ERROR parse duration PackagesUpgradeInterval==%v: %s", v, err)
+			os.Exit(1)
+		} else {
+			PackagesUpgradeInterval = d
+		}
+	} else {
+		log("ERROR empty PackagesUpgradeInterval env var")
+		os.Exit(1)
+	}
+	log("DEBUG PackagesUpgradeInterval==%v", PackagesUpgradeInterval)
 
 	ValuesMinioUrl = os.Getenv("ValuesMinioUrl")
 	if ValuesMinioUrl == "" {
@@ -152,7 +165,7 @@ func init() {
 		ValuesMinioUrlHost = u.Host
 		ValuesMinioUrlPath = u.Path
 	}
-	log("DEBUG ValuesMinioUrl==`%s`", ValuesMinioUrl)
+	log("DEBUG ValuesMinioUrl==%v", ValuesMinioUrl)
 
 	ValuesMinioUsername = os.Getenv("ValuesMinioUsername")
 	if ValuesMinioUsername == "" && ValuesMinioUrlHost != "" {
@@ -240,12 +253,10 @@ func init() {
 }
 
 func main() {
-	var err error
 
 	if TgWebhookUrl != "" {
 		log("TgWebhookUrl==`%s` so setting webhook with telegram to receive updates.", TgWebhookUrl)
-		err = TgSetWebhook(TgWebhookUrl, []string{"message", "channel_post"}, TgWebhookToken)
-		if err != nil {
+		if err := TgSetWebhook(TgWebhookUrl, []string{"message", "channel_post"}, TgWebhookToken); err != nil {
 			log("ERROR TgSetWebhook: %+v", err)
 			os.Exit(1)
 		}
@@ -265,29 +276,35 @@ func main() {
 			}
 		}()
 	} else {
-		log("TgWebhookUrl is empty so this instance will not receive telegram updates.")
+		log("TgWebhookUrl is not set so this instance will not register telegram webhook.")
 	}
 
-	go func() {
-		for {
-			t0 := time.Now()
-			err := ServerPackagesUpgrade()
-			if err != nil {
-				log("ERROR packages: %+v", err)
+	if PackagesConfigFilename != "" {
+		go func() {
+			for {
+				t0 := time.Now()
+
+				if err := ServerPackagesUpgrade(); err != nil {
+					log("ERROR packages: %+v", err)
+				}
+
+				if tdur := time.Now().Sub(t0); tdur < PackagesUpgradeInterval {
+					sleepdur := PackagesUpgradeInterval - tdur
+					log("DEBUG packages sleeping %s", sleepdur.Truncate(time.Second))
+					time.Sleep(sleepdur)
+				}
 			}
-			if tdur := time.Now().Sub(t0); tdur < ServerPackagesUpgradeInterval {
-				sleepdur := ServerPackagesUpgradeInterval - tdur
-				log("DEBUG packages sleeping %s", sleepdur.Truncate(time.Second))
-				time.Sleep(sleepdur)
-			}
-		}
-	}()
+		}()
+	} else {
+		log("PackagesConfigFilename is not set so this instance will not process packages.")
+	}
 
 	log("start done.")
 
 	for {
 		time.Sleep(11 * time.Second)
 	}
+
 }
 
 func Webhook(w http.ResponseWriter, r *http.Request) {
@@ -497,14 +514,14 @@ func ServerPackagesUpgrade() (err error) {
 		*/
 	}
 
-	err = GetValuesFile(ConfigFilename, nil, &Config)
+	err = GetValuesFile(PackagesConfigFilename, nil, &Config)
 	if err != nil {
-		log("WARNING packages GetValues %s: %v", ConfigFilename, err)
+		log("ERROR packages GetValues %s: %v", PackagesConfigFilename, err)
 		return
 	}
 
 	if DEBUG {
-		//log("DEBUG packages Config: %+v", Config)
+		log("DEBUG packages Config: %+v", Config)
 	}
 
 	Packages, err = ProcessServersPackages(Config.Servers)
@@ -513,7 +530,9 @@ func ServerPackagesUpgrade() (err error) {
 		return
 	}
 
-	//log("packages Packages count: %d", len(Packages))
+	if DEBUG {
+		log("packages Packages count: %d", len(Packages))
+	}
 
 	helmenvsettings := helmcli.New()
 
@@ -530,7 +549,7 @@ func ServerPackagesUpgrade() (err error) {
 
 	helmgetterall := helmgetter.All(helmenvsettings)
 	if DEBUG {
-		//log("DEBUG packages helmgetterall: %+v", helmgetterall)
+		log("DEBUG packages helmgetterall: %+v", helmgetterall)
 	}
 
 	/*
@@ -539,16 +558,16 @@ func ServerPackagesUpgrade() (err error) {
 			return err
 		}
 		if DEBUG {
-			//log("DEBUG packages kconfig: %+v", kconfig)
+			log("DEBUG packages kconfig: %+v", kconfig)
 		}
 
-			kclientset, err := kubernetes.NewForConfig(kconfig)
-			if err != nil {
-				return err
-			}
-			if DEBUG {
-				//log("DEBUG packages kclientset: %+v", kclientset)
-			}
+		kclientset, err := kubernetes.NewForConfig(kconfig)
+		if err != nil {
+			return err
+		}
+		if DEBUG {
+			log("DEBUG packages kclientset: %+v", kclientset)
+		}
 	*/
 
 	for _, p := range Packages {
@@ -556,26 +575,27 @@ func ServerPackagesUpgrade() (err error) {
 
 		timenowhour := fmt.Sprintf("%02d", time.Now().In(p.TimezoneLocation).Hour())
 
-		log("DEBUG helm. "+"%s AlwaysForceNow==%v AllowedHours==%v Timezone==%s TimeNowHour==%v ", p.Name, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour)
+		log("DEBUG packages "+"%s AlwaysForceNow==%v AllowedHours==%v Timezone==%s TimeNowHour==%v ", p.Name, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour)
 
-		err = GetValues("global.values.yaml", &p.HelmGlobalValuesText, p.HelmGlobalValues)
+		err = GetValuesFile("global.values.yaml", &p.HelmGlobalValuesText, p.HelmGlobalValues)
 		if err != nil {
-			return fmt.Errorf("GetValues `global.values.yaml`: %w", err)
+			return fmt.Errorf("GetValuesFile `global.values.yaml`: %w", err)
 		}
 
-		err = GetValues(fmt.Sprintf("%s.values.yaml", p.HelmName), &p.HelmValuesText, p.HelmValues)
+		err = GetValuesFile(fmt.Sprintf("%s.values.yaml", p.HelmName), &p.HelmValuesText, p.HelmValues)
 		if err != nil {
-			return fmt.Errorf("GetValues `%s.values.yaml`: %w", p.HelmName, err)
+			return fmt.Errorf("GetValuesFile `%s.values.yaml`: %w", p.HelmName, err)
 		}
 
-		err = GetValues(fmt.Sprintf("%s.%s.values.yaml", p.HelmName, p.EnvName), &p.HelmEnvValuesText, p.HelmEnvValues)
+		err = GetValuesFile(fmt.Sprintf("%s.%s.values.yaml", p.HelmName, p.EnvName), &p.HelmEnvValuesText, p.HelmEnvValues)
 		if err != nil {
-			return fmt.Errorf("GetValues `%s.%s.values.yaml`: %w", p.HelmName, p.EnvName, err)
+			return fmt.Errorf("GetValuesFile `%s.%s.values.yaml`: %w", p.HelmName, p.EnvName, err)
 		}
 
-		//log("helm. "+"package config:%+v / "+NL+"// ", p)
-
-		//log("helm. "+"repo address:%s username:%s password:%s", p.HelmRepo.Address, p.HelmRepo.Username, p.HelmRepo.Password)
+		if DEBUG {
+			log("packages "+"package config:%+v  "+NL, p)
+			log("packages "+"repo address:%s username:%s password:%s", p.HelmRepo.Address, p.HelmRepo.Username, p.HelmRepo.Password)
+		}
 
 		if p.HelmRepo.Address != "" {
 
@@ -595,13 +615,13 @@ func ServerPackagesUpgrade() (err error) {
 			if err != nil {
 				return fmt.Errorf("NewChartRepository %w", err)
 			}
-			//log("helm. "+"chart repo: %+v", chartrepo)
+			log("packages "+"chart repo: %+v", chartrepo)
 
 			indexfilepath, err := chartrepo.DownloadIndexFile()
 			if err != nil {
 				return fmt.Errorf("DownloadIndexFile %w", err)
 			}
-			//log("helm. "+"chart repo index file path: %v", indexfilepath)
+			log("packages "+"chart repo index file path: %v", indexfilepath)
 
 			idx, err := helmrepo.LoadIndexFile(indexfilepath)
 			if err != nil {
@@ -615,7 +635,7 @@ func ServerPackagesUpgrade() (err error) {
 				}
 
 				if len(chartversions) == 0 {
-					return fmt.Errorf("chart repo index: %s: zero chart versions")
+					return fmt.Errorf("chart repo index: %s: no chart versions")
 				}
 
 				if p.HelmChartVersion != "" {
@@ -631,11 +651,11 @@ func ServerPackagesUpgrade() (err error) {
 			}
 
 			if chartversion == nil {
-				return fmt.Errorf("ERROR helm. "+"chart repo index: helm chart %s: no chart version found ", p.HelmName)
+				return fmt.Errorf("ERROR packages "+"chart repo index: helm chart %s: no chart version found ", p.HelmName)
 			}
 
 			if len(chartversion.URLs) == 0 {
-				return fmt.Errorf("helm. "+"chart %s: ERROR no chart urls ", p.HelmName)
+				return fmt.Errorf("packages "+"chart %s: ERROR no chart urls ", p.HelmName)
 			}
 
 			charturl, err := helmrepo.ResolveReferenceURL(p.HelmRepo.Address, chartversion.URLs[0])
@@ -643,7 +663,7 @@ func ServerPackagesUpgrade() (err error) {
 				return err
 			}
 
-			log("DEBUG helm. "+SPAC+"chart url %v ", charturl)
+			log("DEBUG packages "+SPAC+"chart url %v ", charturl)
 
 			chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetterall}
 			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
@@ -658,7 +678,7 @@ func ServerPackagesUpgrade() (err error) {
 				return err
 			}
 
-			log("DEBUG helm. "+SPAC+"chart downloaded to %s ", chartpath)
+			log("DEBUG packages "+SPAC+"chart downloaded to %s ", chartpath)
 
 			// https://pkg.go.dev/helm.sh/helm/v3/pkg/chart/loader#Load
 			chartfull, err = helmloader.Load(chartpath)
@@ -707,7 +727,7 @@ func ServerPackagesUpgrade() (err error) {
 				return err
 			}
 
-			log("DEBUG helm. "+SPAC+"chart downloaded to %s ", chartpath)
+			log("DEBUG packages "+SPAC+"chart downloaded to %s ", chartpath)
 
 			// https://pkg.go.dev/helm.sh/helm/v3/pkg/chart/loader#Load
 			chartfull, err = helmloader.Load(chartpath)
@@ -748,7 +768,7 @@ func ServerPackagesUpgrade() (err error) {
 
 		}
 
-		log("DEBUG helm. "+SPAC+"chart version==%s len(values)==%d", chartfull.Metadata.Version, len(chartfull.Values))
+		log("DEBUG packages "+SPAC+"chart version==%s len(values)==%d", chartfull.Metadata.Version, len(chartfull.Values))
 
 		// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/chart#Metadata
 		p.HelmImagesValues[p.HelmChartVersionKey] = chartfull.Metadata.Version
@@ -762,6 +782,9 @@ func ServerPackagesUpgrade() (err error) {
 
 		allvaluestext := p.HelmValuesText + p.HelmEnvValuesText + p.HelmImagesValuesText
 		p.ValuesHash = fmt.Sprintf("%x", sha256.Sum256([]byte(allvaluestext)))[:10]
+
+		log("DEBUG package HelmImagesValues: %v", p.HelmImagesValues)
+		log("DEBUG package ValuesHash: %v", p.ValuesHash)
 
 	}
 
@@ -778,7 +801,7 @@ func ServerPackagesUpgrade() (err error) {
 		if installedhelmversion == chartversion.Version {
 			helmversionstatus = "=="
 		}
-		log("helm. "+SPAC+"chart version: %s %s %s ", installedhelmversion, helmversionstatus, chartversion.Version)
+		log("packages "+SPAC+"chart version: %s %s %s ", installedhelmversion, helmversionstatus, chartversion.Version)
 
 
 			//
@@ -822,17 +845,17 @@ func ServerPackagesUpgrade() (err error) {
 			toreport := false
 
 			if p.HelmValuesText != string(DeployedHelmValuesTextBytes) {
-				log("helm. " + SPAC + "HelmValuesText diff ")
+				log("packages " + SPAC + "HelmValuesText diff ")
 				toreport = true
 			}
 
 			if p.HelmEnvValuesText != string(DeployedHelmEnvValuesTextBytes) {
-				log("helm. " + SPAC + "HelmEnvValuesText diff ")
+				log("packages " + SPAC + "HelmEnvValuesText diff ")
 				toreport = true
 			}
 
 			if p.HelmImagesValuesText != DeployedImagesValuesText {
-				log("helm. " + SPAC + "ImagesValuesText diff ")
+				log("packages " + SPAC + "ImagesValuesText diff ")
 				toreport = true
 
 				DeployedImagesValuesMap := make(map[string]string)
@@ -869,12 +892,12 @@ func ServerPackagesUpgrade() (err error) {
 						imagesvaluesdiff += fmt.Sprintf("++ "+"%s: %#v"+" / ", name, v2)
 					}
 				}
-				log("helm. "+SPAC+"ImagesValues diff: // %s // ", imagesvaluesdiff)
+				log("packages "+SPAC+"ImagesValues diff: // %s // ", imagesvaluesdiff)
 
 			}
 
 			if p.ValuesHash == ReportedValuesHash {
-				log("helm. " + SPAC + "ValuesHash same ")
+				log("packages " + SPAC + "ValuesHash same ")
 				toreport = false
 			}
 
@@ -920,7 +943,7 @@ func ServerPackagesUpgrade() (err error) {
 					return fmt.Errorf("os.WriteFile `%s`: %w", ValuesHashPath, err)
 				}
 
-				log("helm. "+SPAC+"#%s#%s#%s latest ", p.HelmName, p.EnvName, p.ValuesHash)
+				log("packages "+SPAC+"#%s#%s#%s latest ", p.HelmName, p.EnvName, p.ValuesHash)
 
 				//
 				// REPORT
@@ -936,7 +959,7 @@ func ServerPackagesUpgrade() (err error) {
 					return fmt.Errorf("os.Rename `%s` `%s`: %w", PackageLatestDir, PackageReportedDir, err)
 				}
 
-				log("helm. "+SPAC+"#%s#%s#%s reported ", p.HelmName, p.EnvName, p.ValuesHash)
+				log("packages "+SPAC+"#%s#%s#%s reported ", p.HelmName, p.EnvName, p.ValuesHash)
 
 				ReportedValuesHash = p.ValuesHash
 
@@ -1044,11 +1067,11 @@ func ServerPackagesUpgrade() (err error) {
 					}
 				}
 
-				log("helm. "+SPAC+"#%s#%s#%s deployed ", p.HelmName, p.EnvName, p.ValuesHash)
+				log("packages "+SPAC+"#%s#%s#%s deployed ", p.HelmName, p.EnvName, p.ValuesHash)
 				if pkgrelease == nil {
-					log("helm. "+SPAC+"release: %+v ", pkgrelease)
+					log("packages "+SPAC+"release: %+v ", pkgrelease)
 				} else {
-					log("helm. "+SPAC+"release info: %s ", pkgrelease.Info.Status)
+					log("packages "+SPAC+"release info: %s ", pkgrelease.Info.Status)
 				}
 
 			}
