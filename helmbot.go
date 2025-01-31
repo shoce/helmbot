@@ -503,15 +503,13 @@ func ServerPackagesUpgrade() (err error) {
 	}
 
 	if DEBUG {
-		log("DEBUG packages installed releases count: %d ", len(installedreleases))
-		/*
-			for _, r := range installedreleases {
-				log(
-					"DEBUG packages installed release name:%s version:%s namespace:%s ",
-					r.Name, r.Chart.Metadata.Version, r.Namespace,
-				)
-			}
-		*/
+		log("DEBUG packages installed releases count==%d ", len(installedreleases))
+		for _, r := range installedreleases {
+			log(
+				"DEBUG packages installed release name==%s version==%s namespace==%s ",
+				r.Name, r.Chart.Metadata.Version, r.Namespace,
+			)
+		}
 	}
 
 	err = GetValuesFile(PackagesConfigFilename, nil, &Config)
@@ -521,7 +519,7 @@ func ServerPackagesUpgrade() (err error) {
 	}
 
 	if DEBUG {
-		log("DEBUG packages Config: %+v", Config)
+		log("DEBUG packages Config==%+v", Config)
 	}
 
 	Packages, err = ProcessServersPackages(Config.Servers)
@@ -531,7 +529,7 @@ func ServerPackagesUpgrade() (err error) {
 	}
 
 	if DEBUG {
-		log("packages Packages count: %d", len(Packages))
+		log("packages Packages count==%d", len(Packages))
 	}
 
 	helmenvsettings := helmcli.New()
@@ -549,7 +547,7 @@ func ServerPackagesUpgrade() (err error) {
 
 	helmgetterall := helmgetter.All(helmenvsettings)
 	if DEBUG {
-		log("DEBUG packages helmgetterall: %+v", helmgetterall)
+		log("DEBUG packages helmgetterall==%+v", helmgetterall)
 	}
 
 	/*
@@ -558,7 +556,7 @@ func ServerPackagesUpgrade() (err error) {
 			return err
 		}
 		if DEBUG {
-			log("DEBUG packages kconfig: %+v", kconfig)
+			log("DEBUG packages kconfig==%+v", kconfig)
 		}
 
 		kclientset, err := kubernetes.NewForConfig(kconfig)
