@@ -292,8 +292,8 @@ func main() {
 					sleepdur := PackagesUpgradeInterval - tdur
 					log("DEBUG packages sleeping %s", sleepdur.Truncate(time.Second))
 					time.Sleep(sleepdur)
-					log("DEBUG ---")
 				}
+				log("---")
 			}
 		}()
 	} else {
@@ -489,50 +489,8 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
 func ServerPackagesUpgrade() (err error) {
 	if DEBUG {
+		log("DEBUG packages ---")
 		log("DEBUG packages hostname==%v", ServerHostname)
-	}
-
-	helmactioncfg := new(helmaction.Configuration)
-	err = helmactioncfg.Init(helmcli.New().RESTClientGetter(), "", "", log)
-	if err != nil {
-		return err
-	}
-
-	installedreleases, err := helmaction.NewList(helmactioncfg).Run()
-	if err != nil {
-		return err
-	}
-
-	if DEBUG {
-		log("DEBUG packages installed releases count==%d ", len(installedreleases))
-		for _, r := range installedreleases {
-			log(
-				"DEBUG packages installed release name==%s version==%s namespace==%s ",
-				r.Name, r.Chart.Metadata.Version, r.Namespace,
-			)
-		}
-		log("")
-	}
-
-	err = GetValuesFile(PackagesConfigFilename, nil, &Config)
-	if err != nil {
-		log("ERROR packages GetValues %s: %v", PackagesConfigFilename, err)
-		return
-	}
-
-	if DEBUG {
-		log("DEBUG packages Config==%+v", Config)
-		log("")
-	}
-
-	Packages, err = ProcessServersPackages(Config.Servers)
-	if err != nil {
-		log("ERROR packages ProcessServersPackages: %v", err)
-		return
-	}
-
-	if DEBUG {
-		log("DEBUG packages Packages count==%d", len(Packages))
 	}
 
 	helmenvsettings := helmcli.New()
@@ -571,12 +529,61 @@ func ServerPackagesUpgrade() (err error) {
 		}
 	*/
 
+	if DEBUG {
+		log("DEBUG packages ---")
+	}
+
+	helmactioncfg := new(helmaction.Configuration)
+	err = helmactioncfg.Init(helmcli.New().RESTClientGetter(), "", "", log)
+	if err != nil {
+		return err
+	}
+
+	installedreleases, err := helmaction.NewList(helmactioncfg).Run()
+	if err != nil {
+		return err
+	}
+
+	if DEBUG {
+		log("DEBUG packages installed releases count==%d ", len(installedreleases))
+		for _, r := range installedreleases {
+			log(
+				"DEBUG packages installed release name==%s version==%s namespace==%s ",
+				r.Name, r.Chart.Metadata.Version, r.Namespace,
+			)
+		}
+		log("DEBUG packages ---")
+	}
+
+	err = GetValuesFile(PackagesConfigFilename, nil, &Config)
+	if err != nil {
+		log("ERROR packages GetValues %s: %v", PackagesConfigFilename, err)
+		return
+	}
+
+	if DEBUG {
+		log("DEBUG packages Config==%+v", Config)
+		log("DEBUG packages ---")
+	}
+
+	Packages, err = ProcessServersPackages(Config.Servers)
+	if err != nil {
+		log("ERROR packages ProcessServersPackages: %v", err)
+		return
+	}
+
+	if DEBUG {
+		log("DEBUG packages Packages count==%d", len(Packages))
+	}
+
 	for _, p := range Packages {
+		log("DEBUG packages ---")
+
 		var chartfull *helmchart.Chart
 
 		timenowhour := fmt.Sprintf("%02d", time.Now().In(p.TimezoneLocation).Hour())
 
-		log("DEBUG packages "+"Name==%s AlwaysForceNow==%v AllowedHours==%v Timezone==%s TimeNowHour==%v ", p.Name, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour)
+		log("DEBUG packages "+"package Name==%s AlwaysForceNow==%v AllowedHours==%v Timezone==%s TimeNowHour==%v ", p.Name, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour)
 
 		err = GetValuesFile("global.values.yaml", &p.HelmGlobalValuesText, p.HelmGlobalValues)
 		if err != nil {
@@ -594,13 +601,13 @@ func ServerPackagesUpgrade() (err error) {
 		}
 
 		if DEBUG {
-			log("packages "+"package %s config==%+v", p.Name, p)
-			log("packages "+"package %s repo.address==%s chartaddress==%s chartlocalfilename==%s", p.Name, p.HelmRepo.Address, p.HelmChartAddress, p.HelmChartLocalFilename)
+			log("DEBUG packages "+SPAC+"config==%#v", p)
+			log("DEBUG packages "+SPAC+"repo.address==%#v chartaddress==%#v chartlocalfilename==%#v", p.HelmRepo.Address, p.HelmChartAddress, p.HelmChartLocalFilename)
 		}
 
 		if p.HelmRepo.Address != "" {
 
-			log("DEBUG package %s HelmRepo.Address==%s", p.Name, p.HelmRepo.Address)
+			log("DEBUG packages "+SPAC+"HelmRepo.Address==%s", p.HelmRepo.Address)
 
 			chartrepo, err := helmrepo.NewChartRepository(
 				&helmrepo.Entry{
@@ -693,29 +700,29 @@ func ServerPackagesUpgrade() (err error) {
 
 		} else if p.HelmChartAddress != "" {
 
-			log("DEBUG packages "+"HelmChartAddress==%s", p.HelmChartAddress)
+			log("DEBUG packages "+SPAC+"HelmChartAddress==%s", p.HelmChartAddress)
 
 			if !helmregistry.IsOCI(p.HelmChartAddress) {
-				log("WARNING HelmChartAddress==%v is not OCI", p.HelmChartAddress)
+				log("WARNING packages "+SPAC+"HelmChartAddress==%v is not OCI", p.HelmChartAddress)
 			}
 
 			hrclient, err := helmregistry.NewClient(helmregistry.ClientOptDebug(true))
 			if err != nil {
-				log("ERROR packages "+"helmregistry.NewClient: %v", err)
+				log("ERROR packages "+SPAC+"helmregistry.NewClient: %v", err)
 				return err
 			}
-			tags, err := hrclient.Tags(p.HelmChartAddress)
+			tags, err := hrclient.Tags(strings.Replace(p.HelmChartAddress, "oci://", "https://", 1))
 			if err != nil {
-				log("ERROR packages "+"hrclient.Tags: %v", err)
+				log("ERROR packages "+SPAC+"hrclient.Tags: %v", err)
 				continue
 			}
 
 			if len(tags) == 0 {
-				log("WARNING packages "+"empty tags list", err)
+				log("WARNING packages "+SPAC+"empty tags list", err)
 				continue
 			}
 
-			log("DEBUG %s tags: %v", p.HelmChartAddress, tags)
+			log("DEBUG "+SPAC+"%s tags: %v", p.HelmChartAddress, tags)
 			chartversion := tags[len(tags)-1]
 
 			chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetterall}
@@ -784,13 +791,12 @@ func ServerPackagesUpgrade() (err error) {
 		allvaluestext := p.HelmValuesText + p.HelmEnvValuesText + p.HelmImagesValuesText
 		p.ValuesHash = fmt.Sprintf("%x", sha256.Sum256([]byte(allvaluestext)))[:10]
 
-		log("DEBUG package HelmImagesValues==%+v", p.HelmImagesValues)
-		log("DEBUG package ValuesHash==%+v", p.ValuesHash)
-
-		log("packages ---")
-		log("")
+		log("DEBUG packages "+SPAC+"HelmImagesValues==%+v", p.HelmImagesValues)
+		log("DEBUG packages "+SPAC+"ValuesHash==%+v", p.ValuesHash)
 
 	}
+
+	log("DEBUG packages ---")
 
 	/*
 
