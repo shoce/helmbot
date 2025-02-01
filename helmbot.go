@@ -489,7 +489,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
 func ServerPackagesUpgrade() (err error) {
 	if DEBUG {
-		log("DEBUG packages hostname %s ", ServerHostname)
+		log("DEBUG packages hostname==%v", ServerHostname)
 	}
 
 	helmactioncfg := new(helmaction.Configuration)
@@ -511,6 +511,7 @@ func ServerPackagesUpgrade() (err error) {
 				r.Name, r.Chart.Metadata.Version, r.Namespace,
 			)
 		}
+		log("")
 	}
 
 	err = GetValuesFile(PackagesConfigFilename, nil, &Config)
@@ -521,6 +522,7 @@ func ServerPackagesUpgrade() (err error) {
 
 	if DEBUG {
 		log("DEBUG packages Config==%+v", Config)
+		log("")
 	}
 
 	Packages, err = ProcessServersPackages(Config.Servers)
@@ -530,7 +532,7 @@ func ServerPackagesUpgrade() (err error) {
 	}
 
 	if DEBUG {
-		log("packages Packages count==%d", len(Packages))
+		log("DEBUG packages Packages count==%d", len(Packages))
 	}
 
 	helmenvsettings := helmcli.New()
@@ -565,7 +567,7 @@ func ServerPackagesUpgrade() (err error) {
 			return err
 		}
 		if DEBUG {
-			log("DEBUG packages kclientset: %+v", kclientset)
+			log("DEBUG packages kclientset==%+v", kclientset)
 		}
 	*/
 
@@ -574,7 +576,7 @@ func ServerPackagesUpgrade() (err error) {
 
 		timenowhour := fmt.Sprintf("%02d", time.Now().In(p.TimezoneLocation).Hour())
 
-		log("DEBUG packages "+"%s AlwaysForceNow==%v AllowedHours==%v Timezone==%s TimeNowHour==%v ", p.Name, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour)
+		log("DEBUG packages "+"Name==%s AlwaysForceNow==%v AllowedHours==%v Timezone==%s TimeNowHour==%v ", p.Name, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour)
 
 		err = GetValuesFile("global.values.yaml", &p.HelmGlobalValuesText, p.HelmGlobalValues)
 		if err != nil {
@@ -592,8 +594,8 @@ func ServerPackagesUpgrade() (err error) {
 		}
 
 		if DEBUG {
-			log("packages "+"package config: %+v", p)
-			log("packages "+"repo address:%s username:%s password:%s", p.HelmRepo.Address, p.HelmRepo.Username, p.HelmRepo.Password)
+			log("packages "+"package %s config==%+v", p.Name, p)
+			log("packages "+"package %s repo.address==%s chartaddress==%s chartlocalfilename==%s", p.Name, p.HelmRepo.Address, p.HelmChartAddress, p.HelmChartLocalFilename)
 		}
 
 		if p.HelmRepo.Address != "" {
@@ -614,13 +616,13 @@ func ServerPackagesUpgrade() (err error) {
 			if err != nil {
 				return fmt.Errorf("NewChartRepository %w", err)
 			}
-			log("packages "+"chart repo: %+v", chartrepo)
+			log("DEBUG packages "+"chart repo==%+v", chartrepo)
 
 			indexfilepath, err := chartrepo.DownloadIndexFile()
 			if err != nil {
 				return fmt.Errorf("DownloadIndexFile %w", err)
 			}
-			log("packages "+"chart repo index file path: %v", indexfilepath)
+			log("DEBUG packages "+"chart repo index file path==%v", indexfilepath)
 
 			idx, err := helmrepo.LoadIndexFile(indexfilepath)
 			if err != nil {
@@ -662,7 +664,7 @@ func ServerPackagesUpgrade() (err error) {
 				return err
 			}
 
-			log("DEBUG packages "+SPAC+"chart url %v ", charturl)
+			log("DEBUG packages "+SPAC+"chart url==%v", charturl)
 
 			chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetterall}
 			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
@@ -677,7 +679,7 @@ func ServerPackagesUpgrade() (err error) {
 				return err
 			}
 
-			log("DEBUG packages "+SPAC+"chart downloaded to %s ", chartpath)
+			log("DEBUG packages "+SPAC+"chart downloaded to %s", chartpath)
 
 			// https://pkg.go.dev/helm.sh/helm/v3/pkg/chart/loader#Load
 			chartfull, err = helmloader.Load(chartpath)
@@ -691,25 +693,25 @@ func ServerPackagesUpgrade() (err error) {
 
 		} else if p.HelmChartAddress != "" {
 
-			log("DEBUG package %s HelmChartAddress==%s", p.Name, p.HelmChartAddress)
+			log("DEBUG packages "+"HelmChartAddress==%s", p.HelmChartAddress)
 
 			if !helmregistry.IsOCI(p.HelmChartAddress) {
-				log("WARNING package %s HelmChartAddress is not OCI", p.Name, p.HelmChartAddress)
+				log("WARNING HelmChartAddress==%v is not OCI", p.HelmChartAddress)
 			}
 
 			hrclient, err := helmregistry.NewClient(helmregistry.ClientOptDebug(true))
 			if err != nil {
-				log("ERROR helmregistry.NewClient: %v", err)
+				log("ERROR packages "+"helmregistry.NewClient: %v", err)
 				return err
 			}
 			tags, err := hrclient.Tags(p.HelmChartAddress)
 			if err != nil {
-				log("ERROR hrclient.Tags: %v", err)
+				log("ERROR packages "+"hrclient.Tags: %v", err)
 				continue
 			}
 
 			if len(tags) == 0 {
-				log("WARNING empty tags list", err)
+				log("WARNING packages "+"empty tags list", err)
 				continue
 			}
 
@@ -740,22 +742,22 @@ func ServerPackagesUpgrade() (err error) {
 
 		} else if p.HelmChartLocalFilename != "" {
 
-			log("DEBUG package %s HelmChartLocalFilename==%s", p.Name, p.HelmChartLocalFilename)
+			log("DEBUG HelmChartLocalFilename==%v", p.HelmChartLocalFilename)
 
 			if !path.IsAbs(p.HelmChartLocalFilename) {
-				log("WARNING package %s HelmChartLocalFilename %s is not an absolute path", p.Name, p.HelmChartLocalFilename)
+				log("WARNING HelmChartLocalFilename==%v is not an absolute path", p.HelmChartLocalFilename)
 			}
 			if !strings.HasSuffix(p.HelmChartLocalFilename, ".tgz") {
-				log("WARNING package %s HelmChartLocalFilename==%s is not a .tgz file", p.Name, p.HelmChartLocalFilename)
+				log("WARNING HelmChartLocalFilename==%v is not a .tgz file", p.HelmChartLocalFilename)
 				continue
 			}
 
 			if chartfile, err := os.Open(p.HelmChartLocalFilename); err != nil {
-				log("ERROR package %s HelmChartLocalFilename %s os.Open: %v", p.Name, p.HelmChartLocalFilename, err)
+				log("ERROR HelmChartLocalFilename==%v os.Open: %v", p.HelmChartLocalFilename, err)
 			} else {
 				chartfull, err = helmloader.LoadArchive(chartfile)
 				if err != nil {
-					log("ERROR package %s HelmChartLocalFilename %s LoadArchive: %v", p.Name, p.HelmChartLocalFilename, err)
+					log("ERROR HelmChartLocalFilename==%v LoadArchive: %v", p.HelmChartLocalFilename, err)
 				}
 				chartfile.Close()
 			}
@@ -767,7 +769,7 @@ func ServerPackagesUpgrade() (err error) {
 
 		}
 
-		log("DEBUG packages "+SPAC+"chart version==%s len(values)==%d", chartfull.Metadata.Version, len(chartfull.Values))
+		log("DEBUG packages "+SPAC+"chart version==%v len(values)==%d", chartfull.Metadata.Version, len(chartfull.Values))
 
 		// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/chart#Metadata
 		p.HelmImagesValues[p.HelmChartVersionKey] = chartfull.Metadata.Version
@@ -782,10 +784,11 @@ func ServerPackagesUpgrade() (err error) {
 		allvaluestext := p.HelmValuesText + p.HelmEnvValuesText + p.HelmImagesValuesText
 		p.ValuesHash = fmt.Sprintf("%x", sha256.Sum256([]byte(allvaluestext)))[:10]
 
-		log("DEBUG package HelmImagesValues: %v", p.HelmImagesValues)
-		log("DEBUG package ValuesHash: %s", p.ValuesHash)
+		log("DEBUG package HelmImagesValues==%+v", p.HelmImagesValues)
+		log("DEBUG package ValuesHash==%+v", p.ValuesHash)
 
 		log("packages ---")
+		log("")
 
 	}
 
