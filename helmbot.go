@@ -573,7 +573,11 @@ func ServerPackagesUpgrade() (err error) {
 	}
 
 	if DEBUG {
-		log("DEBUG packages Packages count==%d", len(Packages))
+		var nn []string
+		for _, p := range Packages {
+			nn = append(nn, p.Name)
+		}
+		log("DEBUG packages Packages count==%d names==%v", len(Packages), nn)
 	}
 
 	for _, p := range Packages {
@@ -605,9 +609,9 @@ func ServerPackagesUpgrade() (err error) {
 			log("DEBUG packages "+SPAC+"repo.address==%#v chartaddress==%#v chartlocalfilename==%#v", p.HelmRepo.Address, p.HelmChartAddress, p.HelmChartLocalFilename)
 		}
 
-		if p.HelmRepo.Address != "" {
+		var chartversion string
 
-			log("DEBUG packages "+SPAC+"HelmRepo.Address==%s", p.HelmRepo.Address)
+		if p.HelmRepo.Address != "" {
 
 			chartrepo, err := helmrepo.NewChartRepository(
 				&helmrepo.Entry{
@@ -623,55 +627,63 @@ func ServerPackagesUpgrade() (err error) {
 			if err != nil {
 				return fmt.Errorf("NewChartRepository %w", err)
 			}
-			log("DEBUG packages "+"chart repo==%+v", chartrepo)
+			log("DEBUG packages "+SPAC+"chart repo==%#v", chartrepo)
 
 			indexfilepath, err := chartrepo.DownloadIndexFile()
 			if err != nil {
 				return fmt.Errorf("DownloadIndexFile %w", err)
 			}
-			log("DEBUG packages "+"chart repo index file path==%v", indexfilepath)
+			log("DEBUG packages "+SPAC+"chart repo index file path==%#v", indexfilepath)
 
 			idx, err := helmrepo.LoadIndexFile(indexfilepath)
 			if err != nil {
 				return fmt.Errorf("LoadIndexFile %w", err)
 			}
 
-			var chartversion *helmrepo.ChartVersion
+			var repochartversion *helmrepo.ChartVersion
 			for chartname, chartversions := range idx.Entries {
 				if chartname != p.HelmName {
 					continue
 				}
 
 				if len(chartversions) == 0 {
-					return fmt.Errorf("chart repo index: %s: no chart versions")
+					return fmt.Errorf("chart repo index %v: no chart versions", indexfilepath)
 				}
 
+				sort.Sort(sort.Reverse(chartversions))
+				var vv []string
+				for _, v := range chartversions {
+					vv = append(vv, v.Version)
+				}
+				log("DEBUG packages "+SPAC+"repo versions==%#v", vv)
+
 				if p.HelmChartVersion != "" {
+					log("DEBUG packages "+SPAC+"HelmChartVersion==%#v", p.HelmChartVersion)
 					for _, v := range chartversions {
 						if v.Version == p.HelmChartVersion {
-							chartversion = v
+							log("DEBUG packages "+SPAC+"HelmChartVersion==%#v found in repo", p.HelmChartVersion)
+							repochartversion = v
 						}
 					}
 				} else {
-					sort.Sort(sort.Reverse(chartversions))
-					chartversion = chartversions[0]
+					repochartversion = chartversions[0]
 				}
 			}
 
-			if chartversion == nil {
-				return fmt.Errorf("ERROR packages "+"chart repo index: helm chart %s: no chart version found ", p.HelmName)
+			if repochartversion == nil {
+				return fmt.Errorf("packages chart %s repo index: no chart version found", p.HelmName)
 			}
 
-			if len(chartversion.URLs) == 0 {
-				return fmt.Errorf("packages "+"chart %s: ERROR no chart urls ", p.HelmName)
+			if len(repochartversion.URLs) == 0 {
+				return fmt.Errorf("packages chart %s: no chart urls", p.HelmName)
 			}
 
-			charturl, err := helmrepo.ResolveReferenceURL(p.HelmRepo.Address, chartversion.URLs[0])
+			charturl, err := helmrepo.ResolveReferenceURL(p.HelmRepo.Address, repochartversion.URLs[0])
 			if err != nil {
 				return err
 			}
 
-			log("DEBUG packages "+SPAC+"chart url==%v", charturl)
+			log("DEBUG packages "+SPAC+"chart url==%#v", charturl)
 
 			chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetterall}
 			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
@@ -681,7 +693,7 @@ func ServerPackagesUpgrade() (err error) {
 
 			var chartpath string
 
-			chartpath, _, err = chartdownloader.DownloadTo(charturl, chartversion.Version, "")
+			chartpath, _, err = chartdownloader.DownloadTo(charturl, repochartversion.Version, "")
 			if err != nil {
 				return err
 			}
@@ -700,8 +712,6 @@ func ServerPackagesUpgrade() (err error) {
 
 		} else if p.HelmChartAddress != "" {
 
-			log("DEBUG packages "+SPAC+"HelmChartAddress==%s", p.HelmChartAddress)
-
 			if !helmregistry.IsOCI(p.HelmChartAddress) {
 				log("WARNING packages "+SPAC+"HelmChartAddress==%v is not OCI", p.HelmChartAddress)
 			}
@@ -711,7 +721,10 @@ func ServerPackagesUpgrade() (err error) {
 				log("ERROR packages "+SPAC+"helmregistry.NewClient: %v", err)
 				return err
 			}
-			tags, err := hrclient.Tags(strings.Replace(p.HelmChartAddress, "oci://", "https://", 1))
+
+			chartaddress := strings.TrimPrefix(p.HelmChartAddress, "oci://")
+			log("ERROR packages "+SPAC+"chartaddress==%#v", chartaddress)
+			tags, err := hrclient.Tags(chartaddress)
 			if err != nil {
 				log("ERROR packages "+SPAC+"hrclient.Tags: %v", err)
 				continue
@@ -722,8 +735,9 @@ func ServerPackagesUpgrade() (err error) {
 				continue
 			}
 
-			log("DEBUG "+SPAC+"%s tags: %v", p.HelmChartAddress, tags)
-			chartversion := tags[len(tags)-1]
+			log("DEBUG packages "+SPAC+"tags==%#v", tags)
+
+			chartversion = tags[0]
 
 			chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetterall}
 			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
@@ -749,22 +763,34 @@ func ServerPackagesUpgrade() (err error) {
 
 		} else if p.HelmChartLocalFilename != "" {
 
-			log("DEBUG HelmChartLocalFilename==%v", p.HelmChartLocalFilename)
+			chartlocalfilename := ""
 
-			if !path.IsAbs(p.HelmChartLocalFilename) {
-				log("WARNING HelmChartLocalFilename==%v is not an absolute path", p.HelmChartLocalFilename)
-			}
 			if !strings.HasSuffix(p.HelmChartLocalFilename, ".tgz") {
-				log("WARNING HelmChartLocalFilename==%v is not a .tgz file", p.HelmChartLocalFilename)
+				log("WARNING packages "+SPAC+"HelmChartLocalFilename==%v is not a .tgz file", p.HelmChartLocalFilename)
 				continue
 			}
 
-			if chartfile, err := os.Open(p.HelmChartLocalFilename); err != nil {
-				log("ERROR HelmChartLocalFilename==%v os.Open: %v", p.HelmChartLocalFilename, err)
+			if mm, err := filepath.Glob(path.Join(ConfigDir, p.HelmChartLocalFilename)); err != nil {
+				log("ERROR packages "+SPAC+"Glob ConfigDir==%v HelmChartLocalFilename==%v: %s", ConfigDir, p.HelmChartLocalFilename, err)
+				continue
+			} else if len(mm) == 0 {
+				log("ERROR packages "+SPAC+"Glob ConfigDir==%v HelmChartLocalFilename==%v files not found", ConfigDir, p.HelmChartLocalFilename)
+				continue
+			} else {
+				log("DEBUG packages "+SPAC+"chart local files: %v", mm)
+				sort.Strings(mm)
+				chartlocalfilename = mm[len(mm)-1]
+				log("DEBUG packages "+SPAC+"using chart local file %#v", chartlocalfilename)
+			}
+
+			if chartfile, err := os.Open(chartlocalfilename); err != nil {
+				log("ERROR packages HelmChartLocalFilename==%v os.Open: %v", p.HelmChartLocalFilename, err)
+				continue
 			} else {
 				chartfull, err = helmloader.LoadArchive(chartfile)
 				if err != nil {
-					log("ERROR HelmChartLocalFilename==%v LoadArchive: %v", p.HelmChartLocalFilename, err)
+					log("ERROR packages HelmChartLocalFilename==%v LoadArchive: %v", p.HelmChartLocalFilename, err)
+					continue
 				}
 				chartfile.Close()
 			}
@@ -775,6 +801,8 @@ func ServerPackagesUpgrade() (err error) {
 			continue
 
 		}
+
+		chartversion = chartfull.Metadata.Version
 
 		log("DEBUG packages "+SPAC+"chart version==%v len(values)==%d", chartfull.Metadata.Version, len(chartfull.Values))
 
@@ -791,28 +819,29 @@ func ServerPackagesUpgrade() (err error) {
 		allvaluestext := p.HelmValuesText + p.HelmEnvValuesText + p.HelmImagesValuesText
 		p.ValuesHash = fmt.Sprintf("%x", sha256.Sum256([]byte(allvaluestext)))[:10]
 
-		log("DEBUG packages "+SPAC+"HelmImagesValues==%+v", p.HelmImagesValues)
-		log("DEBUG packages "+SPAC+"ValuesHash==%+v", p.ValuesHash)
+		log("DEBUG packages "+SPAC+"HelmImagesValues==%#v", p.HelmImagesValues)
+		log("DEBUG packages "+SPAC+"ValuesHash==%#v", p.ValuesHash)
+
+		installedversion := ""
+		for _, r := range installedreleases {
+			if r.Name == p.Name && r.Namespace == p.Namespace {
+				installedversion = r.Chart.Metadata.Version
+			}
+		}
+
+		versionstatus := "=>"
+		if installedversion == chartversion {
+			versionstatus = "=="
+		}
+		log("DEBUG packages "+SPAC+"chart version: %#v %s %#v ", installedversion, versionstatus, chartversion)
 
 	}
 
 	log("DEBUG packages ---")
 
+	return nil
+
 	/*
-
-		installedhelmversion := ""
-		for _, r := range installedreleases {
-			if r.Name == p.Name && r.Namespace == p.Namespace {
-				installedhelmversion = r.Chart.Metadata.Version
-			}
-		}
-
-		helmversionstatus := "=>"
-		if installedhelmversion == chartversion.Version {
-			helmversionstatus = "=="
-		}
-		log("packages "+SPAC+"chart version: %s %s %s ", installedhelmversion, helmversionstatus, chartversion.Version)
-
 
 			//
 			// READ DEPLOYED
@@ -1090,17 +1119,20 @@ func ServerPackagesUpgrade() (err error) {
 
 	*/
 
-	return nil
 }
 
 func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, err error) {
+
 	for _, s := range servers {
+
 		if s.ServerHostname != ServerHostname {
 			continue
 		}
+
 		if s.AllowedHours != nil {
 			s.AllowedHoursList = strings.Split(*s.AllowedHours, " ")
 		}
+
 		if s.Timezone == nil || *s.Timezone == "" {
 			tzutc := "UTC"
 			s.Timezone = &tzutc
@@ -1111,7 +1143,9 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 				return nil, err
 			}
 		}
+
 		for _, p := range s.Packages {
+
 			p.Name = fmt.Sprintf("%s-%s", p.HelmName, p.EnvName)
 
 			if p.Namespace == "" {
@@ -1151,17 +1185,6 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 				p.TgMentions = s.TgMentions
 			}
 
-			if p.HelmChartLocalFilename != "" {
-				if ff, err := filepath.Glob(path.Join(ConfigDir, p.HelmChartLocalFilename)); err != nil {
-					log("WARNING filepath.Glob %s: %s", p.HelmChartLocalFilename, err)
-				} else if len(ff) == 0 {
-					log("WARNING no files for %s glob found", p.HelmChartLocalFilename)
-				} else {
-					sort.Strings(ff)
-					p.HelmChartLocalFilename = ff[len(ff)-1]
-				}
-			}
-
 			p.PackageDir = path.Join(ConfigDir, p.Name)
 			p.PackageLatestDir = path.Join(p.PackageDir, "latest")
 			p.PackageReportedDir = path.Join(p.PackageDir, "reported")
@@ -1173,7 +1196,9 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 			p.HelmImagesValues = make(map[string]interface{})
 
 			packages = append(packages, p)
+
 		}
+
 	}
 
 	return packages, nil
