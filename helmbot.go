@@ -583,11 +583,21 @@ func ServerPackagesUpgrade() (err error) {
 	for _, p := range Packages {
 		log("DEBUG packages ---")
 
-		var chartfull *helmchart.Chart
-
 		timenowhour := fmt.Sprintf("%02d", time.Now().In(p.TimezoneLocation).Hour())
 
-		log("DEBUG packages "+"package Name==%s AlwaysForceNow==%v AllowedHours==%v Timezone==%s TimeNowHour==%v ", p.Name, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour)
+		updatetimestampfilename := path.Join(ConfigDir, fmt.Sprintf("%s.%s.update.timestamp", p.HelmName, p.EnvName))
+		if updatetimestampfilestat, err := os.Stat(updatetimestampfilename); err == nil {
+			p.UpdateTimestamp = updatetimestampfilestat.ModTime()
+		}
+
+		log("DEBUG packages "+"package Name==%s AlwaysForceNow==%v AllowedHours==%v Timezone==%s TimeNowHour==%v UpdateInterval==%v UpdateDelay==%v UpdateTimestamp=%v", p.Name, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration, p.UpdateDelayDuration, p.UpdateTimestamp)
+
+		if d := time.Now().Sub(p.UpdateTimestamp); d < p.UpdateIntervalDuration {
+			log("DEBUG packages "+SPAC+"%v since update < UpdateInterval %v - skip update", d, p.UpdateIntervalDuration)
+			continue
+		}
+
+		var chartfull *helmchart.Chart
 
 		err = GetValuesFile("global.values.yaml", &p.HelmGlobalValuesText, p.HelmGlobalValues)
 		if err != nil {
@@ -803,6 +813,15 @@ func ServerPackagesUpgrade() (err error) {
 		}
 
 		chartversion = chartfull.Metadata.Version
+
+		tnow := time.Now()
+		if err := os.Chtimes(updatetimestampfilename, tnow, tnow); os.IsNotExist(err) {
+			if f, err := os.Create(updatetimestampfilename); err == nil {
+				f.Close()
+			} else {
+				log("ERROR packages "+SPAC+"create timestamp file: %s", err)
+			}
+		}
 
 		log("DEBUG packages "+SPAC+"chart version==%v len(values)==%d", chartfull.Metadata.Version, len(chartfull.Values))
 
@@ -1144,6 +1163,20 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 			}
 		}
 
+		if s.UpdateInterval != nil && *s.UpdateInterval != "" {
+			s.UpdateIntervalDuration, err = time.ParseDuration(*s.UpdateInterval)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if s.UpdateDelay != nil && *s.UpdateDelay != "" {
+			s.UpdateDelayDuration, err = time.ParseDuration(*s.UpdateDelay)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		for _, p := range s.Packages {
 
 			p.Name = fmt.Sprintf("%s-%s", p.HelmName, p.EnvName)
@@ -1175,9 +1208,26 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 				}
 			}
 
+			if p.UpdateInterval == nil {
+				p.UpdateInterval = s.UpdateInterval
+				p.UpdateIntervalDuration = s.UpdateIntervalDuration
+			} else {
+				p.UpdateIntervalDuration, err = time.ParseDuration(*p.UpdateInterval)
+				if err != nil {
+					return nil, err
+				}
+			}
+
 			if p.UpdateDelay == nil {
 				p.UpdateDelay = s.UpdateDelay
+				p.UpdateDelayDuration = s.UpdateDelayDuration
+			} else {
+				p.UpdateDelayDuration, err = time.ParseDuration(*p.UpdateDelay)
+				if err != nil {
+					return nil, err
+				}
 			}
+
 			if p.TgChatId == nil {
 				p.TgChatId = s.TgChatId
 			}
@@ -1289,23 +1339,30 @@ type PackageConfig struct {
 	HelmChartLocalFilename string `yaml:"HelmChartLocalFilename"`
 
 	HelmChartAddress string `yaml:"HelmChartAddress"`
-	HelmRepo         struct {
+
+	HelmRepo struct {
 		Address  string `yaml:"Address"`
 		Username string `yaml:"Username"`
 		Password string `yaml:"Password"`
 	} `yaml:"HelmRepo"`
 
 	ServerHostname *string `yaml:"ServerHostname,omitempty"`
-	TgChatId       *int64  `yaml:"TgChatId,omitempty"`
-	TgMentions     *string `yaml:"TgMentions,omitempty"`
 
-	Timezone       *string `yaml:"Timezone,omitempty"`
-	AllowedHours   *string `yaml:"AllowedHours,omitempty"`
-	AlwaysForceNow *bool   `yaml:"AlwaysForceNow,omitempty"`
-	ForceNow       bool    `yaml:"ForceNow"`
+	TgChatId   *int64  `yaml:"TgChatId,omitempty"`
+	TgMentions *string `yaml:"TgMentions,omitempty"`
 
-	UpdateInterval string  `yaml:"UpdateInterval"`
+	AlwaysForceNow *bool `yaml:"AlwaysForceNow,omitempty"`
+	ForceNow       bool  `yaml:"ForceNow"`
+
+	UpdateInterval *string `yaml:"UpdateInterval,omitempty"`
 	UpdateDelay    *string `yaml:"UpdateDelay,omitempty"`
+
+	Timezone     *string `yaml:"Timezone,omitempty"`
+	AllowedHours *string `yaml:"AllowedHours,omitempty"`
+
+	UpdateIntervalDuration time.Duration
+	UpdateDelayDuration    time.Duration
+	UpdateTimestamp        time.Time
 
 	TimezoneLocation *time.Location
 	AllowedHoursList []string
@@ -1325,19 +1382,26 @@ type PackageConfig struct {
 }
 
 type ServerConfig struct {
-	ServerHostname string  `yaml:"ServerHostname"`
-	Timezone       *string `yaml:"Timezone,omitempty"`
-	AllowedHours   *string `yaml:"AllowedHours,omitempty"`
-	AlwaysForceNow *bool   `yaml:"AlwaysForceNow,omitempty"`
+	ServerHostname string `yaml:"ServerHostname"`
+
+	AlwaysForceNow *bool `yaml:"AlwaysForceNow,omitempty"`
+
+	UpdateInterval *string `yaml:"UpdateInterval,omitempty"`
 	UpdateDelay    *string `yaml:"UpdateDelay,omitempty"`
+
+	UpdateIntervalDuration time.Duration
+	UpdateDelayDuration    time.Duration
 
 	TgChatId   *int64  `yaml:"TgChatId,omitempty"`
 	TgMentions *string `yaml:"TgMentions,omitempty"`
 
 	Packages []PackageConfig `yaml:"Packages"`
 
-	AllowedHoursList []string
+	Timezone     *string `yaml:"Timezone,omitempty"`
+	AllowedHours *string `yaml:"AllowedHours,omitempty"`
+
 	TimezoneLocation *time.Location
+	AllowedHoursList []string
 }
 
 type HelmbotConfig struct {
