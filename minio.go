@@ -17,8 +17,8 @@ import (
 // get/put values file from/to a minio storage
 // https://gist.github.com/gabo89/5e3e316bd4be0fb99369eac512a66537
 // https://stackoverflow.com/questions/72047783/how-do-i-download-files-from-a-minio-s3-bucket-using-curl
-func MinioNewRequest(method, name string, payload *bytes.Buffer) (r *http.Request, err error) {
-	r, err = http.NewRequest(method, ValuesMinioUrl+name, payload)
+func MinioNewRequest(method, name string, payload []byte) (r *http.Request, err error) {
+	r, err = http.NewRequest(method, ValuesMinioUrl+name, bytes.NewBuffer(payload))
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func MinioNewRequest(method, name string, payload *bytes.Buffer) (r *http.Reques
 }
 
 func GetValuesTextMinio(name string, valuestext *string) (err error) {
-	r, err := MinioNewRequest("GET", name, nil)
+	r, err := MinioNewRequest(http.MethodGet, name, nil)
 
 	resp, err := http.DefaultClient.Do(r)
 	if err != nil {
@@ -83,7 +83,7 @@ func GetValuesMinio(name string, valuestext *string, values interface{}) (err er
 }
 
 func PutValuesTextMinio(name string, valuestext string) (err error) {
-	r, err := MinioNewRequest("PUT", name, bytes.NewBuffer([]byte(valuestext)))
+	r, err := MinioNewRequest(http.MethodPut, name, []byte(valuestext))
 
 	if DEBUG {
 		log("DEBUG PutValuesTextMinio %s [len %d]: %s...", name, len(valuestext), strings.ReplaceAll((valuestext), NL, " <nl> "))
