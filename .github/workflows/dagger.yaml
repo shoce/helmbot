@@ -1,0 +1,49 @@
+
+name: dagger
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+    paths-ignore:
+      - 'helm/**'
+      - '.github/workflows/helm.yaml'
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-publish:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+
+      - name: version
+        run: echo "VERSION=$( date '+%y.%m%d.%H%M' | sed 's/\.0*/./g' )" >> $GITHUB_ENV
+
+      - uses: actions/checkout@v4
+
+      - uses: dagger/dagger-for-github@v7
+        with:
+          call: |
+            publish
+            --registry=$REGISTRY
+            --username=${{ github.repository_owner }}
+            --password=env:GITHUB_TOKEN
+            --image=${{ github.repository }}/${{ github.ref_name }}:${{ env.VERSION }}
+
+      - name: tag
+        run: |
+          git config user.name github-actions
+          git config user.email "github-actions@users.noreply.github.com"
+          git tag $VERSION
+          git push origin $VERSION
+
+

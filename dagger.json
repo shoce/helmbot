@@ -1,0 +1,13 @@
+{
+  "name": "helmbot",
+  "engineVersion": "v0.15.3",
+  "sdk": "go",
+  "dependencies": [
+    {
+      "name": "containerd",
+      "source": "github.com/levlaz/daggerverse/containerd@containerd/v0.2.0",
+      "pin": "c9905b9550021591e15b5346574dd0114e412194"
+    }
+  ],
+  "source": ".dagger"
+}
