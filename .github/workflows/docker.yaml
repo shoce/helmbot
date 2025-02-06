@@ -21,8 +21,8 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  if: false
   build-push:
+    if: false
     runs-on: ubuntu-latest
     steps:
 
