@@ -590,7 +590,7 @@ func ServerPackagesUpgrade() (err error) {
 			p.UpdateTimestamp = updatetimestampfilestat.ModTime()
 		}
 
-		log("DEBUG packages "+"package Name==%s AlwaysForceNow==%v AllowedHours==%v Timezone==%s TimeNowHour==%v UpdateInterval==%v UpdateDelay==%v UpdateTimestamp=%v", p.Name, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration, p.UpdateDelayDuration, p.UpdateTimestamp)
+		log("DEBUG packages "+"package Name==%s AlwaysForceNow==%v AllowedHours==%v Timezone==%s TimeNowHour==%v UpdateInterval==%v UpdateDelay==%v UpdateTimestamp=%v", p.Name, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration, p.UpdateDelayDuration, p.UpdateTimestamp.Format("060102:150405-0700"))
 
 		if d := time.Now().Sub(p.UpdateTimestamp.Truncate(time.Second)); d < p.UpdateIntervalDuration {
 			log("DEBUG packages "+SPAC+"%v since update < UpdateInterval %v -- skipping update", d, p.UpdateIntervalDuration)
