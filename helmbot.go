@@ -823,8 +823,7 @@ func ServerPackagesUpgrade() (err error) {
 		p.ImagesValues[p.ChartVersionKey] = chartfull.Metadata.Version
 
 		drlatestyamlhelmvalues := make(map[string]interface{})
-		// TODO helm chart values
-		for _, m := range []map[string]interface{}{p.Values, p.EnvValues} {
+		for _, m := range []map[string]interface{}{chartfull.Values, p.Values, p.EnvValues} {
 			for k, v := range m {
 				drlatestyamlhelmvalues[k] = v
 			}
@@ -836,7 +835,7 @@ func ServerPackagesUpgrade() (err error) {
 
 		p.ImagesValuesList, p.ImagesValuesText, err = ImagesValuesToList(p.ImagesValues)
 
-		allvaluestext := p.ValuesText + p.EnvValuesText + p.ImagesValuesText
+		allvaluestext := p.GlobalValuesText + p.ValuesText + p.EnvValuesText + p.ImagesValuesText
 		p.ValuesHash = fmt.Sprintf("%x", sha256.Sum256([]byte(allvaluestext)))[:10]
 
 		log("DEBUG packages "+SPAC+"ImagesValues==%#v", p.ImagesValues)
@@ -925,7 +924,7 @@ func ServerPackagesUpgrade() (err error) {
 		}
 
 		if p.ValuesHash == ReportedValuesHash {
-			log("DEBUG packages " + SPAC + "ValuesHash equal ")
+			log("DEBUG packages " + SPAC + "ValuesHash == ReportedValuesHash ")
 			toreport = false
 		}
 
@@ -948,6 +947,12 @@ func ServerPackagesUpgrade() (err error) {
 			}
 
 			// TODO WriteFile => PutValuesText
+			GlobalValuesTextPath := path.Join(p.LatestDir(), p.GlobalValuesFilename())
+			err = os.WriteFile(GlobalValuesTextPath, []byte(p.GlobalValuesText), 0600)
+			if err != nil {
+				return fmt.Errorf("os.WriteFile %v: %w", GlobalValuesTextPath, err)
+			}
+
 			ValuesTextPath := path.Join(p.LatestDir(), p.ValuesFilename())
 			err = os.WriteFile(ValuesTextPath, []byte(p.ValuesText), 0600)
 			if err != nil {
@@ -1004,31 +1009,33 @@ func ServerPackagesUpgrade() (err error) {
 
 		log("DEBUG packages "+SPAC+"reported==%v", reported)
 
+		ForceNow := false
+		if reported && ReportedPermitHash == ReportedValuesHash {
+			ForceNow = true
+		}
+
+		todeploy := false
+
+		if p.AlwaysForceNow != nil && *p.AlwaysForceNow {
+			todeploy = true
+		}
+
+		if slices.Contains(p.AllowedHoursList, timenowhour) {
+			todeploy = true
+		}
+
+		if ForceNow {
+			todeploy = true
+		}
+
+		log("DEBUG packages "+SPAC+"todeploy==%v", todeploy)
+
 	}
 
 	log("DEBUG packages ---")
 	return nil
 
 	/*
-
-			ForceNow := false
-			if reported && ReportedPermitHash == ReportedValuesHash {
-				ForceNow = true
-			}
-
-			todeploy := false
-
-			if p.AlwaysForceNow != nil && *p.AlwaysForceNow {
-				todeploy = true
-			}
-
-			if slices.Contains(p.AllowedHoursList, timenowhour) {
-				todeploy = true
-			}
-
-			if ForceNow {
-				todeploy = true
-			}
 
 			if reported && todeploy {
 
