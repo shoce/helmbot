@@ -124,7 +124,7 @@ func ImagesValuesToList(imagesvaluesmap map[string]interface{}) (imagesvalueslis
 		if bb, err := yaml.Marshal(iv); err != nil {
 			return nil, "", fmt.Errorf("yaml.Encoder: %w", err)
 		} else {
-			imagesvaluestext += string(bb) + NL
+			imagesvaluestext += string(bb)
 		}
 	}
 
