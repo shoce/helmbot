@@ -909,18 +909,18 @@ func ServerPackagesUpgrade() (err error) {
 			for name, v1 := range iv1 {
 				if v2, ok := iv2[name]; ok {
 					if v2 != v1 {
-						imagesvaluesdiff += fmt.Sprintf("<> "+"%s: %#v => %#v"+" / ", name, v1, v2)
+						imagesvaluesdiff += fmt.Sprintf("%s: %#v=>%#v "+NL, name, v1, v2)
 					}
 				} else {
-					imagesvaluesdiff += fmt.Sprintf("-- "+"%s: %#v"+" / ", name, v1)
+					imagesvaluesdiff += fmt.Sprintf("--%s: %#v "+NL, name, v1)
 				}
 			}
 			for name, v2 := range iv2 {
 				if _, ok := iv1[name]; !ok {
-					imagesvaluesdiff += fmt.Sprintf("++ "+"%s: %#v"+" / ", name, v2)
+					imagesvaluesdiff += fmt.Sprintf("++%s: %#v "+NL, name, v2)
 				}
 			}
-			log("DEBUG packages "+SPAC+"ImagesValues diff: %v", imagesvaluesdiff)
+			log("DEBUG packages "+SPAC+"ImagesValues diff: "+NL+"%v", imagesvaluesdiff)
 
 		}
 
