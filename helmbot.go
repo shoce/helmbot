@@ -980,7 +980,7 @@ func ServerPackagesUpgrade() (err error) {
 				return fmt.Errorf("os.WriteFile %v: %w", p.ValuesLatestHashFilename(), err)
 			}
 
-			log("DEBUG packages "+SPAC+"#%s#%s#%s latest ", p.ChartName, p.EnvName, p.ValuesHash)
+			log("DEBUG packages "+SPAC+"%s latest ", p.HashId())
 
 			//
 			// REPORT
@@ -1001,7 +1001,7 @@ func ServerPackagesUpgrade() (err error) {
 				return fmt.Errorf("os.WriteFile %v: %w", p.ValuesReportedHashFilename(), err)
 			}
 
-			log("DEBUG packages "+SPAC+"#%s#%s#%s reported ", p.ChartName, p.EnvName, p.ValuesHash)
+			log("DEBUG packages "+SPAC+"%s reported ", p.HashId())
 
 			ReportedValuesHash = p.ValuesHash
 
@@ -1115,12 +1115,9 @@ func ServerPackagesUpgrade() (err error) {
 				}
 			}
 
-			log("packages "+SPAC+"#%s#%s#%s deployed ", p.ChartName, p.EnvName, p.ValuesHash)
-			if pkgrelease == nil {
-				log("packages "+SPAC+"release: %+v ", pkgrelease)
-			} else {
-				log("packages "+SPAC+"release info: %s ", pkgrelease.Info.Status)
-			}
+			log("packages "+SPAC+"%s deployed ", p.HashId())
+			log("DEBUG packages "+SPAC+"release==%+v ", pkgrelease)
+			log("DEBUG packages "+SPAC+"release.info.status==%s ", pkgrelease.Info.Status)
 
 		}
 
@@ -1403,6 +1400,10 @@ func (p *PackageConfig) ValuesPermitHashFilename() string {
 
 func (p *PackageConfig) UpdateTimestampFilename() string {
 	return fmt.Sprintf("%s.%s.update.timestamp", p.ChartName, p.EnvName)
+}
+
+func (p *PackageConfig) HashId() string {
+	return fmt.Sprintf("#%s#%s#%s", p.ChartName, p.EnvName, p.ValuesHash)
 }
 
 type ServerConfig struct {
