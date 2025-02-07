@@ -909,15 +909,15 @@ func ServerPackagesUpgrade() (err error) {
 			for name, v1 := range iv1 {
 				if v2, ok := iv2[name]; ok {
 					if v2 != v1 {
-						imagesvaluesdiff += fmt.Sprintf("%s: %#v=>%#v "+NL, name, v1, v2)
+						imagesvaluesdiff += fmt.Sprintf("%s: %#v => %#v "+NL, name, v1, v2)
 					}
 				} else {
-					imagesvaluesdiff += fmt.Sprintf("--%s: %#v "+NL, name, v1)
+					imagesvaluesdiff += fmt.Sprintf("-- %s: %#v "+NL, name, v1)
 				}
 			}
 			for name, v2 := range iv2 {
 				if _, ok := iv1[name]; !ok {
-					imagesvaluesdiff += fmt.Sprintf("++%s: %#v "+NL, name, v2)
+					imagesvaluesdiff += fmt.Sprintf("++ %s: %#v "+NL, name, v2)
 				}
 			}
 			log("DEBUG packages "+SPAC+"ImagesValues diff: "+NL+"%v", imagesvaluesdiff)
@@ -929,80 +929,82 @@ func ServerPackagesUpgrade() (err error) {
 			toreport = false
 		}
 
+		reported := false
+
+		if toreport {
+
+			//
+			// WRITE LATEST
+			//
+
+			err = os.RemoveAll(p.LatestDir())
+			if err != nil {
+				return fmt.Errorf("os.RemoveAll %v: %w", p.LatestDir(), err)
+			}
+
+			err = os.MkdirAll(p.LatestDir(), 0700)
+			if err != nil {
+				return fmt.Errorf("os.MkdirAll %v: %w", p.LatestDir(), err)
+			}
+
+			// TODO WriteFile => PutValuesText
+			ValuesTextPath := path.Join(p.LatestDir(), p.ValuesFilename())
+			err = os.WriteFile(ValuesTextPath, []byte(p.ValuesText), 0600)
+			if err != nil {
+				return fmt.Errorf("os.WriteFile %v: %w", ValuesTextPath, err)
+			}
+
+			EnvValuesTextPath := path.Join(p.LatestDir(), p.EnvValuesFilename())
+			err = os.WriteFile(EnvValuesTextPath, []byte(p.EnvValuesText), 0600)
+			if err != nil {
+				return fmt.Errorf("os.WriteFile %v: %w", EnvValuesTextPath, err)
+			}
+
+			ImagesValuesTextPath := path.Join(p.LatestDir(), p.ImagesValuesFilename())
+			err = os.WriteFile(ImagesValuesTextPath, []byte(p.ImagesValuesText), 0600)
+			if err != nil {
+				return fmt.Errorf("os.WriteFile %v: %w", ImagesValuesTextPath, err)
+			}
+
+			err = os.WriteFile(path.Join(ConfigDir, p.ValuesLatestHashFilename()), []byte(p.ValuesHash), 0600)
+			if err != nil {
+				return fmt.Errorf("os.WriteFile %v: %w", p.ValuesLatestHashFilename(), err)
+			}
+
+			log("DEBUG packages "+SPAC+"#%s#%s#%s latest ", p.ChartName, p.EnvName, p.ValuesHash)
+
+			//
+			// REPORT
+			//
+
+			err = os.RemoveAll(p.ReportedDir())
+			if err != nil {
+				return fmt.Errorf("os.RemoveAll %v: %w", p.ReportedDir(), err)
+			}
+
+			err = os.Rename(p.LatestDir(), p.ReportedDir())
+			if err != nil {
+				return fmt.Errorf("os.Rename %v %v: %w", p.LatestDir(), p.ReportedDir(), err)
+			}
+
+			log("DEBUG packages "+SPAC+"#%s#%s#%s reported ", p.ChartName, p.EnvName, p.ValuesHash)
+
+			ReportedValuesHash = p.ValuesHash
+
+		}
+
+		if ReportedValuesHash != "" {
+			reported = true
+		}
+
+		log("DEBUG packages "+SPAC+"reported==%v", reported)
+
 	}
 
 	log("DEBUG packages ---")
 	return nil
 
 	/*
-
-			reported := false
-
-			if toreport {
-
-				//
-				// WRITE LATEST
-				//
-
-				err = os.RemoveAll(p.LatestDir())
-				if err != nil {
-					return fmt.Errorf("os.RemoveAll %v: %w", p.LatestDir(), err)
-				}
-
-				err = os.MkdirAll(p.LatestDir(), 0700)
-				if err != nil {
-					return fmt.Errorf("os.MkdirAll %v: %w", p.LatestDir(), err)
-				}
-
-				// TODO WriteFile => PutValuesText
-				ValuesTextPath := path.Join(p.LatestDir(), p.ValuesFilename())
-				err = os.WriteFile(ValuesTextPath, []byte(p.ValuesText), 0600)
-				if err != nil {
-					return fmt.Errorf("os.WriteFile %v: %w", ValuesTextPath, err)
-				}
-
-				EnvValuesTextPath := path.Join(p.LatestDir(), p.EnvValuesFilename())
-				err = os.WriteFile(EnvValuesTextPath, []byte(p.EnvValuesText), 0600)
-				if err != nil {
-					return fmt.Errorf("os.WriteFile %v: %w", EnvValuesTextPath, err)
-				}
-
-				ImagesValuesTextPath := path.Join(p.LatestDir(), p.ImagesValuesFilename())
-				err = os.WriteFile(ImagesValuesTextPath, []byte(p.ImagesValuesText), 0600)
-				if err != nil {
-					return fmt.Errorf("os.WriteFile %v: %w", ImagesValuesTextPath, err)
-				}
-
-				err = os.WriteFile(p.ValuesLatestHashFilename(), []byte(p.ValuesHash), 0600)
-				if err != nil {
-					return fmt.Errorf("os.WriteFile %v: %w", p.ValuesLatestHashFilename(), err)
-				}
-
-				log("packages "+SPAC+"#%s#%s#%s latest ", p.ChartName, p.EnvName, p.ValuesHash)
-
-				//
-				// REPORT
-				//
-
-				err = os.RemoveAll(PackageReportedDir)
-				if err != nil {
-					return fmt.Errorf("os.RemoveAll `%s`: %w", PackageReportedDir, err)
-				}
-
-				err = os.Rename(PackageLatestDir, PackageReportedDir)
-				if err != nil {
-					return fmt.Errorf("os.Rename `%s` `%s`: %w", PackageLatestDir, PackageReportedDir, err)
-				}
-
-				log("packages "+SPAC+"#%s#%s#%s reported ", p.ChartName, p.EnvName, p.ValuesHash)
-
-				ReportedValuesHash = p.ValuesHash
-
-			}
-
-			if ReportedValuesHash != "" {
-				reported = true
-			}
 
 			ForceNow := false
 			if reported && ReportedPermitHash == ReportedValuesHash {
