@@ -288,9 +288,9 @@ func main() {
 					log("ERROR packages: %+v", err)
 				}
 
-				if tdur := time.Now().Sub(t0); tdur < PackagesUpgradeInterval {
-					sleepdur := PackagesUpgradeInterval - tdur
-					log("DEBUG packages sleeping %s", sleepdur.Truncate(time.Second))
+				if d := time.Now().Sub(t0); d < PackagesUpgradeInterval {
+					sleepdur := (PackagesUpgradeInterval - d).Truncate(time.Second)
+					log("DEBUG packages --- sleeping %s", sleepdur)
 					time.Sleep(sleepdur)
 				}
 				log("---")
@@ -592,8 +592,8 @@ func ServerPackagesUpgrade() (err error) {
 
 		log("DEBUG packages "+"package Name==%s AlwaysForceNow==%v AllowedHours==%v Timezone==%s TimeNowHour==%v UpdateInterval==%v UpdateDelay==%v UpdateTimestamp=%v", p.Name, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration, p.UpdateDelayDuration, p.UpdateTimestamp)
 
-		if d := time.Now().Sub(p.UpdateTimestamp); d < p.UpdateIntervalDuration {
-			log("DEBUG packages "+SPAC+"%v since update < UpdateInterval %v - skip update", d, p.UpdateIntervalDuration)
+		if d := time.Now().Sub(p.UpdateTimestamp.Truncate(time.Second)); d < p.UpdateIntervalDuration {
+			log("DEBUG packages "+SPAC+"%v since update < UpdateInterval %v -- skipping update", d, p.UpdateIntervalDuration)
 			continue
 		}
 

@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"dagger/helmbot/internal/dagger"
 
@@ -49,12 +51,18 @@ func (m *Helmbot) Build(
 
 		eg.Go(func() (err error) {
 
+			fmt.Printf("platform==%s"+NL, platform)
+
+			arch := strings.Split(string(platform), "/")[1]
+			fmt.Printf("arch==%s"+NL, arch)
+
 			// https://hub.docker.com/_/golang/tags/
-			a := dag.Container(dagger.ContainerOpts{Platform: platform}).
+			a := dag.Container().
 				From(GolangDockerImage).
 				WithFiles("/root/helmbot/", ff).
 				WithWorkdir("/root/helmbot/").
 				WithEnvVariable("CGO_ENABLED", "0").
+				WithEnvVariable("GOARCH", arch).
 				WithExec([]string{"go", "get", "-v"}).
 				WithExec([]string{"go", "build", "-o", "helmbot", "."})
 
