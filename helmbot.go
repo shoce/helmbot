@@ -842,21 +842,6 @@ func ServerPackagesUpgrade() (err error) {
 		log("DEBUG packages "+SPAC+"ImagesValues==%#v", p.ImagesValues)
 		log("DEBUG packages "+SPAC+"ValuesHash==%#v", p.ValuesHash)
 
-		installedversion := ""
-		for _, r := range installedreleases {
-			if r.Name == p.Name && r.Namespace == p.Namespace {
-				installedversion = r.Chart.Metadata.Version
-			}
-		}
-
-		versionstatus := "=>"
-		if installedversion == chartversion {
-			versionstatus = "=="
-		}
-		log("DEBUG packages "+SPAC+"chart version: %#v %s %#v ", installedversion, versionstatus, chartversion)
-
-		log("DEBUG packages ---")
-
 		//
 		// READ DEPLOYED
 		//
@@ -904,60 +889,52 @@ func ServerPackagesUpgrade() (err error) {
 
 		log("DEBUG packages "+SPAC+"DeployedImagesValuesText==%v ReportedValuesHash==%v toreport==%v", DeployedImagesValuesText, ReportedValuesHash, toreport)
 
-		log("DEBUG packages ---")
+		if p.ImagesValuesText != DeployedImagesValuesText {
+			log("DEBUG packages " + SPAC + "ImagesValuesText diff ")
+			toreport = true
+
+			DeployedImagesValuesMap := make(map[string]string)
+			yd := yaml.NewDecoder(bytes.NewReader(DeployedImagesValuesTextBytes))
+			for {
+				if err := yd.Decode(&DeployedImagesValuesMap); err != nil {
+					if err != io.EOF {
+						return fmt.Errorf("yaml Decode %w", err)
+					}
+					break
+				}
+			}
+
+			imagesvaluesdiff := ""
+			iv1, iv2 := DeployedImagesValuesMap, p.ImagesValues
+			for name, v1 := range iv1 {
+				if v2, ok := iv2[name]; ok {
+					if v2 != v1 {
+						imagesvaluesdiff += fmt.Sprintf("<> "+"%s: %#v => %#v"+" / ", name, v1, v2)
+					}
+				} else {
+					imagesvaluesdiff += fmt.Sprintf("-- "+"%s: %#v"+" / ", name, v1)
+				}
+			}
+			for name, v2 := range iv2 {
+				if _, ok := iv1[name]; !ok {
+					imagesvaluesdiff += fmt.Sprintf("++ "+"%s: %#v"+" / ", name, v2)
+				}
+			}
+			log("DEBUG packages "+SPAC+"ImagesValues diff: %v", imagesvaluesdiff)
+
+		}
+
+		if p.ValuesHash == ReportedValuesHash {
+			log("DEBUG packages " + SPAC + "ValuesHash equal ")
+			toreport = false
+		}
+
 	}
 
 	log("DEBUG packages ---")
 	return nil
 
 	/*
-
-			if p.ImagesValuesText != DeployedImagesValuesText {
-				log("packages " + SPAC + "ImagesValuesText diff ")
-				toreport = true
-
-				DeployedImagesValuesMap := make(map[string]string)
-				d := yaml.NewDecoder(bytes.NewReader(DeployedImagesValuesTextBytes))
-				for {
-					if err := d.Decode(&DeployedImagesValuesMap); err != nil {
-						if err != io.EOF {
-							return fmt.Errorf("yaml Decode %w", err)
-						}
-						break
-					}
-				}
-
-				//ansibold := func(s string) string { return "\033[1m" + s + "\033[0m" }
-				//ansidim := func(s string) string { return "\033[2m" + s + "\033[0m" }
-				//ansiitalic := func(s string) string { return "\033[3m" + s + "\033[0m" }
-				//ansiunderline := func(s string) string { return "\033[4m" + s + "\033[0m" }
-				//ansistrikethru := func(s string) string { return "\033[9m" + s + "\033[0m" }
-				//ansired := func(s string) string { return "\033[31m" + s + "\033[0m" }
-				//ansibrightred := func(s string) string { return "\033[91m" + s + "\033[0m" }
-				imagesvaluesdiff := ""
-				iv1, iv2 := DeployedImagesValuesMap, p.ImagesValues
-				for name, v1 := range iv1 {
-					if v2, ok := iv2[name]; ok {
-						if v2 != v1 {
-							imagesvaluesdiff += fmt.Sprintf("<> "+"%s: %#v => %#v"+" / ", name, v1, v2)
-						}
-					} else {
-						imagesvaluesdiff += fmt.Sprintf("-- "+"%s: %#v"+" / ", name, v1)
-					}
-				}
-				for name, v2 := range iv2 {
-					if _, ok := iv1[name]; !ok {
-						imagesvaluesdiff += fmt.Sprintf("++ "+"%s: %#v"+" / ", name, v2)
-					}
-				}
-				log("packages "+SPAC+"ImagesValues diff: // %s // ", imagesvaluesdiff)
-
-			}
-
-			if p.ValuesHash == ReportedValuesHash {
-				log("packages " + SPAC + "ValuesHash same ")
-				toreport = false
-			}
 
 			reported := false
 
