@@ -10,6 +10,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -37,9 +38,14 @@ import (
 	helmdownloader "helm.sh/helm/v3/pkg/downloader"
 	helmgetter "helm.sh/helm/v3/pkg/getter"
 	helmregistry "helm.sh/helm/v3/pkg/registry"
+	helmrelease "helm.sh/helm/v3/pkg/release"
 	helmrepo "helm.sh/helm/v3/pkg/repo"
-	//kubernetes "k8s.io/client-go/kubernetes"
-	//krest "k8s.io/client-go/rest"
+
+	kcorev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	kmetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubernetes "k8s.io/client-go/kubernetes"
+	krest "k8s.io/client-go/rest"
 )
 
 const (
@@ -505,23 +511,21 @@ func ServerPackagesUpgrade() (err error) {
 		log("DEBUG packages helmgetterall==%+v", helmgetterall)
 	}
 
-	/*
-		kconfig, err := krest.InClusterConfig()
-		if err != nil {
-			return err
-		}
-		if DEBUG {
-			log("DEBUG packages kconfig==%+v", kconfig)
-		}
+	kconfig, err := krest.InClusterConfig()
+	if err != nil {
+		return err
+	}
+	if DEBUG {
+		log("DEBUG packages kconfig==%+v", kconfig)
+	}
 
-		kclientset, err := kubernetes.NewForConfig(kconfig)
-		if err != nil {
-			return err
-		}
-		if DEBUG {
-			log("DEBUG packages kclientset==%+v", kclientset)
-		}
-	*/
+	kclientset, err := kubernetes.NewForConfig(kconfig)
+	if err != nil {
+		return err
+	}
+	if DEBUG {
+		log("DEBUG packages kclientset==%+v", kclientset)
+	}
 
 	if DEBUG {
 		log("DEBUG packages ---")
@@ -1030,104 +1034,100 @@ func ServerPackagesUpgrade() (err error) {
 
 		log("DEBUG packages "+SPAC+"todeploy==%v", todeploy)
 
-	}
+		if reported && todeploy {
 
-	log("DEBUG packages ---")
-	return nil
+			//
+			// DEPLOY
+			//
 
-	/*
+			err = os.RemoveAll(p.DeployedDir())
+			if err != nil {
+				return fmt.Errorf("os.RemoveAll %v: %w", p.DeployedDir(), err)
+			}
 
-			if reported && todeploy {
+			err = os.Rename(p.ReportedDir(), p.DeployedDir())
+			if err != nil {
+				return fmt.Errorf("os.Rename %v %v: %w", p.ReportedDir(), p.DeployedDir(), err)
+			}
 
-				//
-				// DEPLOY
-				//
+			namespaceexists := false
+			if kns, err := kclientset.CoreV1().Namespaces().Get(context.TODO(), p.Namespace, kmetav1.GetOptions{}); kerrors.IsNotFound(err) {
+				// namespaceexists = false
+			} else if err != nil {
+				log("ERROR packages Namespaces.Get: %v", err)
+				return err
+			} else if kns.Name == p.Namespace {
+				namespaceexists = true
+			}
 
-				err = os.RemoveAll(PackageDeployedDir)
-				if err != nil {
-					return fmt.Errorf("os.RemoveAll `%s`: %w", PackageDeployedDir, err)
+			if !namespaceexists {
+				pnamespace := &kcorev1.Namespace{
+					ObjectMeta: kmetav1.ObjectMeta{
+						Name: p.Namespace,
+					},
 				}
-
-				err = os.Rename(PackageReportedDir, PackageDeployedDir)
-				if err != nil {
-					return fmt.Errorf("os.Rename `%s` `%s`: %w", PackageReportedDir, PackageDeployedDir, err)
-				}
-
-				namespaceexists := false
-				if kns, err := kclientset.CoreV1().Namespaces().Get(context.TODO(), p.Namespace, kmetav1.GetOptions{}); kerrors.IsNotFound(err) {
-					// namespaceexists = false
-				} else if err != nil {
+				if _, err := kclientset.CoreV1().Namespaces().Create(context.TODO(), pnamespace, kmetav1.CreateOptions{}); err != nil {
+					log("ERROR packages Namespaces.Create: %v", err)
 					return err
-				} else if kns.Name == p.Namespace {
-					namespaceexists = true
 				}
+			}
 
-				if !namespaceexists {
-					pnamespace := &kcorev1.Namespace{
-						ObjectMeta: kmetav1.ObjectMeta{
-							Name: p.Namespace,
-						},
-					}
-					if _, err := kclientset.CoreV1().Namespaces().Create(context.TODO(), pnamespace, kmetav1.CreateOptions{}); err != nil {
-						return err
-					}
+			isinstalled := false
+			for _, r := range installedreleases {
+				if r.Name == p.Name && r.Namespace == p.Namespace {
+					isinstalled = true
 				}
+			}
 
-				isinstalled := false
-				for _, r := range installedreleases {
-					if r.Name == p.Name && r.Namespace == p.Namespace {
-						isinstalled = true
-					}
+			var pkgrelease *helmrelease.Release
+			if isinstalled {
+				// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Upgrade
+				helmupgrade := helmaction.NewUpgrade(helmactioncfg)
+				helmupgrade.DryRun = true
+				helmupgrade.Namespace = p.Namespace
+
+				values := make(map[string]interface{})
+				pkgrelease, err = helmupgrade.Run(
+					p.Name,
+					chartfull,
+					values,
+				)
+				if err != nil {
+					log("ERROR packages helmupgrade.Run: %v", err)
+					return err
 				}
+			} else {
+				// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Install
+				helminstall := helmaction.NewInstall(helmactioncfg)
+				helminstall.DryRun = true
+				helminstall.CreateNamespace = true
+				helminstall.Namespace = p.Namespace
+				helminstall.ReleaseName = p.Name
 
-				var pkgrelease *helmrelease.Release
-				if isinstalled {
-					// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Upgrade
-					helmupgrade := helmaction.NewUpgrade(helmactioncfg)
-					helmupgrade.DryRun = true
-					helmupgrade.Namespace = p.Namespace
-
-					chart := new(helmchart.Chart)
-					values := make(map[string]interface{})
-					pkgrelease, err = helmupgrade.Run(
-						p.Name,
-						chart,
-						values,
-					)
-					if err != nil {
-						return err
-					}
-				} else {
-					// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Install
-					helminstall := helmaction.NewInstall(helmactioncfg)
-					helminstall.DryRun = true
-					helminstall.CreateNamespace = true
-					helminstall.Namespace = p.Namespace
-					helminstall.ReleaseName = p.Name
-
-					chart := new(helmchart.Chart)
-					values := make(map[string]interface{})
-					pkgrelease, err = helminstall.Run(
-						chart,
-						values,
-					)
-					if err != nil {
-						return err
-					}
+				values := make(map[string]interface{})
+				pkgrelease, err = helminstall.Run(
+					chartfull,
+					values,
+				)
+				if err != nil {
+					log("ERROR packages helminstall.Run: %v", err)
+					return err
 				}
+			}
 
-				log("packages "+SPAC+"#%s#%s#%s deployed ", p.ChartName, p.EnvName, p.ValuesHash)
-				if pkgrelease == nil {
-					log("packages "+SPAC+"release: %+v ", pkgrelease)
-				} else {
-					log("packages "+SPAC+"release info: %s ", pkgrelease.Info.Status)
-				}
-
+			log("packages "+SPAC+"#%s#%s#%s deployed ", p.ChartName, p.EnvName, p.ValuesHash)
+			if pkgrelease == nil {
+				log("packages "+SPAC+"release: %+v ", pkgrelease)
+			} else {
+				log("packages "+SPAC+"release info: %s ", pkgrelease.Info.Status)
 			}
 
 		}
 
-	*/
+	}
+
+	log("DEBUG packages ---")
+	return nil
 
 }
 
