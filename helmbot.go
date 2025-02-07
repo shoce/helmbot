@@ -851,31 +851,29 @@ func ServerPackagesUpgrade() (err error) {
 
 		DeployedValuesTextBytes, err := os.ReadFile(path.Join(p.DeployedDir(), p.ValuesFilename()))
 		if err != nil {
-			log("ERROR packages os.ReadFile: %s", err)
+			log("ERROR packages "+SPAC+"os.ReadFile: %s", err)
 		}
 
 		DeployedEnvValuesTextBytes, err := os.ReadFile(path.Join(p.DeployedDir(), p.EnvValuesFilename()))
 		if err != nil {
-			log("ERROR packages os.ReadFile: %s", err)
+			log("ERROR packages "+SPAC+"os.ReadFile: %s", err)
 		}
 
 		DeployedImagesValuesTextBytes, err := os.ReadFile(path.Join(p.DeployedDir(), p.ImagesValuesFilename()))
 		if err != nil {
-			log("ERROR packages os.ReadFile: %s", err)
+			log("ERROR packages "+SPAC+"os.ReadFile: %s", err)
 		}
 		DeployedImagesValuesText := string(DeployedImagesValuesTextBytes)
 
-		ReportedValuesHashBytes, err := os.ReadFile(path.Join(p.Dir(), p.ValuesReportedHashFilename()))
-		if err != nil {
-			log("ERROR packages os.ReadFile: %s", err)
-			ReportedValuesHashBytes = []byte{}
+		var ReportedValuesHash string
+		if err := GetValuesText(p.ValuesReportedHashFilename(), &ReportedValuesHash); err != nil {
+			log("ERROR packages "+SPAC+"GetValuesText: %s", err)
 		}
-		ReportedValuesHash := string(ReportedValuesHashBytes)
 
-		var ReportedPermitHash string
-		err = GetValuesText(p.ValuesPermitHashFilename(), &ReportedPermitHash)
+		var PermitHash string
+		err = GetValuesText(p.ValuesPermitHashFilename(), &PermitHash)
 		if err != nil {
-			log("ERROR packages GetValuesText %v: %v", p.ValuesPermitHashFilename(), err)
+			log("ERROR packages "+SPAC+"GetValuesText %v: %v", p.ValuesPermitHashFilename(), err)
 		}
 
 		toreport := false
@@ -1014,7 +1012,7 @@ func ServerPackagesUpgrade() (err error) {
 		log("DEBUG packages "+SPAC+"reported==%v", reported)
 
 		ForceNow := false
-		if reported && ReportedPermitHash == ReportedValuesHash {
+		if reported && PermitHash == ReportedValuesHash {
 			ForceNow = true
 		}
 
