@@ -828,7 +828,14 @@ func ServerPackagesUpgrade() (err error) {
 		// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/chart#Metadata
 		p.HelmImagesValues[p.HelmChartVersionKey] = chartfull.Metadata.Version
 
-		err = drlatestyaml(p.HelmEnvValues, Config.DrLatestYaml, &p.HelmImagesValues)
+		drlatestyamlhelmvalues := make(map[string]interface{})
+		// TODO helm chart values
+		for _, m := range []map[string]interface{}{p.HelmValues, p.HelmEnvValues} {
+			for k, v := range m {
+				drlatestyamlhelmvalues[k] = v
+			}
+		}
+		err = drlatestyaml(drlatestyamlhelmvalues, Config.DrLatestYaml, &p.HelmImagesValues)
 		if err != nil {
 			return fmt.Errorf("drlatestyaml %s.%s: %w", p.HelmName, p.EnvName, err)
 		}
