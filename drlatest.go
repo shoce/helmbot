@@ -103,7 +103,7 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 	return nil
 }
 
-func ImagesValuesToList(imagesvaluesmap map[string]interface{}) (imagesvalueslist []map[string]interface{}, imagesvaluesyamltext string, err error) {
+func ImagesValuesToList(imagesvaluesmap map[string]interface{}) (imagesvalueslist []map[string]interface{}, imagesvaluestext string, err error) {
 	imagesvalueslist = make([]map[string]interface{}, 0)
 	for k, v := range imagesvaluesmap {
 		imagesvalueslist = append(imagesvalueslist, map[string]interface{}{k: v})
@@ -120,15 +120,13 @@ func ImagesValuesToList(imagesvaluesmap map[string]interface{}) (imagesvalueslis
 		},
 	)
 
-	imagesvaluestext := new(strings.Builder)
-	e := yaml.NewEncoder(imagesvaluestext)
 	for _, iv := range imagesvalueslist {
-		err := e.Encode(iv)
-		if err != nil {
+		if bb, err := yaml.Marshal(iv); err != nil {
 			return nil, "", fmt.Errorf("yaml.Encoder: %w", err)
+		} else {
+			imagesvaluestext += string(bb) + NL
 		}
 	}
-	imagesvaluesyamltext = imagesvaluestext.String()
 
-	return imagesvalueslist, imagesvaluesyamltext, nil
+	return imagesvalueslist, imagesvaluestext, nil
 }

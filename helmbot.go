@@ -987,6 +987,11 @@ func ServerPackagesUpgrade() (err error) {
 				return fmt.Errorf("os.Rename %v %v: %w", p.LatestDir(), p.ReportedDir(), err)
 			}
 
+			err = os.WriteFile(path.Join(ConfigDir, p.ValuesReportedHashFilename()), []byte(p.ValuesHash), 0600)
+			if err != nil {
+				return fmt.Errorf("os.WriteFile %v: %w", p.ValuesReportedHashFilename(), err)
+			}
+
 			log("DEBUG packages "+SPAC+"#%s#%s#%s reported ", p.ChartName, p.EnvName, p.ValuesHash)
 
 			ReportedValuesHash = p.ValuesHash
