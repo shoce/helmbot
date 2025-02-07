@@ -10,9 +10,7 @@ permissions:
 
 on:
   push:
-    branches:
-      - dev
-      - main
+    branches: []
     paths-ignore:
       - 'helm/**'
       - '.github/workflows/helm.yaml'
@@ -22,7 +20,6 @@ env:
 
 jobs:
   build-push:
-    if: false
     runs-on: ubuntu-latest
     steps:
 
