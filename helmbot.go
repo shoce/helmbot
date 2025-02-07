@@ -48,11 +48,6 @@ const (
 	NL   = "\n"
 
 	UpdateHashIdReString = "#([-a-z]+)#([-a-z]+)#([a-z0-9]+)$"
-
-	ValuesLatestHashFilenameSuffix   = "values.latest.hash.text"
-	ValuesDeployedHashFilenameSuffix = "values.deployed.hash.text"
-	ValuesReportedHashFilenameSuffix = "values.reported.hash.text"
-	PermitHashFilenameSuffix         = "values.permit.hash.text"
 )
 
 var (
@@ -393,17 +388,18 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
 	UpdateHashId := UpdateHashIdSubmatch[0]
 	log("Webhook update hash id: %s", UpdateHashId)
-	UpdateHelmName := UpdateHashIdSubmatch[1]
-	log("Webhook update helm name: %s", UpdateHelmName)
+	UpdateChartName := UpdateHashIdSubmatch[1]
+	log("Webhook update helm name: %s", UpdateChartName)
 	UpdateEnvName := UpdateHashIdSubmatch[2]
 	log("Webhook update env name: %s", UpdateEnvName)
 	UpdateValuesHash := UpdateHashIdSubmatch[3]
 	log("Webhook update values hash: %s", UpdateValuesHash)
 
-	deployedvalueshashpath := fmt.Sprintf("%s.%s.%s", UpdateHelmName, UpdateEnvName, ValuesDeployedHashFilenameSuffix)
+	p := PackageConfig{ChartName: UpdateChartName, EnvName: UpdateEnvName}
+
 	var deployedvalueshash string
-	if err := GetValuesText(deployedvalueshashpath, &deployedvalueshash); err != nil {
-		log("ERROR `%s` could not be read: %v", deployedvalueshashpath, err)
+	if err := GetValuesText(p.ValuesDeployedHashFilename(), &deployedvalueshash); err != nil {
+		log("ERROR `%s` could not be read: %v", p.ValuesDeployedHashFilename(), err)
 		if err := tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
 			"*INTERNAL ERROR*"+NL+
@@ -426,10 +422,9 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reportedvalueshashpath := fmt.Sprintf("%s.%s.%s", UpdateHelmName, UpdateEnvName, ValuesReportedHashFilenameSuffix)
 	var reportedvalueshash string
-	if err := GetValuesText(reportedvalueshashpath, &reportedvalueshash); err != nil {
-		log("ERROR `%s` could not be read: %v", reportedvalueshashpath, err)
+	if err := GetValuesText(p.ValuesReportedHashFilename(), &reportedvalueshash); err != nil {
+		log("ERROR `%s` could not be read: %v", p.ValuesReportedHashFilename(), err)
 		if err := tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
 			"*INTERNAL ERROR*"+NL+
@@ -455,11 +450,10 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
 	log("DEBUG Webhook all checks passed")
 
-	permithashpath := fmt.Sprintf("%s.%s.%s", UpdateHelmName, UpdateEnvName, PermitHashFilenameSuffix)
-	log("DEBUG Webhook creating %s file", permithashpath)
+	log("DEBUG Webhook creating %v file", p.ValuesPermitHashFilename())
 
-	if err := PutValuesText(permithashpath, UpdateValuesHash); err != nil {
-		log("ERROR Webhook %s file could not be written: %v", permithashpath, err)
+	if err := PutValuesText(p.ValuesPermitHashFilename(), UpdateValuesHash); err != nil {
+		log("ERROR Webhook %s file could not be written: %v", p.ValuesPermitHashFilename(), err)
 		if err := tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
 			"*INTERNAL ERROR*"+NL+
@@ -470,7 +464,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log("DEBUG Webhook created %s file", permithashpath)
+	log("DEBUG Webhook created %v file", p.ValuesPermitHashFilename())
 
 	if err := tglog(
 		rupdate.Message.Chat.Id, rupdate.Message.MessageId,
@@ -585,7 +579,7 @@ func ServerPackagesUpgrade() (err error) {
 
 		timenowhour := fmt.Sprintf("%02d", time.Now().In(p.TimezoneLocation).Hour())
 
-		updatetimestampfilename := path.Join(ConfigDir, fmt.Sprintf("%s.%s.update.timestamp", p.HelmName, p.EnvName))
+		updatetimestampfilename := path.Join(ConfigDir, p.UpdateTimestampFilename())
 		if updatetimestampfilestat, err := os.Stat(updatetimestampfilename); err == nil {
 			p.UpdateTimestamp = updatetimestampfilestat.ModTime()
 		}
@@ -599,36 +593,36 @@ func ServerPackagesUpgrade() (err error) {
 
 		var chartfull *helmchart.Chart
 
-		err = GetValuesFile("global.values.yaml", &p.HelmGlobalValuesText, p.HelmGlobalValues)
+		err = GetValuesFile(p.GlobalValuesFilename(), &p.GlobalValuesText, p.GlobalValues)
 		if err != nil {
-			return fmt.Errorf("GetValuesFile `global.values.yaml`: %w", err)
+			return fmt.Errorf("GetValuesFile %v: %w", p.GlobalValuesFilename(), err)
 		}
 
-		err = GetValuesFile(fmt.Sprintf("%s.values.yaml", p.HelmName), &p.HelmValuesText, p.HelmValues)
+		err = GetValuesFile(p.ValuesFilename(), &p.ValuesText, p.Values)
 		if err != nil {
-			return fmt.Errorf("GetValuesFile `%s.values.yaml`: %w", p.HelmName, err)
+			return fmt.Errorf("GetValuesFile %v: %w", p.ValuesFilename(), err)
 		}
 
-		err = GetValuesFile(fmt.Sprintf("%s.%s.values.yaml", p.HelmName, p.EnvName), &p.HelmEnvValuesText, p.HelmEnvValues)
+		err = GetValuesFile(p.EnvValuesFilename(), &p.EnvValuesText, p.EnvValues)
 		if err != nil {
-			return fmt.Errorf("GetValuesFile `%s.%s.values.yaml`: %w", p.HelmName, p.EnvName, err)
+			return fmt.Errorf("GetValuesFile %v: %w", p.EnvValuesFilename(), err)
 		}
 
 		if DEBUG {
 			log("DEBUG packages "+SPAC+"config==%#v", p)
-			log("DEBUG packages "+SPAC+"repo.address==%#v chartaddress==%#v chartlocalfilename==%#v", p.HelmRepo.Address, p.HelmChartAddress, p.HelmChartLocalFilename)
+			log("DEBUG packages "+SPAC+"repo.address==%#v chartaddress==%#v chartlocalfilename==%#v", p.ChartRepo.Address, p.ChartAddress, p.ChartLocalFilename)
 		}
 
 		var chartversion string
 
-		if p.HelmRepo.Address != "" {
+		if p.ChartRepo.Address != "" {
 
 			chartrepo, err := helmrepo.NewChartRepository(
 				&helmrepo.Entry{
-					Name:                  fmt.Sprintf("helm.%s.%s", p.HelmName, p.EnvName),
-					URL:                   p.HelmRepo.Address,
-					Username:              p.HelmRepo.Username,
-					Password:              p.HelmRepo.Password,
+					Name:                  fmt.Sprintf("helm.%s.%s", p.ChartName, p.EnvName),
+					URL:                   p.ChartRepo.Address,
+					Username:              p.ChartRepo.Username,
+					Password:              p.ChartRepo.Password,
 					InsecureSkipTLSverify: false,
 					PassCredentialsAll:    false,
 				},
@@ -652,7 +646,7 @@ func ServerPackagesUpgrade() (err error) {
 
 			var repochartversion *helmrepo.ChartVersion
 			for chartname, chartversions := range idx.Entries {
-				if chartname != p.HelmName {
+				if chartname != p.ChartName {
 					continue
 				}
 
@@ -667,11 +661,11 @@ func ServerPackagesUpgrade() (err error) {
 				}
 				log("DEBUG packages "+SPAC+"repo versions==%#v", vv)
 
-				if p.HelmChartVersion != "" {
-					log("DEBUG packages "+SPAC+"HelmChartVersion==%#v", p.HelmChartVersion)
+				if p.ChartVersion != "" {
+					log("DEBUG packages "+SPAC+"ChartVersion==%#v", p.ChartVersion)
 					for _, v := range chartversions {
-						if v.Version == p.HelmChartVersion {
-							log("DEBUG packages "+SPAC+"HelmChartVersion==%#v found in repo", p.HelmChartVersion)
+						if v.Version == p.ChartVersion {
+							log("DEBUG packages "+SPAC+"ChartVersion==%#v found in repo", p.ChartVersion)
 							repochartversion = v
 						}
 					}
@@ -681,14 +675,14 @@ func ServerPackagesUpgrade() (err error) {
 			}
 
 			if repochartversion == nil {
-				return fmt.Errorf("packages chart %s repo index: no chart version found", p.HelmName)
+				return fmt.Errorf("packages chart %s repo index: no chart version found", p.ChartName)
 			}
 
 			if len(repochartversion.URLs) == 0 {
-				return fmt.Errorf("packages chart %s: no chart urls", p.HelmName)
+				return fmt.Errorf("packages chart %s: no chart urls", p.ChartName)
 			}
 
-			charturl, err := helmrepo.ResolveReferenceURL(p.HelmRepo.Address, repochartversion.URLs[0])
+			charturl, err := helmrepo.ResolveReferenceURL(p.ChartRepo.Address, repochartversion.URLs[0])
 			if err != nil {
 				return err
 			}
@@ -697,8 +691,8 @@ func ServerPackagesUpgrade() (err error) {
 
 			chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetterall}
 			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
-			if p.HelmRepo.Username != "" {
-				chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithBasicAuth(p.HelmRepo.Username, p.HelmRepo.Password))
+			if p.ChartRepo.Username != "" {
+				chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithBasicAuth(p.ChartRepo.Username, p.ChartRepo.Password))
 			}
 
 			var chartpath string
@@ -720,10 +714,10 @@ func ServerPackagesUpgrade() (err error) {
 				return fmt.Errorf("chart downloaded from repo is nil")
 			}
 
-		} else if p.HelmChartAddress != "" {
+		} else if p.ChartAddress != "" {
 
-			if !helmregistry.IsOCI(p.HelmChartAddress) {
-				log("WARNING packages "+SPAC+"HelmChartAddress==%v is not OCI", p.HelmChartAddress)
+			if !helmregistry.IsOCI(p.ChartAddress) {
+				log("WARNING packages "+SPAC+"ChartAddress==%v is not OCI", p.ChartAddress)
 			}
 
 			hrclient, err := helmregistry.NewClient(helmregistry.ClientOptDebug(true))
@@ -732,7 +726,7 @@ func ServerPackagesUpgrade() (err error) {
 				return err
 			}
 
-			chartaddress := strings.TrimPrefix(p.HelmChartAddress, "oci://")
+			chartaddress := strings.TrimPrefix(p.ChartAddress, "oci://")
 			log("ERROR packages "+SPAC+"chartaddress==%#v", chartaddress)
 			tags, err := hrclient.Tags(chartaddress)
 			if err != nil {
@@ -754,7 +748,7 @@ func ServerPackagesUpgrade() (err error) {
 
 			var chartpath string
 
-			chartpath, _, err = chartdownloader.DownloadTo(p.HelmChartAddress, chartversion, "")
+			chartpath, _, err = chartdownloader.DownloadTo(p.ChartAddress, chartversion, "")
 			if err != nil {
 				return err
 			}
@@ -771,20 +765,20 @@ func ServerPackagesUpgrade() (err error) {
 				return fmt.Errorf("chart downloaded from repo is nil")
 			}
 
-		} else if p.HelmChartLocalFilename != "" {
+		} else if p.ChartLocalFilename != "" {
 
 			chartlocalfilename := ""
 
-			if !strings.HasSuffix(p.HelmChartLocalFilename, ".tgz") {
-				log("WARNING packages "+SPAC+"HelmChartLocalFilename==%v is not a .tgz file", p.HelmChartLocalFilename)
+			if !strings.HasSuffix(p.ChartLocalFilename, ".tgz") {
+				log("WARNING packages "+SPAC+"ChartLocalFilename==%v is not a .tgz file", p.ChartLocalFilename)
 				continue
 			}
 
-			if mm, err := filepath.Glob(path.Join(ConfigDir, p.HelmChartLocalFilename)); err != nil {
-				log("ERROR packages "+SPAC+"Glob ConfigDir==%v HelmChartLocalFilename==%v: %s", ConfigDir, p.HelmChartLocalFilename, err)
+			if mm, err := filepath.Glob(path.Join(ConfigDir, p.ChartLocalFilename)); err != nil {
+				log("ERROR packages "+SPAC+"Glob ConfigDir==%v ChartLocalFilename==%v: %s", ConfigDir, p.ChartLocalFilename, err)
 				continue
 			} else if len(mm) == 0 {
-				log("ERROR packages "+SPAC+"Glob ConfigDir==%v HelmChartLocalFilename==%v files not found", ConfigDir, p.HelmChartLocalFilename)
+				log("ERROR packages "+SPAC+"Glob ConfigDir==%v ChartLocalFilename==%v files not found", ConfigDir, p.ChartLocalFilename)
 				continue
 			} else {
 				log("DEBUG packages "+SPAC+"chart local files: %v", mm)
@@ -794,12 +788,12 @@ func ServerPackagesUpgrade() (err error) {
 			}
 
 			if chartfile, err := os.Open(chartlocalfilename); err != nil {
-				log("ERROR packages HelmChartLocalFilename==%v os.Open: %v", p.HelmChartLocalFilename, err)
+				log("ERROR packages ChartLocalFilename==%v os.Open: %v", p.ChartLocalFilename, err)
 				continue
 			} else {
 				chartfull, err = helmloader.LoadArchive(chartfile)
 				if err != nil {
-					log("ERROR packages HelmChartLocalFilename==%v LoadArchive: %v", p.HelmChartLocalFilename, err)
+					log("ERROR packages ChartLocalFilename==%v LoadArchive: %v", p.ChartLocalFilename, err)
 					continue
 				}
 				chartfile.Close()
@@ -807,7 +801,7 @@ func ServerPackagesUpgrade() (err error) {
 
 		} else {
 
-			log("WARNING PACKAGE %s has no HelmRepoAddress, HelmChartAddress, HelmChartLocalFilename", p.Name)
+			log("WARNING PACKAGE %s has no ChartRepoAddress, ChartAddress, ChartLocalFilename", p.Name)
 			continue
 
 		}
@@ -826,26 +820,26 @@ func ServerPackagesUpgrade() (err error) {
 		log("DEBUG packages "+SPAC+"chart version==%v len(values)==%d", chartfull.Metadata.Version, len(chartfull.Values))
 
 		// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/chart#Metadata
-		p.HelmImagesValues[p.HelmChartVersionKey] = chartfull.Metadata.Version
+		p.ImagesValues[p.ChartVersionKey] = chartfull.Metadata.Version
 
 		drlatestyamlhelmvalues := make(map[string]interface{})
 		// TODO helm chart values
-		for _, m := range []map[string]interface{}{p.HelmValues, p.HelmEnvValues} {
+		for _, m := range []map[string]interface{}{p.Values, p.EnvValues} {
 			for k, v := range m {
 				drlatestyamlhelmvalues[k] = v
 			}
 		}
-		err = drlatestyaml(drlatestyamlhelmvalues, Config.DrLatestYaml, &p.HelmImagesValues)
+		err = drlatestyaml(drlatestyamlhelmvalues, Config.DrLatestYaml, &p.ImagesValues)
 		if err != nil {
-			return fmt.Errorf("drlatestyaml %s.%s: %w", p.HelmName, p.EnvName, err)
+			return fmt.Errorf("drlatestyaml %s.%s: %w", p.ChartName, p.EnvName, err)
 		}
 
-		p.HelmImagesValuesList, p.HelmImagesValuesText, err = ImagesValuesToList(p.HelmImagesValues)
+		p.ImagesValuesList, p.ImagesValuesText, err = ImagesValuesToList(p.ImagesValues)
 
-		allvaluestext := p.HelmValuesText + p.HelmEnvValuesText + p.HelmImagesValuesText
+		allvaluestext := p.ValuesText + p.EnvValuesText + p.ImagesValuesText
 		p.ValuesHash = fmt.Sprintf("%x", sha256.Sum256([]byte(allvaluestext)))[:10]
 
-		log("DEBUG packages "+SPAC+"HelmImagesValues==%#v", p.HelmImagesValues)
+		log("DEBUG packages "+SPAC+"ImagesValues==%#v", p.ImagesValues)
 		log("DEBUG packages "+SPAC+"ValuesHash==%#v", p.ValuesHash)
 
 		installedversion := ""
@@ -861,65 +855,64 @@ func ServerPackagesUpgrade() (err error) {
 		}
 		log("DEBUG packages "+SPAC+"chart version: %#v %s %#v ", installedversion, versionstatus, chartversion)
 
+		log("DEBUG packages ---")
+
+		//
+		// READ DEPLOYED
+		//
+
+		DeployedValuesTextBytes, err := os.ReadFile(path.Join(p.DeployedDir(), p.ValuesFilename()))
+		if err != nil {
+			log("ERROR packages os.ReadFile: %s", err)
+		}
+
+		DeployedEnvValuesTextBytes, err := os.ReadFile(path.Join(p.DeployedDir(), p.EnvValuesFilename()))
+		if err != nil {
+			log("ERROR packages os.ReadFile: %s", err)
+		}
+
+		DeployedImagesValuesTextBytes, err := os.ReadFile(path.Join(p.DeployedDir(), p.ImagesValuesFilename()))
+		if err != nil {
+			log("ERROR packages os.ReadFile: %s", err)
+		}
+		DeployedImagesValuesText := string(DeployedImagesValuesTextBytes)
+
+		ReportedValuesHashBytes, err := os.ReadFile(path.Join(p.Dir(), p.ValuesReportedHashFilename()))
+		if err != nil {
+			log("ERROR packages os.ReadFile: %s", err)
+			ReportedValuesHashBytes = []byte{}
+		}
+		ReportedValuesHash := string(ReportedValuesHashBytes)
+
+		var ReportedPermitHash string
+		err = GetValuesText(p.ValuesPermitHashFilename(), &ReportedPermitHash)
+		if err != nil {
+			log("ERROR packages GetValuesText %v: %v", p.ValuesPermitHashFilename(), err)
+		}
+
+		toreport := false
+
+		if p.ValuesText != string(DeployedValuesTextBytes) {
+			log("DEBUG packages " + SPAC + "ValuesText diff ")
+			toreport = true
+		}
+
+		if p.EnvValuesText != string(DeployedEnvValuesTextBytes) {
+			log("DEBUG packages " + SPAC + "EnvValuesText diff ")
+			toreport = true
+		}
+
+		log("DEBUG packages "+SPAC+"DeployedImagesValuesText==%v ReportedValuesHash==%v toreport==%v", DeployedImagesValuesText, ReportedValuesHash, toreport)
+
+		log("DEBUG packages ---")
 	}
 
 	log("DEBUG packages ---")
-
 	return nil
 
 	/*
 
-			//
-			// READ DEPLOYED
-			//
-
-			DeployedHelmValuesTextPath := fmt.Sprintf("%s/deployed/%s.values.yaml", PackageDir, p.HelmName)
-			DeployedHelmValuesTextBytes, err := os.ReadFile(DeployedHelmValuesTextPath)
-			if err != nil {
-				log("os.ReadFile: %s", err)
-			}
-
-			DeployedHelmEnvValuesTextPath := fmt.Sprintf("%s/deployed/%s.%s.values.yaml", PackageDir, p.HelmName, p.EnvName)
-			DeployedHelmEnvValuesTextBytes, err := os.ReadFile(DeployedHelmEnvValuesTextPath)
-			if err != nil {
-				log("os.ReadFile: %s", err)
-			}
-
-			DeployedImagesValuesTextPath := fmt.Sprintf("%s/deployed/%s.%s.images.values.yaml", PackageDir, p.HelmName, p.EnvName)
-			DeployedImagesValuesTextBytes, err := os.ReadFile(DeployedImagesValuesTextPath)
-			if err != nil {
-				log("os.ReadFile: %s", err)
-			}
-			DeployedImagesValuesText := string(DeployedImagesValuesTextBytes)
-
-			ReportedValuesHashPath := fmt.Sprintf("%s.%s.%s", PackageDir, p.HelmName, p.EnvName, ValuesReportedHashFilenameSuffix)
-			ReportedValuesHashBytes, err := os.ReadFile(ReportedValuesHashPath)
-			if err != nil {
-				//log("os.ReadFile: %s", err)
-				ReportedValuesHashBytes = []byte{}
-			}
-			ReportedValuesHash := string(ReportedValuesHashBytes)
-
-			var ReportedPermitHash string
-			permithashpath := fmt.Sprintf("%s.%s.%s", p.HelmName, p.EnvName, PermitHashFilenameSuffix)
-			err = GetValuesText(permithashpath, &ReportedPermitHash)
-			if err != nil {
-				log("GetValuesText `%s`: %v", permithashpath, err)
-			}
-
-			toreport := false
-
-			if p.HelmValuesText != string(DeployedHelmValuesTextBytes) {
-				log("packages " + SPAC + "HelmValuesText diff ")
-				toreport = true
-			}
-
-			if p.HelmEnvValuesText != string(DeployedHelmEnvValuesTextBytes) {
-				log("packages " + SPAC + "HelmEnvValuesText diff ")
-				toreport = true
-			}
-
-			if p.HelmImagesValuesText != DeployedImagesValuesText {
+			if p.ImagesValuesText != DeployedImagesValuesText {
 				log("packages " + SPAC + "ImagesValuesText diff ")
 				toreport = true
 
@@ -942,7 +935,7 @@ func ServerPackagesUpgrade() (err error) {
 				//ansired := func(s string) string { return "\033[31m" + s + "\033[0m" }
 				//ansibrightred := func(s string) string { return "\033[91m" + s + "\033[0m" }
 				imagesvaluesdiff := ""
-				iv1, iv2 := DeployedImagesValuesMap, p.HelmImagesValues
+				iv1, iv2 := DeployedImagesValuesMap, p.ImagesValues
 				for name, v1 := range iv1 {
 					if v2, ok := iv2[name]; ok {
 						if v2 != v1 {
@@ -974,41 +967,41 @@ func ServerPackagesUpgrade() (err error) {
 				// WRITE LATEST
 				//
 
-				err = os.RemoveAll(PackageLatestDir)
+				err = os.RemoveAll(p.LatestDir())
 				if err != nil {
-					return fmt.Errorf("os.RemoveAll `%s`: %w", PackageLatestDir, err)
+					return fmt.Errorf("os.RemoveAll %v: %w", p.LatestDir(), err)
 				}
 
-				err = os.MkdirAll(PackageLatestDir, 0700)
+				err = os.MkdirAll(p.LatestDir(), 0700)
 				if err != nil {
-					return fmt.Errorf("os.MkdirAll `%s`: %w", PackageLatestDir, err)
+					return fmt.Errorf("os.MkdirAll %v: %w", p.LatestDir(), err)
 				}
 
-				HelmValuesTextPath := fmt.Sprintf("%s/%s.values.yaml", PackageLatestDir, p.HelmName)
-				err = os.WriteFile(HelmValuesTextPath, []byte(p.HelmValuesText), 0600)
+				// TODO WriteFile => PutValuesText
+				ValuesTextPath := path.Join(p.LatestDir(), p.ValuesFilename())
+				err = os.WriteFile(ValuesTextPath, []byte(p.ValuesText), 0600)
 				if err != nil {
-					return fmt.Errorf("os.WriteFile `%s`: %w", HelmValuesTextPath, err)
+					return fmt.Errorf("os.WriteFile %v: %w", ValuesTextPath, err)
 				}
 
-				HelmEnvValuesTextPath := fmt.Sprintf("%s/%s.%s.values.yaml", PackageLatestDir, p.HelmName, p.EnvName)
-				err = os.WriteFile(HelmEnvValuesTextPath, []byte(p.HelmEnvValuesText), 0600)
+				EnvValuesTextPath := path.Join(p.LatestDir(), p.EnvValuesFilename())
+				err = os.WriteFile(EnvValuesTextPath, []byte(p.EnvValuesText), 0600)
 				if err != nil {
-					return fmt.Errorf("os.WriteFile `%s`: %w", HelmEnvValuesTextPath, err)
+					return fmt.Errorf("os.WriteFile %v: %w", EnvValuesTextPath, err)
 				}
 
-				ImagesValuesTextPath := fmt.Sprintf("%s/%s.%s.images.values.yaml", PackageLatestDir, p.HelmName, p.EnvName)
-				err = os.WriteFile(ImagesValuesTextPath, []byte(p.HelmImagesValuesText), 0600)
+				ImagesValuesTextPath := path.Join(p.LatestDir(), p.ImagesValuesFilename())
+				err = os.WriteFile(ImagesValuesTextPath, []byte(p.ImagesValuesText), 0600)
 				if err != nil {
-					return fmt.Errorf("os.WriteFile `%s`: %w", ImagesValuesTextPath, err)
+					return fmt.Errorf("os.WriteFile %v: %w", ImagesValuesTextPath, err)
 				}
 
-				ValuesHashPath := fmt.Sprintf("%s.%s.%s", p.HelmName, p.EnvName, ValuesLatestHashFilenameSuffix)
-				err = os.WriteFile(ValuesHashPath, []byte(p.ValuesHash), 0600)
+				err = os.WriteFile(p.ValuesLatestHashFilename(), []byte(p.ValuesHash), 0600)
 				if err != nil {
-					return fmt.Errorf("os.WriteFile `%s`: %w", ValuesHashPath, err)
+					return fmt.Errorf("os.WriteFile %v: %w", p.ValuesLatestHashFilename(), err)
 				}
 
-				log("packages "+SPAC+"#%s#%s#%s latest ", p.HelmName, p.EnvName, p.ValuesHash)
+				log("packages "+SPAC+"#%s#%s#%s latest ", p.ChartName, p.EnvName, p.ValuesHash)
 
 				//
 				// REPORT
@@ -1024,7 +1017,7 @@ func ServerPackagesUpgrade() (err error) {
 					return fmt.Errorf("os.Rename `%s` `%s`: %w", PackageLatestDir, PackageReportedDir, err)
 				}
 
-				log("packages "+SPAC+"#%s#%s#%s reported ", p.HelmName, p.EnvName, p.ValuesHash)
+				log("packages "+SPAC+"#%s#%s#%s reported ", p.ChartName, p.EnvName, p.ValuesHash)
 
 				ReportedValuesHash = p.ValuesHash
 
@@ -1132,7 +1125,7 @@ func ServerPackagesUpgrade() (err error) {
 					}
 				}
 
-				log("packages "+SPAC+"#%s#%s#%s deployed ", p.HelmName, p.EnvName, p.ValuesHash)
+				log("packages "+SPAC+"#%s#%s#%s deployed ", p.ChartName, p.EnvName, p.ValuesHash)
 				if pkgrelease == nil {
 					log("packages "+SPAC+"release: %+v ", pkgrelease)
 				} else {
@@ -1186,10 +1179,10 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 
 		for _, p := range s.Packages {
 
-			p.Name = fmt.Sprintf("%s-%s", p.HelmName, p.EnvName)
+			p.Name = fmt.Sprintf("%s-%s", p.ChartName, p.EnvName)
 
 			if p.Namespace == "" {
-				p.Namespace = fmt.Sprintf("%s-%s", p.HelmName, p.EnvName)
+				p.Namespace = fmt.Sprintf("%s-%s", p.ChartName, p.EnvName)
 			}
 
 			p.ServerHostname = &s.ServerHostname
@@ -1242,15 +1235,10 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 				p.TgMentions = s.TgMentions
 			}
 
-			p.PackageDir = path.Join(ConfigDir, p.Name)
-			p.PackageLatestDir = path.Join(p.PackageDir, "latest")
-			p.PackageReportedDir = path.Join(p.PackageDir, "reported")
-			p.PackageDeployedDir = path.Join(p.PackageDir, "deployed")
-
-			p.HelmGlobalValues = make(map[string]interface{})
-			p.HelmValues = make(map[string]interface{})
-			p.HelmEnvValues = make(map[string]interface{})
-			p.HelmImagesValues = make(map[string]interface{})
+			p.GlobalValues = make(map[string]interface{})
+			p.Values = make(map[string]interface{})
+			p.EnvValues = make(map[string]interface{})
+			p.ImagesValues = make(map[string]interface{})
 
 			packages = append(packages, p)
 
@@ -1332,26 +1320,21 @@ func PutValuesTextFile(name string, valuestext string) (err error) {
 type PackageConfig struct {
 	Name      string `yaml:"Name"`
 	Namespace string `yaml:"Namespace,omitempty"`
-	HelmName  string `yaml:"HelmName"`
+	ChartName string `yaml:"ChartName"`
 	EnvName   string `yaml:"EnvName"`
 
-	PackageDir         string
-	PackageLatestDir   string
-	PackageReportedDir string
-	PackageDeployedDir string
+	ChartVersion    string `yaml:"ChartVersion"`
+	ChartVersionKey string `yaml:"ChartVersionKey"`
 
-	HelmChartVersion    string `yaml:"HelmChartVersion"`
-	HelmChartVersionKey string `yaml:"HelmChartVersionKey"`
+	ChartLocalFilename string `yaml:"ChartLocalFilename"`
 
-	HelmChartLocalFilename string `yaml:"HelmChartLocalFilename"`
+	ChartAddress string `yaml:"ChartAddress"`
 
-	HelmChartAddress string `yaml:"HelmChartAddress"`
-
-	HelmRepo struct {
+	ChartRepo struct {
 		Address  string `yaml:"Address"`
 		Username string `yaml:"Username"`
 		Password string `yaml:"Password"`
-	} `yaml:"HelmRepo"`
+	} `yaml:"ChartRepo"`
 
 	ServerHostname *string `yaml:"ServerHostname,omitempty"`
 
@@ -1374,18 +1357,61 @@ type PackageConfig struct {
 	TimezoneLocation *time.Location
 	AllowedHoursList []string
 
-	HelmGlobalValuesText string
-	HelmValuesText       string
-	HelmEnvValuesText    string
-	HelmImagesValuesText string
+	GlobalValuesText string
+	ValuesText       string
+	EnvValuesText    string
+	ImagesValuesText string
 
-	HelmGlobalValues     map[string]interface{}
-	HelmValues           map[string]interface{}
-	HelmEnvValues        map[string]interface{}
-	HelmImagesValuesList []map[string]interface{}
-	HelmImagesValues     map[string]interface{}
+	GlobalValues     map[string]interface{}
+	Values           map[string]interface{}
+	EnvValues        map[string]interface{}
+	ImagesValuesList []map[string]interface{}
+	ImagesValues     map[string]interface{}
 
 	ValuesHash string `yaml:"ValuesHash"`
+}
+
+func (p *PackageConfig) Dir() string {
+	return path.Join(ConfigDir, p.Name)
+}
+func (p *PackageConfig) LatestDir() string {
+	return path.Join(p.Dir(), "latest")
+}
+func (p *PackageConfig) ReportedDir() string {
+	return path.Join(p.Dir(), "reported")
+}
+func (p *PackageConfig) DeployedDir() string {
+	return path.Join(p.Dir(), "deployed")
+}
+
+func (p *PackageConfig) GlobalValuesFilename() string {
+	return "global.values.yaml"
+}
+func (p *PackageConfig) ValuesFilename() string {
+	return fmt.Sprintf("%s.values.yaml", p.ChartName)
+}
+func (p *PackageConfig) EnvValuesFilename() string {
+	return fmt.Sprintf("%s.%s.values.yaml", p.ChartName, p.EnvName)
+}
+func (p *PackageConfig) ImagesValuesFilename() string {
+	return fmt.Sprintf("%s.%s.images.values.yaml", p.ChartName, p.EnvName)
+}
+
+func (p *PackageConfig) ValuesLatestHashFilename() string {
+	return fmt.Sprintf("%s.%s.values.latest.hash.text", p.ChartName, p.EnvName)
+}
+func (p *PackageConfig) ValuesReportedHashFilename() string {
+	return fmt.Sprintf("%s.%s.values.reported.hash.text", p.ChartName, p.EnvName)
+}
+func (p *PackageConfig) ValuesDeployedHashFilename() string {
+	return fmt.Sprintf("%s.%s.values.deployed.hash.text", p.ChartName, p.EnvName)
+}
+func (p *PackageConfig) ValuesPermitHashFilename() string {
+	return fmt.Sprintf("%s.%s.values.permit.hash.text", p.ChartName, p.EnvName)
+}
+
+func (p *PackageConfig) UpdateTimestampFilename() string {
+	return fmt.Sprintf("%s.%s.update.timestamp", p.ChartName, p.EnvName)
 }
 
 type ServerConfig struct {
