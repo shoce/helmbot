@@ -948,23 +948,23 @@ func ServerPackagesUpgrade() (err error) {
 			}
 
 			if err := PutValuesTextFile(path.Join(p.LatestDir(), p.GlobalValuesFilename()), p.GlobalValuesText); err != nil {
-				return fmt.Errorf("PutValuesTextFile %v: %w", path.Join(p.LatestDir(), p.GlobalValuesFilename()), err)
+				return fmt.Errorf("PutValuesTextFile: %w", err)
 			}
 
 			if err := PutValuesTextFile(path.Join(p.LatestDir(), p.ValuesFilename()), p.ValuesText); err != nil {
-				return fmt.Errorf("PutValuesTextFile %v: %w", path.Join(p.LatestDir(), p.ValuesFilename()), err)
+				return fmt.Errorf("PutValuesTextFile: %w", err)
 			}
 
 			if err := PutValuesTextFile(path.Join(p.LatestDir(), p.EnvValuesFilename()), p.EnvValuesText); err != nil {
-				return fmt.Errorf("PutValuesTextFile %v: %w", path.Join(p.LatestDir(), p.EnvValuesFilename()), err)
+				return fmt.Errorf("PutValuesTextFile: %w", err)
 			}
 
 			if err := PutValuesTextFile(path.Join(p.LatestDir(), p.ImagesValuesFilename()), p.ImagesValuesText); err != nil {
-				return fmt.Errorf("PutValuesTextFile %v: %w", path.Join(p.LatestDir(), p.ImagesValuesFilename()), err)
+				return fmt.Errorf("PutValuesTextFile: %w", err)
 			}
 
 			if err := PutValuesTextFile(p.ValuesLatestHashFilename(), p.ValuesHash); err != nil {
-				return fmt.Errorf("PutValuesTextFile %v: %w", p.ValuesLatestHashFilename(), err)
+				return fmt.Errorf("PutValuesTextFile: %w", err)
 			}
 
 			log("DEBUG packages "+SPAC+"%s latest ", p.HashId())
@@ -982,7 +982,7 @@ func ServerPackagesUpgrade() (err error) {
 			}
 
 			if err := PutValuesTextFile(p.ValuesReportedHashFilename(), p.ValuesHash); err != nil {
-				return fmt.Errorf("PutValuesTextFile %v: %w", p.ValuesReportedHashFilename(), err)
+				return fmt.Errorf("PutValuesTextFile: %w", err)
 			}
 
 			log("DEBUG packages "+SPAC+"%s reported ", p.HashId())
@@ -1106,7 +1106,7 @@ func ServerPackagesUpgrade() (err error) {
 			}
 
 			if err := PutValuesTextFile(p.ValuesDeployedHashFilename(), p.ValuesHash); err != nil {
-				return fmt.Errorf("PutValuesTextFile %v: %w", p.ValuesDeployedHashFilename(), err)
+				return fmt.Errorf("PutValuesTextFile: %w", err)
 			}
 
 			log("DEBUG packages "+SPAC+"%s deployed ", p.HashId())
@@ -1257,7 +1257,7 @@ func GetValuesTextFile(name string, valuestext *string) (err error) {
 
 	bb, err := os.ReadFile(filepath)
 	if err != nil {
-		log("ERROR ReadFile %v: %v", name, err)
+		log("ERROR ReadFile %v: %v", filepath, err)
 		return err
 	}
 
@@ -1292,9 +1292,11 @@ func GetValuesFile(name string, valuestext *string, values interface{}) (err err
 }
 
 func PutValuesTextFile(name string, valuestext string) (err error) {
-	err = os.WriteFile(name, []byte(valuestext), 0644)
+	filepath := path.Join(ConfigDir, name)
+
+	err = os.WriteFile(filepath, []byte(valuestext), 0644)
 	if err != nil {
-		log("ERROR WriteFile %v: %v", name, err)
+		log("ERROR WriteFile %v: %v", filepath, err)
 		return err
 	}
 	return nil
