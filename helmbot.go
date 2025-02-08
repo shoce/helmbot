@@ -313,7 +313,7 @@ func main() {
 func Webhook(w http.ResponseWriter, r *http.Request) {
 	var err error
 	if TgWebhookToken != "" && r.Header.Get("X-Telegram-Bot-Api-Secret-Token") != TgWebhookToken {
-		log("WARNING Webhook request with invalid X-Telegram-Bot-Api-Secret-Token header")
+		log("WARNING webhook request with invalid X-Telegram-Bot-Api-Secret-Token header")
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -321,13 +321,13 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	var rbody []byte
 	rbody, err = io.ReadAll(r.Body)
 	if err != nil {
-		log("ERROR Webhook io.ReadAll r.Body: %v", err)
+		log("ERROR webhook io.ReadAll r.Body: %v", err)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
 	if DEBUG {
-		log("DEBUG Webhook %s %s %s: %s", r.Method, r.URL, r.Header.Get("Content-Type"), strings.ReplaceAll(string(rbody), NL, " <nl> "))
+		log("DEBUG webhook %s %s %s: %s", r.Method, r.URL, r.Header.Get("Content-Type"), strings.ReplaceAll(string(rbody), NL, " <nl> "))
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -335,7 +335,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	var rupdate TgUpdate
 	err = json.NewDecoder(bytes.NewBuffer(rbody)).Decode(&rupdate)
 	if err != nil {
-		log("ERROR Webhook json.Decoder.Decode: %v", err)
+		log("ERROR webhook json.Decoder.Decode: %v", err)
 		return
 	}
 
@@ -344,134 +344,134 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if DEBUG {
-		log("DEBUG Webhook TgUpdate: %+v", rupdate)
+		log("DEBUG webhook TgUpdate: %+v", rupdate)
 	}
 
 	if !slices.Contains(TgChatIds, rupdate.Message.Chat.Id) {
-		log("DEBUG Webhook reply to message chat id not valid")
+		log("DEBUG webhook reply to message chat id not valid")
 		return
 	}
-	log("DEBUG Webhook reply to message chat id valid")
+	log("DEBUG webhook reply to message chat id valid")
 
 	if rupdate.Message.ReplyToMessage.From.Id != TgBotUserId && !slices.Contains(TgChatIds, rupdate.Message.ReplyToMessage.SenderChat.Id) {
-		log("DEBUG Webhook reply to message user id not valid")
+		log("DEBUG webhook reply to message user id not valid")
 		return
 	}
-	log("DEBUG Webhook reply to message user id valid")
+	log("DEBUG webhook reply to message user id valid")
 
 	UpdateHashIdSubmatch := UpdateHashIdRe.FindStringSubmatch(rupdate.Message.ReplyToMessage.Text)
 	if len(UpdateHashIdSubmatch) == 0 {
-		log("DEBUG Webhook reply to message text not valid")
+		log("DEBUG webhook reply to message text not valid")
 		return
 	}
-	log("DEBUG Webhook reply to message text valid")
+	log("DEBUG webhook reply to message text valid")
 
 	if !slices.Contains(TgChatIds, rupdate.Message.Chat.Id) {
-		log("DEBUG Webhook message chat id not valid")
+		log("DEBUG webhook message chat id not valid")
 		return
 	}
-	log("DEBUG Webhook message chat id valid")
+	log("DEBUG webhook message chat id valid")
 
 	msgtext := strings.TrimSpace(rupdate.Message.Text)
 	if msgtext != "NOW" {
-		log("DEBUG Webhook message text not valid")
+		log("DEBUG webhook message text not valid")
 		return
 	}
-	log("DEBUG Webhook message text valid")
+	log("DEBUG webhook message text valid")
 
 	if !slices.Contains(TgBossUserIds, rupdate.Message.From.Id) && !slices.Contains(TgChatIds, rupdate.Message.ReplyToMessage.SenderChat.Id) {
-		log("DEBUG Webhook message user id not valid")
+		log("DEBUG webhook message user id not valid")
 		if err := tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
 			"*Your request to force update %s is NOT accepted.*"+NL+NL+"Check helmbot TgBossUserIds config value.",
 		); err != nil {
-			log("ERROR tglog: %v", err)
+			log("ERROR webhook tglog: %v", err)
 		}
 		return
 	}
-	log("DEBUG Webhook message user id valid")
+	log("DEBUG webhook message user id valid")
 
-	log("DEBUG Webhook update hash id submatch: %+v", UpdateHashIdSubmatch)
+	log("DEBUG webhook update hash id submatch: %+v", UpdateHashIdSubmatch)
 
 	UpdateHashId := UpdateHashIdSubmatch[0]
-	log("Webhook update hash id: %s", UpdateHashId)
+	log("webhook update hash id: %s", UpdateHashId)
 	UpdateChartName := UpdateHashIdSubmatch[1]
-	log("Webhook update helm name: %s", UpdateChartName)
+	log("webhook update helm name: %s", UpdateChartName)
 	UpdateEnvName := UpdateHashIdSubmatch[2]
-	log("Webhook update env name: %s", UpdateEnvName)
+	log("webhook update env name: %s", UpdateEnvName)
 	UpdateValuesHash := UpdateHashIdSubmatch[3]
-	log("Webhook update values hash: %s", UpdateValuesHash)
+	log("webhook update values hash: %s", UpdateValuesHash)
 
 	p := PackageConfig{ChartName: UpdateChartName, EnvName: UpdateEnvName}
 
-	var deployedvalueshash string
-	if err := GetValuesText(p.ValuesDeployedHashFilename(), &deployedvalueshash); err != nil {
-		log("ERROR `%s` could not be read: %v", p.ValuesDeployedHashFilename(), err)
+	var ValuesDeployedHash string
+	if err := GetValuesText(p.ValuesDeployedHashFilename(), &ValuesDeployedHash); err != nil {
+		log("ERROR webhook %v could not be read: %v", p.ValuesDeployedHashFilename(), err)
 		if err := tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
 			"*INTERNAL ERROR*"+NL+
 				TgAdminMention,
 		); err != nil {
-			log("ERROR tglog: %v", err)
+			log("ERROR webhook tglog: %v", err)
 		}
 		return
 	}
 
-	log("deployed values hash: %s", deployedvalueshash)
-	if UpdateValuesHash == deployedvalueshash {
-		log("DEBUG latest and deployed values hashes match")
+	log("webhook deployed values hash: %s", ValuesDeployedHash)
+	if UpdateValuesHash == ValuesDeployedHash {
+		log("DEBUG webhook latest and deployed values hashes match")
 		if err := tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
 			"*THIS UPDATE IS ALREADY DEPLOYED*",
 		); err != nil {
-			log("ERROR tglog: %v", err)
+			log("ERROR webhook tglog: %v", err)
 		}
 		return
 	}
 
-	var reportedvalueshash string
-	if err := GetValuesText(p.ValuesReportedHashFilename(), &reportedvalueshash); err != nil {
-		log("ERROR `%s` could not be read: %v", p.ValuesReportedHashFilename(), err)
+	var ValuesReportedHash string
+	if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash); err != nil {
+		log("ERROR webhook %v could not be read: %v", p.ValuesReportedHashFilename(), err)
 		if err := tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
 			"*INTERNAL ERROR*"+NL+
 				TgAdminMention,
 		); err != nil {
-			log("ERROR tglog: %v", err)
+			log("ERROR webhook tglog: %v", err)
 		}
 		return
 	}
 
-	log("DEBUG reported values hash: %s", reportedvalueshash)
-	if UpdateValuesHash != reportedvalueshash {
-		log("DEBUG latest and reported values hashes mismatch")
+	log("DEBUG webhook reported values hash: %s", ValuesReportedHash)
+	if UpdateValuesHash != ValuesReportedHash {
+		log("DEBUG webhook latest and reported values hashes mismatch")
 		if err := tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
 			"*THIS IS NOT THE LAST AVAILABLE UPDATE*"+NL+NL+"Only the last available update can be forced.",
 		); err != nil {
-			log("ERROR tglog: %v", err)
+			log("ERROR webhook tglog: %v", err)
 		}
 		return
 	}
-	log("DEBUG latest and reported values hashes match")
+	log("DEBUG webhook latest and reported values hashes match")
 
-	log("DEBUG Webhook all checks passed")
+	log("DEBUG webhook all checks passed")
 
-	log("DEBUG Webhook creating %v file", p.ValuesPermitHashFilename())
+	log("DEBUG webhook creating %v file", p.ValuesPermitHashFilename())
 
 	if err := PutValuesText(p.ValuesPermitHashFilename(), UpdateValuesHash); err != nil {
-		log("ERROR Webhook %s file could not be written: %v", p.ValuesPermitHashFilename(), err)
+		log("ERROR webhook %v file could not be written: %v", p.ValuesPermitHashFilename(), err)
 		if err := tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
 			"*INTERNAL ERROR*"+NL+
 				TgAdminMention,
 		); err != nil {
-			log("ERROR tglog: %v", err)
+			log("ERROR webhook tglog: %v", err)
 		}
 		return
 	}
 
-	log("DEBUG Webhook created %v file", p.ValuesPermitHashFilename())
+	log("DEBUG webhook created %v file", p.ValuesPermitHashFilename())
 
 	if err := tglog(
 		rupdate.Message.Chat.Id, rupdate.Message.MessageId,
@@ -482,10 +482,10 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 			"`%s`",
 		UpdateHashId,
 	); err != nil {
-		log("ERROR tglog: %v", err)
+		log("ERROR webhook tglog: %v", err)
 	}
 
-	log("DEBUG Webhook finished %s", UpdateHashId)
+	log("DEBUG webhook finished %s", UpdateHashId)
 }
 
 func ServerPackagesUpgrade() (err error) {
