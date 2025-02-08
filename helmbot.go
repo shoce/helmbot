@@ -1082,11 +1082,11 @@ func ServerPackagesUpgrade() (err error) {
 			// VALUES
 
 			values := make(map[string]interface{})
-			helmchartutil.MergeTables(values, chartfull.Values)
-			helmchartutil.MergeTables(values, p.GlobalValues)
-			helmchartutil.MergeTables(values, p.Values)
-			helmchartutil.MergeTables(values, p.EnvValues)
-			helmchartutil.MergeTables(values, p.ImagesValues)
+			helmchartutil.CoalesceTables(values, chartfull.Values)
+			helmchartutil.CoalesceTables(values, p.GlobalValues)
+			helmchartutil.CoalesceTables(values, p.Values)
+			helmchartutil.CoalesceTables(values, p.EnvValues)
+			helmchartutil.CoalesceTables(values, p.ImagesValues)
 
 			log("DEBUG packages values==%+v", values)
 
