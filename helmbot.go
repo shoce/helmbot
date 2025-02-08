@@ -34,6 +34,7 @@ import (
 	helmaction "helm.sh/helm/v3/pkg/action"
 	helmchart "helm.sh/helm/v3/pkg/chart"
 	helmloader "helm.sh/helm/v3/pkg/chart/loader"
+	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
 	helmcli "helm.sh/helm/v3/pkg/cli"
 	helmdownloader "helm.sh/helm/v3/pkg/downloader"
 	helmgetter "helm.sh/helm/v3/pkg/getter"
@@ -849,53 +850,51 @@ func ServerPackagesUpgrade() (err error) {
 		// READ DEPLOYED
 		//
 
-		DeployedValuesTextBytes, err := os.ReadFile(path.Join(p.DeployedDir(), p.ValuesFilename()))
-		if err != nil {
-			log("ERROR packages "+SPAC+"os.ReadFile: %s", err)
+		var DeployedValuesText string
+		if err := GetValuesTextFile(path.Join(p.DeployedDir(), p.ValuesFilename()), &DeployedValuesText); err != nil {
+			log("ERROR packages "+SPAC+"GetValuesTextFile: %s", err)
 		}
 
-		DeployedEnvValuesTextBytes, err := os.ReadFile(path.Join(p.DeployedDir(), p.EnvValuesFilename()))
-		if err != nil {
-			log("ERROR packages "+SPAC+"os.ReadFile: %s", err)
+		var DeployedEnvValuesText string
+		if err := GetValuesTextFile(path.Join(p.DeployedDir(), p.EnvValuesFilename()), &DeployedEnvValuesText); err != nil {
+			log("ERROR packages "+SPAC+"GetValuesTextFile: %s", err)
 		}
 
-		DeployedImagesValuesTextBytes, err := os.ReadFile(path.Join(p.DeployedDir(), p.ImagesValuesFilename()))
-		if err != nil {
-			log("ERROR packages "+SPAC+"os.ReadFile: %s", err)
+		var DeployedImagesValuesText string
+		if err := GetValuesTextFile(path.Join(p.DeployedDir(), p.ImagesValuesFilename()), &DeployedImagesValuesText); err != nil {
+			log("ERROR packages "+SPAC+"GetValuesTextFile: %s", err)
 		}
-		DeployedImagesValuesText := string(DeployedImagesValuesTextBytes)
 
-		var ReportedValuesHash string
-		if err := GetValuesText(p.ValuesReportedHashFilename(), &ReportedValuesHash); err != nil {
-			log("ERROR packages "+SPAC+"GetValuesText: %s", err)
+		var ValuesReportedHash string
+		if err := GetValuesTextFile(p.ValuesReportedHashFilename(), &ValuesReportedHash); err != nil {
+			log("ERROR packages "+SPAC+"GetValuesTextFile: %s", err)
 		}
 
 		var PermitHash string
-		err = GetValuesText(p.ValuesPermitHashFilename(), &PermitHash)
-		if err != nil {
-			log("ERROR packages "+SPAC+"GetValuesText %v: %v", p.ValuesPermitHashFilename(), err)
+		if err := GetValuesTextFile(p.ValuesPermitHashFilename(), &PermitHash); err != nil {
+			log("ERROR packages "+SPAC+"GetValuesTextFile: %s", err)
 		}
 
 		toreport := false
 
-		if p.ValuesText != string(DeployedValuesTextBytes) {
+		if p.ValuesText != DeployedValuesText {
 			log("DEBUG packages " + SPAC + "ValuesText diff ")
 			toreport = true
 		}
 
-		if p.EnvValuesText != string(DeployedEnvValuesTextBytes) {
+		if p.EnvValuesText != DeployedEnvValuesText {
 			log("DEBUG packages " + SPAC + "EnvValuesText diff ")
 			toreport = true
 		}
 
-		log("DEBUG packages "+SPAC+"DeployedImagesValuesText==%v ReportedValuesHash==%v toreport==%v", DeployedImagesValuesText, ReportedValuesHash, toreport)
+		log("DEBUG packages "+SPAC+"ValuesReportedHash==%v toreport==%v", ValuesReportedHash, toreport)
 
 		if p.ImagesValuesText != DeployedImagesValuesText {
 			log("DEBUG packages " + SPAC + "ImagesValuesText diff ")
 			toreport = true
 
 			DeployedImagesValuesMap := make(map[string]string)
-			yd := yaml.NewDecoder(bytes.NewReader(DeployedImagesValuesTextBytes))
+			yd := yaml.NewDecoder(strings.NewReader(DeployedImagesValuesText))
 			for {
 				if err := yd.Decode(&DeployedImagesValuesMap); err != nil {
 					if err != io.EOF {
@@ -925,8 +924,8 @@ func ServerPackagesUpgrade() (err error) {
 
 		}
 
-		if p.ValuesHash == ReportedValuesHash {
-			log("DEBUG packages " + SPAC + "ValuesHash == ReportedValuesHash ")
+		if p.ValuesHash == ValuesReportedHash {
+			log("DEBUG packages " + SPAC + "ValuesHash == ValuesReportedHash ")
 			toreport = false
 		}
 
@@ -938,44 +937,34 @@ func ServerPackagesUpgrade() (err error) {
 			// WRITE LATEST
 			//
 
-			err = os.RemoveAll(p.LatestDir())
+			err = os.RemoveAll(path.Join(ConfigDir, p.LatestDir()))
 			if err != nil {
-				return fmt.Errorf("os.RemoveAll %v: %w", p.LatestDir(), err)
+				return fmt.Errorf("os.RemoveAll %v: %w", path.Join(ConfigDir, p.LatestDir()), err)
 			}
 
-			err = os.MkdirAll(p.LatestDir(), 0700)
+			err = os.MkdirAll(path.Join(ConfigDir, p.LatestDir()), 0700)
 			if err != nil {
-				return fmt.Errorf("os.MkdirAll %v: %w", p.LatestDir(), err)
+				return fmt.Errorf("os.MkdirAll %v: %w", path.Join(ConfigDir, p.LatestDir()), err)
 			}
 
-			// TODO WriteFile => PutValuesText
-			GlobalValuesTextPath := path.Join(p.LatestDir(), p.GlobalValuesFilename())
-			err = os.WriteFile(GlobalValuesTextPath, []byte(p.GlobalValuesText), 0600)
-			if err != nil {
-				return fmt.Errorf("os.WriteFile %v: %w", GlobalValuesTextPath, err)
+			if err := PutValuesTextFile(path.Join(p.LatestDir(), p.GlobalValuesFilename()), p.GlobalValuesText); err != nil {
+				return fmt.Errorf("PutValuesTextFile %v: %w", path.Join(p.LatestDir(), p.GlobalValuesFilename()), err)
 			}
 
-			ValuesTextPath := path.Join(p.LatestDir(), p.ValuesFilename())
-			err = os.WriteFile(ValuesTextPath, []byte(p.ValuesText), 0600)
-			if err != nil {
-				return fmt.Errorf("os.WriteFile %v: %w", ValuesTextPath, err)
+			if err := PutValuesTextFile(path.Join(p.LatestDir(), p.ValuesFilename()), p.ValuesText); err != nil {
+				return fmt.Errorf("PutValuesTextFile %v: %w", path.Join(p.LatestDir(), p.ValuesFilename()), err)
 			}
 
-			EnvValuesTextPath := path.Join(p.LatestDir(), p.EnvValuesFilename())
-			err = os.WriteFile(EnvValuesTextPath, []byte(p.EnvValuesText), 0600)
-			if err != nil {
-				return fmt.Errorf("os.WriteFile %v: %w", EnvValuesTextPath, err)
+			if err := PutValuesTextFile(path.Join(p.LatestDir(), p.EnvValuesFilename()), p.EnvValuesText); err != nil {
+				return fmt.Errorf("PutValuesTextFile %v: %w", path.Join(p.LatestDir(), p.EnvValuesFilename()), err)
 			}
 
-			ImagesValuesTextPath := path.Join(p.LatestDir(), p.ImagesValuesFilename())
-			err = os.WriteFile(ImagesValuesTextPath, []byte(p.ImagesValuesText), 0600)
-			if err != nil {
-				return fmt.Errorf("os.WriteFile %v: %w", ImagesValuesTextPath, err)
+			if err := PutValuesTextFile(path.Join(p.LatestDir(), p.ImagesValuesFilename()), p.ImagesValuesText); err != nil {
+				return fmt.Errorf("PutValuesTextFile %v: %w", path.Join(p.LatestDir(), p.ImagesValuesFilename()), err)
 			}
 
-			err = os.WriteFile(path.Join(ConfigDir, p.ValuesLatestHashFilename()), []byte(p.ValuesHash), 0600)
-			if err != nil {
-				return fmt.Errorf("os.WriteFile %v: %w", p.ValuesLatestHashFilename(), err)
+			if err := PutValuesTextFile(p.ValuesLatestHashFilename(), p.ValuesHash); err != nil {
+				return fmt.Errorf("PutValuesTextFile %v: %w", p.ValuesLatestHashFilename(), err)
 			}
 
 			log("DEBUG packages "+SPAC+"%s latest ", p.HashId())
@@ -984,35 +973,32 @@ func ServerPackagesUpgrade() (err error) {
 			// REPORT
 			//
 
-			err = os.RemoveAll(p.ReportedDir())
-			if err != nil {
+			if err := os.RemoveAll(path.Join(ConfigDir, p.ReportedDir())); err != nil {
 				return fmt.Errorf("os.RemoveAll %v: %w", p.ReportedDir(), err)
 			}
 
-			err = os.Rename(p.LatestDir(), p.ReportedDir())
-			if err != nil {
-				return fmt.Errorf("os.Rename %v %v: %w", p.LatestDir(), p.ReportedDir(), err)
+			if err := os.Rename(path.Join(ConfigDir, p.LatestDir()), path.Join(ConfigDir, p.ReportedDir())); err != nil {
+				return fmt.Errorf("os.Rename %v %v: %w", path.Join(ConfigDir, p.LatestDir()), path.Join(ConfigDir, p.ReportedDir()), err)
 			}
 
-			err = os.WriteFile(path.Join(ConfigDir, p.ValuesReportedHashFilename()), []byte(p.ValuesHash), 0600)
-			if err != nil {
-				return fmt.Errorf("os.WriteFile %v: %w", p.ValuesReportedHashFilename(), err)
+			if err := PutValuesTextFile(p.ValuesReportedHashFilename(), p.ValuesHash); err != nil {
+				return fmt.Errorf("PutValuesTextFile %v: %w", p.ValuesReportedHashFilename(), err)
 			}
 
 			log("DEBUG packages "+SPAC+"%s reported ", p.HashId())
 
-			ReportedValuesHash = p.ValuesHash
+			ValuesReportedHash = p.ValuesHash
 
 		}
 
-		if ReportedValuesHash != "" {
+		if ValuesReportedHash != "" {
 			reported = true
 		}
 
 		log("DEBUG packages "+SPAC+"reported==%v", reported)
 
 		ForceNow := false
-		if reported && PermitHash == ReportedValuesHash {
+		if reported && PermitHash == ValuesReportedHash {
 			ForceNow = true
 		}
 
@@ -1038,19 +1024,9 @@ func ServerPackagesUpgrade() (err error) {
 			// DEPLOY
 			//
 
-			err = os.RemoveAll(p.DeployedDir())
-			if err != nil {
-				return fmt.Errorf("os.RemoveAll %v: %w", p.DeployedDir(), err)
-			}
-
-			err = os.Rename(p.ReportedDir(), p.DeployedDir())
-			if err != nil {
-				return fmt.Errorf("os.Rename %v %v: %w", p.ReportedDir(), p.DeployedDir(), err)
-			}
-
 			namespaceexists := false
 			if kns, err := kclientset.CoreV1().Namespaces().Get(context.TODO(), p.Namespace, kmetav1.GetOptions{}); kerrors.IsNotFound(err) {
-				// namespaceexists = false
+				// namespaceexists == false
 			} else if err != nil {
 				log("ERROR packages Namespaces.Get: %v", err)
 				return err
@@ -1078,13 +1054,20 @@ func ServerPackagesUpgrade() (err error) {
 			}
 
 			var pkgrelease *helmrelease.Release
+
+			values := make(map[string]interface{})
+			helmchartutil.CoalesceTables(values, p.GlobalValues)
+			helmchartutil.CoalesceTables(values, p.Values)
+			helmchartutil.CoalesceTables(values, p.EnvValues)
+			helmchartutil.CoalesceTables(values, p.ImagesValues)
+			log("DEBUG packages values==%+v", values)
+
 			if isinstalled {
 				// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Upgrade
 				helmupgrade := helmaction.NewUpgrade(helmactioncfg)
 				helmupgrade.DryRun = true
 				helmupgrade.Namespace = p.Namespace
 
-				values := make(map[string]interface{})
 				pkgrelease, err = helmupgrade.Run(
 					p.Name,
 					chartfull,
@@ -1102,7 +1085,6 @@ func ServerPackagesUpgrade() (err error) {
 				helminstall.Namespace = p.Namespace
 				helminstall.ReleaseName = p.Name
 
-				values := make(map[string]interface{})
 				pkgrelease, err = helminstall.Run(
 					chartfull,
 					values,
@@ -1113,7 +1095,21 @@ func ServerPackagesUpgrade() (err error) {
 				}
 			}
 
-			log("packages "+SPAC+"%s deployed ", p.HashId())
+			err = os.RemoveAll(path.Join(ConfigDir, p.DeployedDir()))
+			if err != nil {
+				return fmt.Errorf("os.RemoveAll %v: %w", path.Join(ConfigDir, p.DeployedDir()), err)
+			}
+
+			err = os.Rename(path.Join(ConfigDir, p.ReportedDir()), path.Join(ConfigDir, p.DeployedDir()))
+			if err != nil {
+				return fmt.Errorf("os.Rename %v %v: %w", path.Join(ConfigDir, p.ReportedDir()), path.Join(ConfigDir, p.DeployedDir()), err)
+			}
+
+			if err := PutValuesTextFile(p.ValuesDeployedHashFilename(), p.ValuesHash); err != nil {
+				return fmt.Errorf("PutValuesTextFile %v: %w", p.ValuesDeployedHashFilename(), err)
+			}
+
+			log("DEBUG packages "+SPAC+"%s deployed ", p.HashId())
 			log("DEBUG packages "+SPAC+"release==%+v ", pkgrelease)
 			log("DEBUG packages "+SPAC+"release.info.status==%s ", pkgrelease.Info.Status)
 
@@ -1261,6 +1257,7 @@ func GetValuesTextFile(name string, valuestext *string) (err error) {
 
 	bb, err := os.ReadFile(filepath)
 	if err != nil {
+		log("ERROR ReadFile %v: %v", name, err)
 		return err
 	}
 
@@ -1297,7 +1294,7 @@ func GetValuesFile(name string, valuestext *string, values interface{}) (err err
 func PutValuesTextFile(name string, valuestext string) (err error) {
 	err = os.WriteFile(name, []byte(valuestext), 0644)
 	if err != nil {
-		log("ERROR WriteFile %s: %v", name, err)
+		log("ERROR WriteFile %v: %v", name, err)
 		return err
 	}
 	return nil
@@ -1358,7 +1355,7 @@ type PackageConfig struct {
 }
 
 func (p *PackageConfig) Dir() string {
-	return path.Join(ConfigDir, p.Name)
+	return p.Name
 }
 func (p *PackageConfig) LatestDir() string {
 	return path.Join(p.Dir(), "latest")
