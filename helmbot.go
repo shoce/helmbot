@@ -491,8 +491,18 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 func ServerPackagesUpgrade() (err error) {
 	if DEBUG {
 		log("DEBUG packages ---")
-		log("DEBUG packages hostname==%v", ServerHostname)
 	}
+
+	if err := GetValuesFile(PackagesConfigFilename, nil, &Config); err != nil {
+		log("ERROR packages GetValues: %v", err)
+		return err
+	}
+
+	if DEBUG {
+		//log("DEBUG packages Config==%+v", Config)
+	}
+
+	// KUBERNETES + HELM
 
 	helmenvsettings := helmcli.New()
 
@@ -509,7 +519,7 @@ func ServerPackagesUpgrade() (err error) {
 
 	helmgetterall := helmgetter.All(helmenvsettings)
 	if DEBUG {
-		log("DEBUG packages helmgetterall==%+v", helmgetterall)
+		//log("DEBUG packages helmgetterall==%+v", helmgetterall)
 	}
 
 	kconfig, err := krest.InClusterConfig()
@@ -517,7 +527,7 @@ func ServerPackagesUpgrade() (err error) {
 		return err
 	}
 	if DEBUG {
-		log("DEBUG packages kconfig==%+v", kconfig)
+		//log("DEBUG packages kconfig==%+v", kconfig)
 	}
 
 	kclientset, err := kubernetes.NewForConfig(kconfig)
@@ -525,11 +535,11 @@ func ServerPackagesUpgrade() (err error) {
 		return err
 	}
 	if DEBUG {
-		log("DEBUG packages kclientset==%+v", kclientset)
+		//log("DEBUG packages kclientset==%+v", kclientset)
 	}
 
 	if DEBUG {
-		log("DEBUG packages ---")
+		log("DEBUG packages hostname==%v", ServerHostname)
 	}
 
 	helmactioncfg := new(helmaction.Configuration)
@@ -537,6 +547,8 @@ func ServerPackagesUpgrade() (err error) {
 	if err != nil {
 		return err
 	}
+
+	// INSTALLED RELEASES
 
 	installedreleases, err := helmaction.NewList(helmactioncfg).Run()
 	if err != nil {
@@ -554,21 +566,10 @@ func ServerPackagesUpgrade() (err error) {
 		log("DEBUG packages ---")
 	}
 
-	err = GetValuesFile(PackagesConfigFilename, nil, &Config)
-	if err != nil {
-		log("ERROR packages GetValues %s: %v", PackagesConfigFilename, err)
-		return
-	}
-
-	if DEBUG {
-		log("DEBUG packages Config==%+v", Config)
-		log("DEBUG packages ---")
-	}
-
 	Packages, err = ProcessServersPackages(Config.Servers)
 	if err != nil {
 		log("ERROR packages ProcessServersPackages: %v", err)
-		return
+		return err
 	}
 
 	if DEBUG {
@@ -576,11 +577,13 @@ func ServerPackagesUpgrade() (err error) {
 		for _, p := range Packages {
 			nn = append(nn, p.Name)
 		}
-		log("DEBUG packages Packages count==%d names==%v", len(Packages), nn)
+		log("DEBUG packages Packages count==%d names==%+v", len(Packages), nn)
 	}
 
 	for _, p := range Packages {
-		log("DEBUG packages ---")
+		if DEBUG {
+			log("DEBUG packages ---")
+		}
 
 		timenowhour := fmt.Sprintf("%02d", time.Now().In(p.TimezoneLocation).Hour())
 
@@ -1082,13 +1085,13 @@ func ServerPackagesUpgrade() (err error) {
 			// VALUES
 
 			values := make(map[string]interface{})
-			helmchartutil.CoalesceTables(values, chartfull.Values)
-			helmchartutil.CoalesceTables(values, p.GlobalValues)
-			helmchartutil.CoalesceTables(values, p.Values)
-			helmchartutil.CoalesceTables(values, p.EnvValues)
-			helmchartutil.CoalesceTables(values, p.ImagesValues)
+			helmchartutil.MergeTables(values, p.ImagesValues)
+			helmchartutil.MergeTables(values, p.EnvValues)
+			helmchartutil.MergeTables(values, p.Values)
+			helmchartutil.MergeTables(values, p.GlobalValues)
+			helmchartutil.MergeTables(values, chartfull.Values)
 
-			log("DEBUG packages values==%+v", values)
+			log("DEBUG packages "+SPAC+"values==%+v", values)
 
 			if isinstalled {
 				// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Upgrade
