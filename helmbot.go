@@ -1079,11 +1079,14 @@ func ServerPackagesUpgrade() (err error) {
 
 			var pkgrelease *helmrelease.Release
 
+			// VALUES
+
 			values := make(map[string]interface{})
-			values = helmchartutil.CoalesceTables(values, p.GlobalValues)
-			values = helmchartutil.CoalesceTables(values, p.Values)
-			values = helmchartutil.CoalesceTables(values, p.EnvValues)
-			values = helmchartutil.CoalesceTables(values, p.ImagesValues)
+			//helmchartutil.MergeTables(values, chartfull.Values)
+			helmchartutil.MergeTables(values, p.GlobalValues)
+			helmchartutil.MergeTables(values, p.Values)
+			helmchartutil.MergeTables(values, p.EnvValues)
+			helmchartutil.MergeTables(values, p.ImagesValues)
 
 			log("DEBUG packages values==%+v", values)
 
@@ -1283,7 +1286,7 @@ func GetValuesTextFile(name string, valuestext *string) (err error) {
 
 	bb, err := os.ReadFile(filepath)
 	if err != nil {
-		log("ERROR ReadFile %v: %v", filepath, err)
+		//log("ERROR ReadFile %v: %v", filepath, err)
 		return err
 	}
 
@@ -1322,7 +1325,7 @@ func PutValuesTextFile(name string, valuestext string) (err error) {
 
 	err = os.WriteFile(filepath, []byte(valuestext), 0644)
 	if err != nil {
-		log("ERROR WriteFile %v: %v", filepath, err)
+		//log("ERROR WriteFile %v: %v", filepath, err)
 		return err
 	}
 	return nil
