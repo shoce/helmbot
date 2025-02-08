@@ -1127,7 +1127,7 @@ func ServerPackagesUpgrade() (err error) {
 			if isinstalled {
 				// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Upgrade
 				helmupgrade := helmaction.NewUpgrade(helmactioncfg)
-				helmupgrade.DryRun = true
+				helmupgrade.DryRun = *p.DryRun
 				helmupgrade.Namespace = p.Namespace
 
 				release, err = helmupgrade.Run(
@@ -1142,7 +1142,7 @@ func ServerPackagesUpgrade() (err error) {
 			} else {
 				// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Install
 				helminstall := helmaction.NewInstall(helmactioncfg)
-				helminstall.DryRun = true
+				helminstall.DryRun = *p.DryRun
 				helminstall.CreateNamespace = true
 				helminstall.Namespace = p.Namespace
 				helminstall.ReleaseName = p.Name
@@ -1285,6 +1285,15 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 				p.TgMentions = s.TgMentions
 			}
 
+			if p.DryRun == nil {
+				if s.DryRun == nil {
+					varfalse := false
+					p.DryRun = &varfalse
+				} else {
+					p.DryRun = s.DryRun
+				}
+			}
+
 			p.GlobalValues = make(map[string]interface{})
 			p.Values = make(map[string]interface{})
 			p.EnvValues = make(map[string]interface{})
@@ -1422,6 +1431,8 @@ type PackageConfig struct {
 	ImagesValues     map[string]interface{}
 
 	ValuesHash string `yaml:"ValuesHash"`
+
+	DryRun *bool `yaml:"DryRun,omitempty"`
 }
 
 func (p *PackageConfig) Dir() string {
@@ -1492,6 +1503,8 @@ type ServerConfig struct {
 
 	TimezoneLocation *time.Location
 	AllowedHoursList []string
+
+	DryRun *bool `yaml:"DryRun,omitempty"`
 }
 
 type HelmbotConfig struct {
