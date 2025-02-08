@@ -489,6 +489,14 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 }
 
 func ServerPackagesUpgrade() (err error) {
+
+	var paused string
+	if err := GetValuesTextFile("paused", &paused); err == nil {
+		// paused packages upgrade - return with no error
+		log("DEBUG packages paused")
+		return nil
+	}
+
 	if DEBUG {
 		log("DEBUG packages ---")
 	}
@@ -556,7 +564,7 @@ func ServerPackagesUpgrade() (err error) {
 	}
 
 	if DEBUG {
-		log("DEBUG packages installed releases count==%d ", len(installedreleases))
+		//log("DEBUG packages installed releases count==%d ", len(installedreleases))
 		for _, r := range installedreleases {
 			log(
 				"DEBUG packages installed release name==%s version==%s namespace==%s ",
@@ -626,6 +634,8 @@ func ServerPackagesUpgrade() (err error) {
 		//
 		// FETCH CHART INFO
 		//
+
+		// TODO download chart to /opt/helmbot/
 
 		var chartfull *helmchart.Chart
 
@@ -1145,6 +1155,8 @@ func ServerPackagesUpgrade() (err error) {
 			log("DEBUG packages "+SPAC+"release Name==%v Version==%v Info.Status==%v", release.Name, release.Version, release.Info.Status)
 
 		}
+
+		time.Sleep(1 * time.Second)
 
 	}
 
