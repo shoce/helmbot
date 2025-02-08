@@ -1077,12 +1077,12 @@ func ServerPackagesUpgrade() (err error) {
 				}
 			}
 
-			var pkgrelease *helmrelease.Release
+			var release *helmrelease.Release
 
 			// VALUES
 
 			values := make(map[string]interface{})
-			//helmchartutil.MergeTables(values, chartfull.Values)
+			helmchartutil.MergeTables(values, chartfull.Values)
 			helmchartutil.MergeTables(values, p.GlobalValues)
 			helmchartutil.MergeTables(values, p.Values)
 			helmchartutil.MergeTables(values, p.EnvValues)
@@ -1096,7 +1096,7 @@ func ServerPackagesUpgrade() (err error) {
 				helmupgrade.DryRun = true
 				helmupgrade.Namespace = p.Namespace
 
-				pkgrelease, err = helmupgrade.Run(
+				release, err = helmupgrade.Run(
 					p.Name,
 					chartfull,
 					values,
@@ -1113,7 +1113,7 @@ func ServerPackagesUpgrade() (err error) {
 				helminstall.Namespace = p.Namespace
 				helminstall.ReleaseName = p.Name
 
-				pkgrelease, err = helminstall.Run(
+				release, err = helminstall.Run(
 					chartfull,
 					values,
 				)
@@ -1139,8 +1139,7 @@ func ServerPackagesUpgrade() (err error) {
 
 			log("DEBUG packages "+SPAC+"%s deployed ", p.HashId())
 
-			log("DEBUG packages "+SPAC+"release==%+v ", pkgrelease)
-			log("DEBUG packages "+SPAC+"release.info.status==%s ", pkgrelease.Info.Status)
+			log("DEBUG packages "+SPAC+"release Name==%v Version==%v Info.Status==%v", release.Name, release.Version, release.Info.Status)
 
 		}
 
