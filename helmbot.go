@@ -493,7 +493,7 @@ func ServerPackagesUpgrade() (err error) {
 	var paused string
 	if err := GetValuesTextFile("paused", &paused); err == nil {
 		// paused packages upgrade - return with no error
-		log("DEBUG packages paused")
+		log("DEBUG packages upgrade paused")
 		return nil
 	}
 
@@ -589,6 +589,14 @@ func ServerPackagesUpgrade() (err error) {
 	}
 
 	for _, p := range Packages {
+
+		var pkgpaused string
+		if err := GetValuesTextFile(path.Join(p.Dir(), "paused"), &pkgpaused); err == nil {
+			// paused package upgrade - skip with no error
+			log("DEBUG packages --- %s upgrade paused", p.Name)
+			continue
+		}
+
 		if DEBUG {
 			log("DEBUG packages ---")
 		}
@@ -1047,6 +1055,10 @@ func ServerPackagesUpgrade() (err error) {
 				todeploy = true
 			}
 
+			if len(p.AllowedHoursList) > 0 && todeploy == false {
+				log("DEBUG packages "+SPAC+"AllowedHoursList==%+v timenowhour==%+v", p.AllowedHoursList, timenowhour)
+			}
+
 			if slices.Contains(p.AllowedHoursList, timenowhour) {
 				todeploy = true
 			}
@@ -1055,7 +1067,16 @@ func ServerPackagesUpgrade() (err error) {
 
 		log("DEBUG packages "+SPAC+"todeploy==%v", todeploy)
 
+		// TODO report pending upgrade to telegram
+
 		if todeploy {
+
+			// TODO report starting upgrade to telegram
+
+			if p.UpdateDelayDuration > 0 {
+				log("DEBUG packages "+SPAC+"sleeping %v", p.UpdateDelayDuration)
+				time.Sleep(p.UpdateDelayDuration)
+			}
 
 			//
 			// DEPLOY
@@ -1150,9 +1171,13 @@ func ServerPackagesUpgrade() (err error) {
 				return fmt.Errorf("PutValuesTextFile: %w", err)
 			}
 
+			// TODO remove p.ValuesPermitHashFilename()
+
 			log("DEBUG packages "+SPAC+"%s deployed ", p.HashId())
 
 			log("DEBUG packages "+SPAC+"release Name==%v Version==%v Info.Status==%v", release.Name, release.Version, release.Info.Status)
+
+			// TODO report finished upgrade to telegram
 
 		}
 
