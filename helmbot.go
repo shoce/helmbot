@@ -552,9 +552,8 @@ func ServerPackagesUpdate() (err error) {
 
 	if DEBUG {
 		for _, r := range installedreleases {
-			log(
-				"DEBUG packages installed release name==%s version==%s namespace==%s",
-				r.Name, r.Chart.Metadata.Version, r.Namespace,
+			log("DEBUG packages release Status==%s Name==%s Namespace==%s Version==%d Chart.Version==%s",
+				r.Info.Status, r.Name, r.Namespace, r.Version, r.Chart.Metadata.Version,
 			)
 		}
 		log("DEBUG packages ---")
