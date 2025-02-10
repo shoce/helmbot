@@ -517,7 +517,7 @@ func ServerPackagesUpdate() (err error) {
 		return err
 	}
 	if DEBUG {
-		log("DEBUG packages krestconfig==%+v", krestconfig)
+		//log("DEBUG packages krestconfig==%+v", krestconfig)
 	}
 
 	kclientset, err := kubernetes.NewForConfig(krestconfig)
@@ -529,7 +529,7 @@ func ServerPackagesUpdate() (err error) {
 
 	helmenvsettings := helmcli.New()
 	if DEBUG {
-		log("DEBUG packages helmenvsettings==%+v", helmenvsettings)
+		//log("DEBUG packages helmenvsettings==%+v", helmenvsettings)
 	}
 
 	helmactioncfg := new(helmaction.Configuration)
