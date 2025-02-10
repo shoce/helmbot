@@ -34,7 +34,6 @@ import (
 	kcorev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kmetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kgenclioptions "k8s.io/cli-runtime/pkg/genericclioptions"
 	kubernetes "k8s.io/client-go/kubernetes"
 	krest "k8s.io/client-go/rest"
 
@@ -533,19 +532,6 @@ func ServerPackagesUpdate() (err error) {
 		log("DEBUG packages helmenvsettings==%+v", helmenvsettings)
 	}
 
-	kgencliconfig := kgenclioptions.NewConfigFlags(false)
-	kgencliconfig.APIServer = &krestconfig.Host
-	kgencliconfig.BearerToken = &krestconfig.BearerToken
-	kgencliconfig.CAFile = &krestconfig.CAFile
-	kgencliconfigns := "helmbot"
-	kgencliconfig.Namespace = &kgencliconfigns
-	kgencliconfig.WithWrapConfigFn(func(*krest.Config) *krest.Config {
-		return krestconfig
-	})
-	if DEBUG {
-		log("DEBUG packages kgencliconfig==%+v", kgencliconfig)
-	}
-
 	helmactioncfg := new(helmaction.Configuration)
 
 	// HOSTNAME
@@ -556,7 +542,7 @@ func ServerPackagesUpdate() (err error) {
 
 	// INSTALLED RELEASES
 
-	if err := helmactioncfg.Init(kgencliconfig, "", "", log); err != nil {
+	if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), "", "", log); err != nil {
 		return err
 	}
 	installedreleases, err := helmaction.NewList(helmactioncfg).Run()
@@ -1127,7 +1113,7 @@ func ServerPackagesUpdate() (err error) {
 
 			log("DEBUG packages "+SPAC+"values==%+v", values)
 
-			if err := helmactioncfg.Init(kgencliconfig, p.Namespace, "", log); err != nil {
+			if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), p.Namespace, "", log); err != nil {
 				return err
 			}
 
