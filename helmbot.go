@@ -521,14 +521,6 @@ func ServerPackagesUpdate() (err error) {
 		log("DEBUG packages krestconfig==%+v", krestconfig)
 	}
 
-	krestclient, err := krest.RESTClientFor(krestconfig)
-	if err != nil {
-		return err
-	}
-	if DEBUG {
-		log("DEBUG packages krestclient==%+v", krestclient)
-	}
-
 	kclientset, err := kubernetes.NewForConfig(krestconfig)
 	if err != nil {
 		return err
