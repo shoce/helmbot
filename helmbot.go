@@ -748,7 +748,6 @@ func ServerPackagesUpdate() (err error) {
 			}
 
 			chartaddress := strings.TrimPrefix(p.ChartAddress, "oci://")
-			log("ERROR packages "+SPAC+"chartaddress==%#v", chartaddress)
 			tags, err := hrclient.Tags(chartaddress)
 			if err != nil {
 				log("ERROR packages "+SPAC+"hrclient.Tags: %v", err)
@@ -867,8 +866,6 @@ func ServerPackagesUpdate() (err error) {
 		allvaluestext := p.GlobalValuesText + p.ValuesText + p.EnvValuesText + p.ImagesValuesText
 		p.ValuesHash = fmt.Sprintf("%x", sha256.Sum256([]byte(allvaluestext)))[:10]
 
-		log("DEBUG packages "+SPAC+"ValuesHash==%#v", p.ValuesHash)
-
 		//
 		// READ DEPLOYED VALUES
 		//
@@ -964,8 +961,6 @@ func ServerPackagesUpdate() (err error) {
 			log("ERROR packages "+SPAC+"GetValuesTextFile: %s", err)
 		}
 
-		log("DEBUG packages "+SPAC+"ValuesHash==%v ValuesReportedHash==%v ValuesDeployedHash==%v PermitHash==%v ", p.ValuesHash, ValuesReportedHash, ValuesDeployedHash, PermitHash)
-
 		if p.ValuesHash != ValuesReportedHash {
 
 			//
@@ -1026,7 +1021,7 @@ func ServerPackagesUpdate() (err error) {
 
 		}
 
-		log("DEBUG packages "+SPAC+"ValuesReportedHash==%v ", ValuesReportedHash)
+		log("DEBUG packages "+SPAC+"ValuesHash==%v ValuesReportedHash==%v ValuesDeployedHash==%v PermitHash==%v ", p.ValuesHash, ValuesReportedHash, ValuesDeployedHash, PermitHash)
 
 		todeploy := false
 
