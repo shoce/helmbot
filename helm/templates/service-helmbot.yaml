@@ -1,14 +1,18 @@
 {{ if $.Values.TgWebhookHost -}}
 ---
+
 apiVersion: v1
 kind: Service
+
 metadata:
   name: helmbot
   labels:
     app: helmbot
+
 spec:
   selector:
     app: helmbot
+
   type: NodePort
   externalTrafficPolicy: Local
   ports:

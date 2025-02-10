@@ -286,7 +286,7 @@ func main() {
 			for {
 				t0 := time.Now()
 
-				if err := ServerPackagesUpgrade(); err != nil {
+				if err := ServerPackagesUpdate(); err != nil {
 					log("ERROR packages: %+v", err)
 				}
 
@@ -488,12 +488,12 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	log("DEBUG webhook finished %s", UpdateHashId)
 }
 
-func ServerPackagesUpgrade() (err error) {
+func ServerPackagesUpdate() (err error) {
 
 	var paused string
 	if err := GetValuesTextFile("paused", &paused); err == nil {
-		// paused packages upgrade - return with no error
-		log("DEBUG packages upgrade paused")
+		// paused packages update - return with no error
+		log("DEBUG packages update paused")
 		return nil
 	}
 
@@ -510,32 +510,14 @@ func ServerPackagesUpgrade() (err error) {
 		//log("DEBUG packages Config==%+v", Config)
 	}
 
-	// KUBERNETES + HELM
-
-	helmenvsettings := helmcli.New()
-
-	/*
-		log("packages env settings %+v", helmenvsettings)
-		if err := os.MkdirAll("/opt/helmbot/helm/cache/", 0750); err != nil {
-			return err
-		}
-		helmenvsettings.RegistryConfig = "/opt/helmbot/helm/registry-config.yaml"
-		helmenvsettings.RepositoryConfig = "/opt/helmbot/helm/repository-config.yaml"
-		helmenvsettings.RepositoryCache = "/opt/helmbot/helm/cache/"
-		log("packages env settings %+v", helmenvsettings)
-	*/
-
-	helmgetterall := helmgetter.All(helmenvsettings)
-	if DEBUG {
-		//log("DEBUG packages helmgetterall==%+v", helmgetterall)
-	}
+	// KUBERNETES
 
 	kconfig, err := krest.InClusterConfig()
 	if err != nil {
 		return err
 	}
 	if DEBUG {
-		//log("DEBUG packages kconfig==%+v", kconfig)
+		log("DEBUG packages kconfig==%+v", kconfig)
 	}
 
 	kclientset, err := kubernetes.NewForConfig(kconfig)
@@ -543,17 +525,51 @@ func ServerPackagesUpgrade() (err error) {
 		return err
 	}
 	if DEBUG {
-		//log("DEBUG packages kclientset==%+v", kclientset)
+		log("DEBUG packages kclientset==%+v", kclientset)
 	}
 
+	// HELM
+
+	helmenvsettings := helmcli.New()
 	if DEBUG {
-		log("DEBUG packages hostname==%v", ServerHostname)
+		log("DEBUG packages helmenvsettings==%+v", helmenvsettings)
+	}
+
+	/*
+		if err := os.MkdirAll("/opt/helmbot/helm/cache/", 0750); err != nil {
+			return err
+		}
+		helmenvsettings.RegistryConfig = "/opt/helmbot/helm/registry-config.yaml"
+		helmenvsettings.RepositoryConfig = "/opt/helmbot/helm/repository-config.yaml"
+		helmenvsettings.RepositoryCache = "/opt/helmbot/helm/cache/"
+	*/
+
+	helmgetterall := helmgetter.All(helmenvsettings)
+	if DEBUG {
+		log("DEBUG packages helmgetterall==%+v", helmgetterall)
 	}
 
 	helmactioncfg := new(helmaction.Configuration)
-	err = helmactioncfg.Init(helmcli.New().RESTClientGetter(), "", "", log)
+	err = helmactioncfg.Init(helmenvsettings.RESTClientGetter(), "", "", log)
 	if err != nil {
 		return err
+	}
+	if DEBUG {
+		log("DEBUG packages helmactioncfg==%+v", helmactioncfg)
+	}
+
+	helmkclientset, err := helmactioncfg.KubernetesClientSet()
+	if err != nil {
+		return err
+	}
+	if DEBUG {
+		log("DEBUG packages helmkclientset==%+v", helmkclientset)
+	}
+
+	// HOSTNAME
+
+	if DEBUG {
+		log("DEBUG packages hostname==%v", ServerHostname)
 	}
 
 	// INSTALLED RELEASES
@@ -592,8 +608,8 @@ func ServerPackagesUpgrade() (err error) {
 
 		var pkgpaused string
 		if err := GetValuesTextFile(path.Join(p.Dir(), "paused"), &pkgpaused); err == nil {
-			// paused package upgrade - skip with no error
-			log("DEBUG packages --- %s upgrade paused", p.Name)
+			// paused package update - skip with no error
+			log("DEBUG packages --- %s update paused", p.Name)
 			continue
 		}
 
@@ -644,6 +660,8 @@ func ServerPackagesUpgrade() (err error) {
 		//
 
 		// TODO download chart to /opt/helmbot/
+
+		// TODO skip full download, only fetch version
 
 		var chartfull *helmchart.Chart
 
@@ -1067,11 +1085,11 @@ func ServerPackagesUpgrade() (err error) {
 
 		log("DEBUG packages "+SPAC+"todeploy==%v", todeploy)
 
-		// TODO report pending upgrade to telegram
+		// TODO report pending update to telegram
 
 		if todeploy {
 
-			// TODO report starting upgrade to telegram
+			// TODO report starting update to telegram
 
 			if p.UpdateDelayDuration > 0 {
 				log("DEBUG packages "+SPAC+"sleeping %v", p.UpdateDelayDuration)
@@ -1177,7 +1195,7 @@ func ServerPackagesUpgrade() (err error) {
 
 			log("DEBUG packages "+SPAC+"release Name==%v Version==%v Info.Status==%v", release.Name, release.Version, release.Info.Status)
 
-			// TODO report finished upgrade to telegram
+			// TODO report finished update to telegram
 
 		}
 
