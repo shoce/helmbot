@@ -536,7 +536,7 @@ func ServerPackagesUpdate() (err error) {
 		log("DEBUG packages helmenvsettings==%+v", helmenvsettings)
 	}
 
-	helmnamespace := "helmbot"
+	helmnamespace := ""
 
 	kgencliconfig := kgenclioptions.NewConfigFlags(false)
 	kgencliconfig.APIServer = &krestconfig.Host
