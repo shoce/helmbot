@@ -31,6 +31,13 @@ import (
 
 	yaml "gopkg.in/yaml.v3"
 
+	kcorev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	kmetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kgenclioptions "k8s.io/cli-runtime/pkg/genericclioptions"
+	kubernetes "k8s.io/client-go/kubernetes"
+	krest "k8s.io/client-go/rest"
+
 	helmaction "helm.sh/helm/v3/pkg/action"
 	helmchart "helm.sh/helm/v3/pkg/chart"
 	helmloader "helm.sh/helm/v3/pkg/chart/loader"
@@ -41,12 +48,6 @@ import (
 	helmregistry "helm.sh/helm/v3/pkg/registry"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	helmrepo "helm.sh/helm/v3/pkg/repo"
-
-	kcorev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	kmetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kubernetes "k8s.io/client-go/kubernetes"
-	krest "k8s.io/client-go/rest"
 )
 
 const (
@@ -512,15 +513,23 @@ func ServerPackagesUpdate() (err error) {
 
 	// KUBERNETES
 
-	kconfig, err := krest.InClusterConfig()
+	krestconfig, err := krest.InClusterConfig()
 	if err != nil {
 		return err
 	}
 	if DEBUG {
-		log("DEBUG packages kconfig==%+v", kconfig)
+		log("DEBUG packages krestconfig==%+v", krestconfig)
 	}
 
-	kclientset, err := kubernetes.NewForConfig(kconfig)
+	krestclient, err := krest.RESTClientFor(krestconfig)
+	if err != nil {
+		return err
+	}
+	if DEBUG {
+		log("DEBUG packages krestclient==%+v", krestclient)
+	}
+
+	kclientset, err := kubernetes.NewForConfig(krestconfig)
 	if err != nil {
 		return err
 	}
@@ -549,21 +558,26 @@ func ServerPackagesUpdate() (err error) {
 		log("DEBUG packages helmgetterall==%+v", helmgetterall)
 	}
 
+	helmnamespace := ""
 	helmactioncfg := new(helmaction.Configuration)
-	err = helmactioncfg.Init(helmenvsettings.RESTClientGetter(), "", "", log)
+
+	kgencliconfig := kgenclioptions.NewConfigFlags(false)
+	kgencliconfig.APIServer = &krestconfig.Host
+	kgencliconfig.BearerToken = &krestconfig.BearerToken
+	kgencliconfig.Namespace = &helmnamespace
+	kgencliconfig.WithWrapConfigFn(func(*krest.Config) *krest.Config {
+		return krestconfig
+	})
+	if DEBUG {
+		log("DEBUG packages kgencliconfig==%+v", kgencliconfig)
+	}
+
+	err = helmactioncfg.Init(kgencliconfig, helmnamespace, "", log)
 	if err != nil {
 		return err
 	}
 	if DEBUG {
 		log("DEBUG packages helmactioncfg==%+v", helmactioncfg)
-	}
-
-	helmkclientset, err := helmactioncfg.KubernetesClientSet()
-	if err != nil {
-		return err
-	}
-	if DEBUG {
-		log("DEBUG packages helmkclientset==%+v", helmkclientset)
 	}
 
 	// HOSTNAME
