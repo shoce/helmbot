@@ -572,7 +572,7 @@ func ServerPackagesUpdate() (err error) {
 		for _, p := range Packages {
 			nn = append(nn, p.Name)
 		}
-		log("DEBUG packages Packages count==%d names==%+v", len(Packages), nn)
+		log("DEBUG packages names==%+v", nn)
 	}
 
 	for _, p := range Packages {
