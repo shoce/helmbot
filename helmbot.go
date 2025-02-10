@@ -630,13 +630,9 @@ func ServerPackagesUpdate() (err error) {
 		// FETCH CHART INFO
 		//
 
-		// TODO download chart to /opt/helmbot/
-
-		// TODO skip full download, only fetch version
-
-		var chartfull *helmchart.Chart
-
 		var chartversion string
+		var chartpath string
+		var chartfull *helmchart.Chart
 
 		if p.ChartRepo.Address != "" {
 
@@ -668,38 +664,43 @@ func ServerPackagesUpdate() (err error) {
 			}
 
 			var repochartversion *helmrepo.ChartVersion
-			for chartname, chartversions := range idx.Entries {
-				if chartname != p.ChartName {
+			for repochartname, repochartversions := range idx.Entries {
+				if repochartname != p.ChartName {
 					continue
 				}
 
-				if len(chartversions) == 0 {
+				if len(repochartversions) == 0 {
 					return fmt.Errorf("chart repo index %v: no chart versions", indexfilepath)
 				}
 
-				sort.Sort(sort.Reverse(chartversions))
-				var vv []string
-				for _, v := range chartversions {
-					vv = append(vv, v.Version)
+				sort.Sort(sort.Reverse(repochartversions))
+
+				if DEBUG {
+					var vv []string
+					for _, v := range repochartversions {
+						vv = append(vv, v.Version)
+					}
+					log("DEBUG packages "+SPAC+"repo versions==%+v", vv)
 				}
-				log("DEBUG packages "+SPAC+"repo versions==%#v", vv)
 
 				if p.ChartVersion != "" {
 					log("DEBUG packages "+SPAC+"ChartVersion==%#v", p.ChartVersion)
-					for _, v := range chartversions {
+					for _, v := range repochartversions {
 						if v.Version == p.ChartVersion {
 							log("DEBUG packages "+SPAC+"ChartVersion==%#v found in repo", p.ChartVersion)
 							repochartversion = v
 						}
 					}
 				} else {
-					repochartversion = chartversions[0]
+					repochartversion = repochartversions[0]
 				}
 			}
 
 			if repochartversion == nil {
 				return fmt.Errorf("packages chart %s repo index: no chart version found", p.ChartName)
 			}
+
+			chartversion = repochartversion.Version
 
 			if len(repochartversion.URLs) == 0 {
 				return fmt.Errorf("packages chart %s: no chart urls", p.ChartName)
@@ -718,9 +719,7 @@ func ServerPackagesUpdate() (err error) {
 				chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithBasicAuth(p.ChartRepo.Username, p.ChartRepo.Password))
 			}
 
-			var chartpath string
-
-			chartpath, _, err = chartdownloader.DownloadTo(charturl, repochartversion.Version, "")
+			chartpath, _, err = chartdownloader.DownloadTo(charturl, chartversion, ConfigDir)
 			if err != nil {
 				return err
 			}
@@ -762,21 +761,19 @@ func ServerPackagesUpdate() (err error) {
 				continue
 			}
 
-			log("DEBUG packages "+SPAC+"tags==%#v", tags)
+			log("DEBUG packages "+SPAC+"tags==%+v", tags)
 
 			chartversion = tags[0]
 
 			chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetter.All(helmenvsettings)}
 			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
 
-			var chartpath string
-
-			chartpath, _, err = chartdownloader.DownloadTo(p.ChartAddress, chartversion, "")
+			chartpath, _, err = chartdownloader.DownloadTo(p.ChartAddress, chartversion, ConfigDir)
 			if err != nil {
 				return err
 			}
 
-			log("DEBUG packages "+SPAC+"chart downloaded to %s ", chartpath)
+			log("DEBUG packages "+SPAC+"chart downloaded to %s", chartpath)
 
 			// https://pkg.go.dev/helm.sh/helm/v3/pkg/chart/loader#Load
 			chartfull, err = helmloader.Load(chartpath)
@@ -822,14 +819,15 @@ func ServerPackagesUpdate() (err error) {
 				chartfile.Close()
 			}
 
+			// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/chart#Metadata
+			chartversion = chartfull.Metadata.Version
+
 		} else {
 
-			log("WARNING PACKAGE %s has no ChartRepoAddress, ChartAddress, ChartLocalFilename", p.Name)
+			log("ERROR package %s has no ChartRepoAddress, ChartAddress, ChartLocalFilename", p.Name)
 			continue
 
 		}
-
-		chartversion = chartfull.Metadata.Version
 
 		tnow := time.Now()
 		if err := os.Chtimes(updatetimestampfilename, tnow, tnow); os.IsNotExist(err) {
@@ -840,14 +838,13 @@ func ServerPackagesUpdate() (err error) {
 			}
 		}
 
-		log("DEBUG packages "+SPAC+"chart version==%v values==%+v", chartfull.Metadata.Version, chartfull.Values)
+		log("DEBUG packages "+SPAC+"chart version==%v", chartversion)
 
 		//
 		// FILL IMAGES VALUES
 		//
 
-		// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/chart#Metadata
-		p.ImagesValues[p.ChartVersionKey] = chartfull.Metadata.Version
+		p.ImagesValues[p.ChartVersionKey] = chartversion
 
 		drlatestyamlhelmvalues := make(map[string]interface{})
 		for _, m := range []map[string]interface{}{chartfull.Values, p.Values, p.EnvValues} {
