@@ -49,7 +49,7 @@ jobs:
         with:
           package-name: ${{ github.event.repository.name }}/${{ github.ref_name }}
           package-type: container
-          min-versions-to-keep: 3
+          min-versions-to-keep: 6
           delete-only-untagged-versions: "false"
 
 
