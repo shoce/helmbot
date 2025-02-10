@@ -536,26 +536,12 @@ func ServerPackagesUpdate() (err error) {
 		log("DEBUG packages helmenvsettings==%+v", helmenvsettings)
 	}
 
-	/*
-		if err := os.MkdirAll("/opt/helmbot/helm/cache/", 0750); err != nil {
-			return err
-		}
-		helmenvsettings.RegistryConfig = "/opt/helmbot/helm/registry-config.yaml"
-		helmenvsettings.RepositoryConfig = "/opt/helmbot/helm/repository-config.yaml"
-		helmenvsettings.RepositoryCache = "/opt/helmbot/helm/cache/"
-	*/
-
-	helmgetterall := helmgetter.All(helmenvsettings)
-	if DEBUG {
-		log("DEBUG packages helmgetterall==%+v", helmgetterall)
-	}
-
-	helmnamespace := ""
-	helmactioncfg := new(helmaction.Configuration)
+	helmnamespace := "helmbot"
 
 	kgencliconfig := kgenclioptions.NewConfigFlags(false)
 	kgencliconfig.APIServer = &krestconfig.Host
 	kgencliconfig.BearerToken = &krestconfig.BearerToken
+	kgencliconfig.CAFile = &krestconfig.CAFile
 	kgencliconfig.Namespace = &helmnamespace
 	kgencliconfig.WithWrapConfigFn(func(*krest.Config) *krest.Config {
 		return krestconfig
@@ -564,6 +550,7 @@ func ServerPackagesUpdate() (err error) {
 		log("DEBUG packages kgencliconfig==%+v", kgencliconfig)
 	}
 
+	helmactioncfg := new(helmaction.Configuration)
 	err = helmactioncfg.Init(kgencliconfig, helmnamespace, "", log)
 	if err != nil {
 		return err
@@ -684,7 +671,7 @@ func ServerPackagesUpdate() (err error) {
 					InsecureSkipTLSverify: false,
 					PassCredentialsAll:    false,
 				},
-				helmgetterall,
+				helmgetter.All(helmenvsettings),
 			)
 			if err != nil {
 				return fmt.Errorf("NewChartRepository %w", err)
@@ -747,7 +734,7 @@ func ServerPackagesUpdate() (err error) {
 
 			log("DEBUG packages "+SPAC+"chart url==%#v", charturl)
 
-			chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetterall}
+			chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetter.All(helmenvsettings)}
 			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
 			if p.ChartRepo.Username != "" {
 				chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithBasicAuth(p.ChartRepo.Username, p.ChartRepo.Password))
@@ -801,7 +788,7 @@ func ServerPackagesUpdate() (err error) {
 
 			chartversion = tags[0]
 
-			chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetterall}
+			chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetter.All(helmenvsettings)}
 			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
 
 			var chartpath string
