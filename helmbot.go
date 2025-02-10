@@ -525,9 +525,6 @@ func ServerPackagesUpdate() (err error) {
 	if err != nil {
 		return err
 	}
-	if DEBUG {
-		log("DEBUG packages kclientset==%+v", kclientset)
-	}
 
 	// HELM
 
@@ -536,13 +533,12 @@ func ServerPackagesUpdate() (err error) {
 		log("DEBUG packages helmenvsettings==%+v", helmenvsettings)
 	}
 
-	helmnamespace := ""
-
 	kgencliconfig := kgenclioptions.NewConfigFlags(false)
 	kgencliconfig.APIServer = &krestconfig.Host
 	kgencliconfig.BearerToken = &krestconfig.BearerToken
 	kgencliconfig.CAFile = &krestconfig.CAFile
-	kgencliconfig.Namespace = &helmnamespace
+	kgencliconfigns := "helmbot"
+	kgencliconfig.Namespace = &kgencliconfigns
 	kgencliconfig.WithWrapConfigFn(func(*krest.Config) *krest.Config {
 		return krestconfig
 	})
@@ -551,7 +547,7 @@ func ServerPackagesUpdate() (err error) {
 	}
 
 	helmactioncfg := new(helmaction.Configuration)
-	err = helmactioncfg.Init(kgencliconfig, helmnamespace, "", log)
+	err = helmactioncfg.Init(kgencliconfig, "", "", log)
 	if err != nil {
 		return err
 	}
