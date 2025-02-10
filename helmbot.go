@@ -547,13 +547,6 @@ func ServerPackagesUpdate() (err error) {
 	}
 
 	helmactioncfg := new(helmaction.Configuration)
-	err = helmactioncfg.Init(kgencliconfig, "", "", log)
-	if err != nil {
-		return err
-	}
-	if DEBUG {
-		log("DEBUG packages helmactioncfg==%+v", helmactioncfg)
-	}
 
 	// HOSTNAME
 
@@ -563,6 +556,9 @@ func ServerPackagesUpdate() (err error) {
 
 	// INSTALLED RELEASES
 
+	if err := helmactioncfg.Init(kgencliconfig, "", "", log); err != nil {
+		return err
+	}
 	installedreleases, err := helmaction.NewList(helmactioncfg).Run()
 	if err != nil {
 		return err
@@ -1130,6 +1126,10 @@ func ServerPackagesUpdate() (err error) {
 			helmchartutil.MergeTables(values, chartfull.Values)
 
 			log("DEBUG packages "+SPAC+"values==%+v", values)
+
+			if err := helmactioncfg.Init(kgencliconfig, p.Namespace, "", log); err != nil {
+				return err
+			}
 
 			if isinstalled {
 				// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Upgrade
