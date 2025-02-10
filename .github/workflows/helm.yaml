@@ -40,4 +40,11 @@ jobs:
           force: true
           chart-folder: helm
 
+      - uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ github.event.repository.name }}/${{ github.ref_name }}
+          package-type: helm
+          min-versions-to-keep: 3
+          delete-only-untagged-versions: "false"
+
 
