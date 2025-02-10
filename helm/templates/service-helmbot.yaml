@@ -6,6 +6,7 @@ kind: Service
 
 metadata:
   name: helmbot
+  namespace: {{ $.Release.Namespace }}
   labels:
     app: helmbot
 

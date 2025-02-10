@@ -5,6 +5,7 @@ kind: ClusterRoleBinding
 
 metadata:
   name: helmbot-admin
+  namespace: {{ $.Release.Namespace }}
 
 roleRef:
   kind: ClusterRole

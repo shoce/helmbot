@@ -1,9 +1,11 @@
 ---
+
 apiVersion: apps/v1
 kind: StatefulSet
 
 metadata:
   name: helmbot
+  namespace: {{ $.Release.Namespace }}
   labels:
     app: helmbot
 

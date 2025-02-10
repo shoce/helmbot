@@ -1,8 +1,11 @@
 ---
+
 apiVersion: v1
 kind: ConfigMap
+
 metadata:
   name: helmbot
+  namespace: {{ $.Release.Namespace }}
   labels:
     app: helmbot
 
