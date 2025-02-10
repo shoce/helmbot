@@ -30,6 +30,8 @@ jobs:
         run: |
           sed -i -e "s/__VERSION__/$VERSION/g" helm/Chart.yaml
           cat helm/Chart.yaml
+          HELM_CHART_NAME=$( yq .name helm/Chart.yaml )
+          echo "HELM_CHART_NAME=$HELM_CHART_NAME" >> $GITHUB_ENV
 
       - uses: bsord/helm-push@v4
         with:
@@ -42,7 +44,7 @@ jobs:
 
       - uses: actions/delete-package-versions@v5
         with:
-          package-name: ${{ github.event.repository.name }}/${{ github.ref_name }}/helm.${{ github.event.repository.name }}
+          package-name: ${{ github.event.repository.name }}/${{ github.ref_name }}/${{ env.HELM_CHART_NAME }}
           package-type: container
           min-versions-to-keep: 3
           delete-only-untagged-versions: "false"

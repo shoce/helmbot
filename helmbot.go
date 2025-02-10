@@ -551,10 +551,9 @@ func ServerPackagesUpdate() (err error) {
 	}
 
 	if DEBUG {
-		//log("DEBUG packages installed releases count==%d ", len(installedreleases))
 		for _, r := range installedreleases {
 			log(
-				"DEBUG packages installed release name==%s version==%s namespace==%s ",
+				"DEBUG packages installed release name==%s version==%s namespace==%s",
 				r.Name, r.Chart.Metadata.Version, r.Namespace,
 			)
 		}
@@ -1115,6 +1114,7 @@ func ServerPackagesUpdate() (err error) {
 			}
 
 			if isinstalled {
+
 				// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Upgrade
 				helmupgrade := helmaction.NewUpgrade(helmactioncfg)
 				helmupgrade.DryRun = *p.DryRun
@@ -1129,7 +1129,9 @@ func ServerPackagesUpdate() (err error) {
 					log("ERROR packages helmupgrade.Run: %v", err)
 					return err
 				}
+
 			} else {
+
 				// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Install
 				helminstall := helmaction.NewInstall(helmactioncfg)
 				helminstall.DryRun = *p.DryRun
@@ -1145,6 +1147,7 @@ func ServerPackagesUpdate() (err error) {
 					log("ERROR packages helminstall.Run: %v", err)
 					return err
 				}
+
 			}
 
 			err = os.RemoveAll(path.Join(ConfigDir, p.DeployedDir()))
@@ -1165,7 +1168,7 @@ func ServerPackagesUpdate() (err error) {
 
 			log("DEBUG packages "+SPAC+"%s deployed ", p.HashId())
 
-			log("DEBUG packages "+SPAC+"release Name==%v Version==%v Info.Status==%v", release.Name, release.Version, release.Info.Status)
+			log("DEBUG packages "+SPAC+"release Name==%v Namespace==%v Version==%v Info.Status==%v", release.Name, release.Namespace, release.Version, release.Info.Status)
 
 			// TODO report finished update to telegram
 
