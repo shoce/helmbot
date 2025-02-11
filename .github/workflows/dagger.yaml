@@ -19,6 +19,7 @@ on:
 env:
   REGISTRY: ghcr.io
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  DAGGER_NO_NAG: 1
 
 jobs:
   build-publish:
