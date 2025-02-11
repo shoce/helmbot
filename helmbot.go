@@ -497,10 +497,6 @@ func ServerPackagesUpdate() (err error) {
 		return nil
 	}
 
-	if DEBUG {
-		log("DEBUG packages ---")
-	}
-
 	if err := GetValuesFile(PackagesConfigFilename, nil, &Config); err != nil {
 		log("ERROR packages GetValues: %v", err)
 		return err
