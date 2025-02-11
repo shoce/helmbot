@@ -558,7 +558,7 @@ func ServerPackagesUpdate() (err error) {
 		var pkgpaused string
 		if err := GetValuesTextFile(path.Join(p.Dir(), "paused"), &pkgpaused); err == nil {
 			// paused package update - skip with no error
-			log("DEBUG packages --- %s update paused", p.Name)
+			log("DEBUG packages --- Name==%s update paused", p.Name)
 			continue
 		}
 
@@ -606,7 +606,7 @@ func ServerPackagesUpdate() (err error) {
 		// FETCH CHART INFO
 		//
 
-		var chartversion string
+		var chartname, chartversion string
 		var chartpath string
 		var chartfull *helmchart.Chart
 
@@ -626,7 +626,7 @@ func ServerPackagesUpdate() (err error) {
 			if err != nil {
 				return fmt.Errorf("NewChartRepository %w", err)
 			}
-			log("DEBUG packages "+SPAC+"chart repo==%#v", chartrepo)
+			log("DEBUG packages "+SPAC+"chart repo==%v", chartrepo)
 
 			indexfilepath, err := chartrepo.DownloadIndexFile()
 			if err != nil {
@@ -676,7 +676,12 @@ func ServerPackagesUpdate() (err error) {
 				return fmt.Errorf("packages chart %s repo index: no chart version found", p.ChartName)
 			}
 
+			chartname = repochartversion.Name
 			chartversion = repochartversion.Version
+			chartpath = path.Join(ConfigDir, fmt.Sprintf("%s-%s.tgz", chartname, chartversion))
+			log("DEBUG packages "+SPAC+"LOCAL chartpath==%v exists==%v", chartpath, fileExists(chartpath))
+
+			// TODO check if already have the chart downloaded
 
 			if len(repochartversion.URLs) == 0 {
 				return fmt.Errorf("packages chart %s: no chart urls", p.ChartName)
@@ -687,7 +692,7 @@ func ServerPackagesUpdate() (err error) {
 				return err
 			}
 
-			log("DEBUG packages "+SPAC+"chart url==%#v", charturl)
+			log("DEBUG packages "+SPAC+"chart url==%v", charturl)
 
 			chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetter.All(helmenvsettings)}
 			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
@@ -698,18 +703,6 @@ func ServerPackagesUpdate() (err error) {
 			chartpath, _, err = chartdownloader.DownloadTo(charturl, chartversion, ConfigDir)
 			if err != nil {
 				return err
-			}
-
-			log("DEBUG packages "+SPAC+"chart downloaded to %s", chartpath)
-
-			// https://pkg.go.dev/helm.sh/helm/v3/pkg/chart/loader#Load
-			chartfull, err = helmloader.Load(chartpath)
-			if err != nil {
-				return fmt.Errorf("helmloader.Load `%s`: %w", chartpath, err)
-			}
-
-			if chartfull == nil {
-				return fmt.Errorf("chart downloaded from repo is nil")
 			}
 
 		} else if p.ChartAddress != "" {
@@ -740,6 +733,16 @@ func ServerPackagesUpdate() (err error) {
 
 			chartversion = tags[0]
 
+			if u, err := url.Parse(p.ChartAddress); err != nil {
+				log("WARNING packages "+SPAC+"parse ChartAddress: %s", err)
+			} else {
+				chartname = path.Base(u.Path)
+				chartpath = path.Join(ConfigDir, fmt.Sprintf("%s-%s.tgz", chartname, chartversion))
+				log("DEBUG packages "+SPAC+"LOCAL chartpath==%v exists==%v", chartpath, fileExists(chartpath))
+			}
+
+			// TODO check if already have the chart downloaded
+
 			chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetter.All(helmenvsettings)}
 			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
 
@@ -748,24 +751,10 @@ func ServerPackagesUpdate() (err error) {
 				return err
 			}
 
-			log("DEBUG packages "+SPAC+"chart downloaded to %s", chartpath)
-
-			// https://pkg.go.dev/helm.sh/helm/v3/pkg/chart/loader#Load
-			chartfull, err = helmloader.Load(chartpath)
-			if err != nil {
-				return fmt.Errorf("helmloader.Load `%s`: %w", chartpath, err)
-			}
-
-			if chartfull == nil {
-				return fmt.Errorf("chart downloaded from repo is nil")
-			}
-
 		} else if p.ChartLocalFilename != "" {
 
-			chartlocalfilename := ""
-
 			if !strings.HasSuffix(p.ChartLocalFilename, ".tgz") {
-				log("WARNING packages "+SPAC+"ChartLocalFilename==%v is not a .tgz file", p.ChartLocalFilename)
+				log("ERROR packages "+SPAC+"ChartLocalFilename==%v is not a .tgz file", p.ChartLocalFilename)
 				continue
 			}
 
@@ -776,26 +765,10 @@ func ServerPackagesUpdate() (err error) {
 				log("ERROR packages "+SPAC+"Glob ConfigDir==%v ChartLocalFilename==%v files not found", ConfigDir, p.ChartLocalFilename)
 				continue
 			} else {
-				log("DEBUG packages "+SPAC+"chart local files: %v", mm)
-				sort.Strings(mm)
-				chartlocalfilename = mm[len(mm)-1]
-				log("DEBUG packages "+SPAC+"using chart local file %#v", chartlocalfilename)
+				sort.Sort(sort.Reverse(sort.StringSlice(mm)))
+				chartpath = mm[0]
+				log("DEBUG packages "+SPAC+"LOCAL chartpath==%v exists==%v", chartpath, fileExists(chartpath))
 			}
-
-			if chartfile, err := os.Open(chartlocalfilename); err != nil {
-				log("ERROR packages ChartLocalFilename==%v os.Open: %v", p.ChartLocalFilename, err)
-				continue
-			} else {
-				chartfull, err = helmloader.LoadArchive(chartfile)
-				if err != nil {
-					log("ERROR packages ChartLocalFilename==%v LoadArchive: %v", p.ChartLocalFilename, err)
-					continue
-				}
-				chartfile.Close()
-			}
-
-			// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/chart#Metadata
-			chartversion = chartfull.Metadata.Version
 
 		} else {
 
@@ -803,6 +776,20 @@ func ServerPackagesUpdate() (err error) {
 			continue
 
 		}
+
+		log("DEBUG packages "+SPAC+"chartpath==%v", chartpath)
+
+		// https://pkg.go.dev/helm.sh/helm/v3/pkg/chart/loader#Load
+		chartfull, err = helmloader.Load(chartpath)
+		if err != nil {
+			return fmt.Errorf("helmloader.Load %v: %w", chartpath, err)
+		} else if chartfull == nil {
+			return fmt.Errorf("loaded chart is nil")
+		}
+
+		// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/chart#Metadata
+		chartversion = chartfull.Metadata.Version
+		log("DEBUG packages "+SPAC+"chart version==%v", chartversion)
 
 		tnow := time.Now()
 		if err := os.Chtimes(updatetimestampfilename, tnow, tnow); os.IsNotExist(err) {
@@ -1499,4 +1486,12 @@ func dirExists(path string) bool {
 		return false
 	}
 	return err == nil && s.IsDir()
+}
+
+func fileExists(path string) bool {
+	s, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return err == nil && s.Mode().IsRegular()
 }
