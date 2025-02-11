@@ -865,6 +865,8 @@ func ServerPackagesUpdate() (err error) {
 			log("DEBUG packages " + SPAC + "EnvValuesText diff ")
 		}
 
+		imagesvaluesdiff := ""
+
 		if p.ImagesValuesText != DeployedImagesValuesText {
 
 			log("DEBUG packages " + SPAC + "ImagesValuesText diff ")
@@ -880,7 +882,6 @@ func ServerPackagesUpdate() (err error) {
 				}
 			}
 
-			imagesvaluesdiff := ""
 			iv1, iv2 := DeployedImagesValuesMap, p.ImagesValues
 			for name, v1 := range iv1 {
 				if v2, ok := iv2[name]; ok {
@@ -975,9 +976,13 @@ func ServerPackagesUpdate() (err error) {
 			if err := tglog(
 				TgBossUserIds[0], 0,
 				"`%s`"+NL+
-					"`%s` update pending",
+					"`%s` update pending"+NL+
+					NL+
+					"images values diff:"+NL+
+					"```%s```",
 				ServerHostname,
 				p.HashId(),
+				imagesvaluesdiff,
 			); err != nil {
 				log("ERROR packages tglog: %v", err)
 			}
