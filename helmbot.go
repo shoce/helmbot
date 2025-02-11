@@ -974,7 +974,7 @@ func ServerPackagesUpdate() (err error) {
 
 			// TODO report pending update to telegram
 
-			tgmsg := fmt.Sprintf("*%s %s %s*", strings.ToUpper(ServerHostname), strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
+			tgmsg := fmt.Sprintf("*%s %s %s UPDATE*", strings.ToUpper(ServerHostname), strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
 			if p.GlobalValuesText != DeployedGlobalValuesText {
 				tgmsg += fmt.Sprintf("`%s` changed", p.GlobalValuesFilename()) + NL + NL
 			}
@@ -1027,8 +1027,9 @@ func ServerPackagesUpdate() (err error) {
 
 			// TODO report starting update to telegram
 
-			tgmsg := fmt.Sprintf("*%s %s %s*", strings.ToUpper(ServerHostname), strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
-			tgmsg += fmt.Sprintf("`%s` update starting in %v", p.HashId(), p.UpdateDelayDuration) + NL
+			tgmsg := fmt.Sprintf("*%s %s %s UPDATE*", strings.ToUpper(ServerHostname), strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
+			tgmsg += fmt.Sprintf("*STARTING IN %v*", p.UpdateDelayDuration) + NL
+			tgmsg += fmt.Sprintf("`%s`", p.HashId()) + NL
 
 			if err := tglog(TgBossUserIds[0], 0, tgmsg); err != nil {
 				log("ERROR packages tglog: %v", err)
@@ -1148,8 +1149,8 @@ func ServerPackagesUpdate() (err error) {
 
 			// TODO report finished update to telegram
 
-			tgmsg = fmt.Sprintf("*%s %s %s*", strings.ToUpper(ServerHostname), strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
-			tgmsg += fmt.Sprintf("`%s` update finished", p.HashId()) + NL
+			tgmsg = fmt.Sprintf("*%s %s %s UPDATE FINISHED*", strings.ToUpper(ServerHostname), strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
+			tgmsg += fmt.Sprintf("`%s`", p.HashId()) + NL
 
 			if err := tglog(TgBossUserIds[0], 0, tgmsg); err != nil {
 				log("ERROR packages tglog: %v", err)
