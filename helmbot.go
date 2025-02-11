@@ -295,7 +295,6 @@ func main() {
 					log("DEBUG packages sleeping %s", sleepdur)
 					time.Sleep(sleepdur)
 				}
-				log("---")
 			}
 		}()
 	} else {
