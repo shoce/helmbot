@@ -16,6 +16,7 @@ on:
     paths-ignore:
       - 'helm/**'
       - '.github/workflows/helm.yaml'
+      - '.github/workflows/dagger.yaml'
 
 env:
   REGISTRY: ghcr.io
