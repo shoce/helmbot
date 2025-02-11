@@ -552,7 +552,7 @@ func ServerPackagesUpdate() (err error) {
 
 	if DEBUG {
 		for _, r := range installedreleases {
-			log("DEBUG packages release Status==%s Name==%s Namespace==%s Version==%d Chart.Version==%s",
+			log("DEBUG packages Status==%s Name==%s Namespace==%s Version==%d Chart.Version==%s",
 				r.Info.Status, r.Name, r.Namespace, r.Version, r.Chart.Metadata.Version,
 			)
 		}
@@ -563,14 +563,6 @@ func ServerPackagesUpdate() (err error) {
 	if err != nil {
 		log("ERROR packages ProcessServersPackages: %v", err)
 		return err
-	}
-
-	if DEBUG {
-		var nn []string
-		for _, p := range Packages {
-			nn = append(nn, p.Name)
-		}
-		log("DEBUG packages names==%+v", nn)
 	}
 
 	for _, p := range Packages {
@@ -1170,7 +1162,6 @@ func ServerPackagesUpdate() (err error) {
 
 	}
 
-	log("DEBUG packages ---")
 	return nil
 
 }
