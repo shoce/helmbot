@@ -974,7 +974,6 @@ func ServerPackagesUpdate() (err error) {
 			// TODO report pending update to telegram
 			if err := tglog(
 				TgBossUserIds[0], 0,
-				"%s update pending",
 				"`%s` update pending",
 				p.HashId(),
 			); err != nil {
