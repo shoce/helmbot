@@ -67,7 +67,7 @@ type TgSetWebhookResponse struct {
 	Result      bool   `json:"result"`
 }
 
-func tglog(chatid int64, replyid int64, msg string, args ...interface{}) (msgid int64, err error) {
+func tglog(chatid int64, replyid int64, editid int64, msg string, args ...interface{}) (msgid int64, err error) {
 	text := fmt.Sprintf(msg, args...)
 	text = strings.NewReplacer(
 		"(", "\\(",
@@ -87,28 +87,49 @@ func tglog(chatid int64, replyid int64, msg string, args ...interface{}) (msgid 
 		".", "\\.",
 	).Replace(text)
 
-	smreq := TgSendMessageRequest{
-		ChatId:              chatid,
-		ReplyToMessageId:    replyid,
-		Text:                text,
-		ParseMode:           TgParseMode,
-		DisableNotification: TgDisableNotification,
+	var reqjs []byte
+	var tgurl string
+
+	if editid == 0 {
+		tgurl = fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", TgToken)
+		smreq := TgSendMessageRequest{
+			ChatId:              chatid,
+			ReplyToMessageId:    replyid,
+			Text:                text,
+			ParseMode:           TgParseMode,
+			DisableNotification: TgDisableNotification,
+		}
+		reqjs, err = json.Marshal(smreq)
+		if err != nil {
+			return 0, err
+		}
+	} else {
+		tgurl = fmt.Sprintf("https://api.telegram.org/bot%s/editMessageText", TgToken)
+		emreq := TgEditMessageRequest{
+			TgSendMessageRequest: TgSendMessageRequest{
+				ChatId:              chatid,
+				ReplyToMessageId:    replyid,
+				Text:                text,
+				ParseMode:           TgParseMode,
+				DisableNotification: TgDisableNotification,
+			},
+			MessageId: editid,
+		}
+		reqjs, err = json.Marshal(emreq)
+		if err != nil {
+			return 0, err
+		}
 	}
-	smreqjs, err := json.Marshal(smreq)
-	if err != nil {
-		return 0, fmt.Errorf("%v", err)
-	}
-	smreqjsBuffer := bytes.NewBuffer(smreqjs)
+	reqjsBuffer := bytes.NewBuffer(reqjs)
 
 	var resp *http.Response
-	tgapiurl := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", TgToken)
 	resp, err = http.Post(
-		tgapiurl,
+		tgurl,
 		"application/json",
-		smreqjsBuffer,
+		reqjsBuffer,
 	)
 	if err != nil {
-		return 0, fmt.Errorf("apiurl:`%s` apidata:`%s` %v", tgapiurl, smreqjs, err)
+		return 0, fmt.Errorf("url==%v data==%v error: %v", tgurl, reqjs, err)
 	}
 
 	var smresp TgSendMessageResponse
@@ -117,7 +138,7 @@ func tglog(chatid int64, replyid int64, msg string, args ...interface{}) (msgid 
 		return 0, fmt.Errorf("%v", err)
 	}
 	if !smresp.OK {
-		return 0, fmt.Errorf("apiurl:`%s` apidata:`%s` api response not ok: %+v", tgapiurl, smreqjs, smresp)
+		return 0, fmt.Errorf("apiurl==%v apidata==%v api response not ok: %+v", tgurl, reqjs, smresp)
 	}
 
 	return smresp.Result.MessageId, nil
@@ -137,6 +158,11 @@ type TgSendMessageResponse struct {
 	Result      struct {
 		MessageId int64 `json:"message_id"`
 	} `json:"result"`
+}
+
+type TgEditMessageRequest struct {
+	TgSendMessageRequest
+	MessageId int64 `json:"message_id"`
 }
 
 type TgUpdate struct {

@@ -385,7 +385,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	if !slices.Contains(TgBossUserIds, rupdate.Message.From.Id) && !slices.Contains(TgChatIds, rupdate.Message.ReplyToMessage.SenderChat.Id) {
 		log("DEBUG webhook message user id not valid")
 		if _, tgerr = tglog(
-			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
+			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
 			"*Your request to force update %s is NOT accepted.*"+NL+NL+"Check helmbot TgBossUserIds config value.",
 		); tgerr != nil {
 			log("ERROR webhook tglog: %v", tgerr)
@@ -411,7 +411,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	if err := GetValuesText(p.ValuesDeployedHashFilename(), &ValuesDeployedHash); err != nil {
 		log("ERROR webhook %v could not be read: %v", p.ValuesDeployedHashFilename(), err)
 		if _, tgerr = tglog(
-			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
+			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
 			"*INTERNAL ERROR*"+NL+
 				TgAdminMention,
 		); tgerr != nil {
@@ -424,7 +424,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	if UpdateValuesHash == ValuesDeployedHash {
 		log("DEBUG webhook latest and deployed values hashes match")
 		if _, tgerr = tglog(
-			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
+			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
 			"*THIS UPDATE IS ALREADY DEPLOYED*",
 		); tgerr != nil {
 			log("ERROR webhook tglog: %v", tgerr)
@@ -436,7 +436,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash); err != nil {
 		log("ERROR webhook %v could not be read: %v", p.ValuesReportedHashFilename(), err)
 		if _, tgerr = tglog(
-			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
+			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
 			"*INTERNAL ERROR*"+NL+
 				TgAdminMention,
 		); tgerr != nil {
@@ -449,7 +449,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	if UpdateValuesHash != ValuesReportedHash {
 		log("DEBUG webhook latest and reported values hashes mismatch")
 		if _, tgerr = tglog(
-			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
+			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
 			"*THIS IS NOT THE LAST AVAILABLE UPDATE*"+NL+NL+"Only the last available update can be forced.",
 		); tgerr != nil {
 			log("ERROR webhook tglog: %v", tgerr)
@@ -465,7 +465,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	if err := PutValuesText(p.ValuesPermitHashFilename(), UpdateValuesHash); err != nil {
 		log("ERROR webhook %v file could not be written: %v", p.ValuesPermitHashFilename(), err)
 		if _, tgerr = tglog(
-			rupdate.Message.Chat.Id, rupdate.Message.MessageId,
+			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
 			"*INTERNAL ERROR*"+NL+
 				TgAdminMention,
 		); tgerr != nil {
@@ -477,7 +477,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	log("DEBUG webhook created %v file", p.ValuesPermitHashFilename())
 
 	if _, tgerr = tglog(
-		rupdate.Message.Chat.Id, rupdate.Message.MessageId,
+		rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
 		"*FORCE UPDATE NOW IS ACCEPTED.*"+
 			NL+NL+
 			"THIS UPDATE WILL START IN FEW MINUTES."+
@@ -996,7 +996,7 @@ func ServerPackagesUpdate() (err error) {
 				tgmsg += fmt.Sprintf("`%s` diff:"+NL+NL+"```"+NL+"%s"+NL+"```", p.ImagesValuesFilename(), imagesvaluesdiff) + NL + NL
 			}
 
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsg); tgerr != nil {
+			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, 0, tgmsg); tgerr != nil {
 				log("ERROR packages tglog: %v", tgerr)
 			}
 
@@ -1036,7 +1036,7 @@ func ServerPackagesUpdate() (err error) {
 
 			tgmsg += fmt.Sprintf("*STARTING IN %v*", p.UpdateDelayDuration) + NL + NL
 
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], tgmsgid, tgmsg); tgerr != nil {
+			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg); tgerr != nil {
 				log("ERROR packages tglog: %v", tgerr)
 			}
 
@@ -1097,7 +1097,7 @@ func ServerPackagesUpdate() (err error) {
 
 			tgmsg += fmt.Sprintf("*STARTED*") + NL + NL
 
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], tgmsgid, tgmsg); tgerr != nil {
+			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg); tgerr != nil {
 				log("ERROR packages tglog: %v", tgerr)
 			}
 
@@ -1116,7 +1116,7 @@ func ServerPackagesUpdate() (err error) {
 				if err != nil {
 					log("ERROR packages helmupgrade.Run: %v", err)
 					tgmsg += fmt.Sprintf("*ERROR:*"+NL+"```"+NL+"%v"+NL+"```", err)
-					if _, tgerr = tglog(TgBossUserIds[0], tgmsgid, tgmsg); tgerr != nil {
+					if _, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg); tgerr != nil {
 						log("ERROR packages tglog: %v", tgerr)
 					}
 					return err
@@ -1138,7 +1138,7 @@ func ServerPackagesUpdate() (err error) {
 				if err != nil {
 					log("ERROR packages helminstall.Run: %v", err)
 					tgmsg += fmt.Sprintf("*ERROR:*"+NL+"```"+NL+"%v"+NL+"```", err)
-					if _, tgerr = tglog(TgBossUserIds[0], tgmsgid, tgmsg); tgerr != nil {
+					if _, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg); tgerr != nil {
 						log("ERROR packages tglog: %v", tgerr)
 					}
 					return err
@@ -1170,7 +1170,7 @@ func ServerPackagesUpdate() (err error) {
 
 			tgmsg += fmt.Sprintf("*%s %s %s UPDATE FINISHED*", strings.ToUpper(ServerHostname), strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
 
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], tgmsgid, tgmsg); tgerr != nil {
+			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg); tgerr != nil {
 				log("ERROR packages tglog: %v", tgerr)
 			}
 
