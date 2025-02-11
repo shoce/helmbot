@@ -582,10 +582,6 @@ func ServerPackagesUpdate() (err error) {
 			continue
 		}
 
-		if DEBUG {
-			log("DEBUG packages ---")
-		}
-
 		updatetimestampfilename := path.Join(ConfigDir, p.UpdateTimestampFilename())
 		if updatetimestampfilestat, err := os.Stat(updatetimestampfilename); err == nil {
 			p.UpdateTimestamp = updatetimestampfilestat.ModTime()
