@@ -586,19 +586,21 @@ func ServerPackagesUpdate() (err error) {
 			log("DEBUG packages ---")
 		}
 
-		timenowhour := fmt.Sprintf("%02d", time.Now().In(p.TimezoneLocation).Hour())
-
 		updatetimestampfilename := path.Join(ConfigDir, p.UpdateTimestampFilename())
 		if updatetimestampfilestat, err := os.Stat(updatetimestampfilename); err == nil {
 			p.UpdateTimestamp = updatetimestampfilestat.ModTime()
 		}
 
-		log("DEBUG packages --- Name==%s Namespace:%s AlwaysForceNow==%v AllowedHours==%v TimeNowHour==%v UpdateInterval==%v", p.Name, p.Namespace, *p.AlwaysForceNow, p.AllowedHoursList, timenowhour, p.UpdateIntervalDuration)
+		// TODO do local ops though
 
 		if d := time.Now().Sub(p.UpdateTimestamp).Truncate(time.Second); d < p.UpdateIntervalDuration {
-			log("DEBUG packages "+SPAC+"%v until next update", p.UpdateIntervalDuration-d)
+			log("DEBUG packages --- Name=%s %v until next update", p.Name, p.UpdateIntervalDuration-d)
 			continue
 		}
+
+		timenowhour := fmt.Sprintf("%02d", time.Now().In(p.TimezoneLocation).Hour())
+
+		log("DEBUG packages --- Name==%s Namespace:%s AlwaysForceNow==%v AllowedHours==%v TimeNowHour==%v UpdateInterval==%v", p.Name, p.Namespace, *p.AlwaysForceNow, p.AllowedHoursList, timenowhour, p.UpdateIntervalDuration)
 
 		//
 		// READ LATEST VALUES

@@ -51,13 +51,16 @@ func (vv DrVersions) Swap(i, j int) {
 
 func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLatestYamlItem, imagesvalues *map[string]interface{}) (err error) {
 	for helmvalueskey, helmvaluesvalue := range helmvalues {
-		//log("drlatestyaml helmvalueskey %s", helmvalueskey)
 		for _, e := range drlatestyamlitems {
-			//log("  drlatestyaml KeyPrefix %s", e.KeyPrefix)
 			if strings.HasPrefix(helmvalueskey, e.KeyPrefix) {
-				//log("drlatestyaml %s HasPrefix %s", helmvalueskey, e.KeyPrefix)
 
 				imagename := helmvalueskey
+				imagenamereplace := e.KeyPrefixReplace + strings.TrimPrefix(imagename, e.KeyPrefix)
+
+				if v, ok := helmvalues[imagenamereplace]; ok && v != "" {
+					continue
+				}
+
 				imageurl := helmvaluesvalue.(string)
 
 				if !strings.HasPrefix(imageurl, "https://") && !strings.HasPrefix(imageurl, "http://") {
@@ -92,10 +95,8 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 					imagetag = "latest"
 				}
 
-				imagenamereplace := e.KeyPrefixReplace + strings.TrimPrefix(imagename, e.KeyPrefix)
 				(*imagesvalues)[imagenamereplace] = imagetag
 
-				//log("drlatestyaml %s %s", imagenamereplace, imagetag)
 			}
 		}
 	}
