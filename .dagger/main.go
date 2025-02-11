@@ -20,8 +20,8 @@ const (
 
 var (
 	Platforms = []dagger.Platform{
-		"linux/amd64",
 		"linux/arm64",
+		"linux/amd64",
 	}
 	SourceFiles = []string{
 		"helmbot.go", "drlatest.go", "minio.go", "tg.go",
@@ -69,6 +69,7 @@ func (m *Helmbot) Build(
 			// https://hub.docker.com/_/alpine/tags/
 			b := dag.Container(dagger.ContainerOpts{Platform: platform}).
 				From(AlpineDockerImage).
+				WithExec([]string{"apk", "upgrade", "--no-cache"}).
 				WithExec([]string{"apk", "add", "--no-cache", "gcompat"}).
 				WithExec([]string{"ln", "-s", "-f", "-v", "ld-linux-x86-64.so.2", "/lib/libresolv.so.2"}).
 				WithFile("/bin/helmbot", a.File("/root/helmbot/helmbot")).
