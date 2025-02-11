@@ -556,7 +556,6 @@ func ServerPackagesUpdate() (err error) {
 				r.Info.Status, r.Name, r.Namespace, r.Version, r.Chart.Metadata.Version,
 			)
 		}
-		log("DEBUG packages ---")
 	}
 
 	Packages, err = ProcessServersPackages(Config.Servers)
