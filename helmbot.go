@@ -610,6 +610,12 @@ func ServerPackagesUpdate() (err error) {
 		var chartpath string
 		var chartfull *helmchart.Chart
 
+		chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetter.All(helmenvsettings)}
+		chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
+		if p.ChartRepo.Address != "" && p.ChartRepo.Username != "" {
+			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithBasicAuth(p.ChartRepo.Username, p.ChartRepo.Password))
+		}
+
 		if p.ChartRepo.Address != "" {
 
 			chartrepo, err := helmrepo.NewChartRepository(
@@ -681,28 +687,18 @@ func ServerPackagesUpdate() (err error) {
 			chartpath = path.Join(ConfigDir, fmt.Sprintf("%s-%s.tgz", chartname, chartversion))
 			log("DEBUG packages "+SPAC+"LOCAL chartpath==%v exists==%v", chartpath, fileExists(chartpath))
 
-			// TODO check if already have the chart downloaded
+			if !fileExists(chartpath) {
+				if len(repochartversion.URLs) == 0 {
+					return fmt.Errorf("packages chart %s: no chart urls", p.ChartName)
+				}
 
-			if len(repochartversion.URLs) == 0 {
-				return fmt.Errorf("packages chart %s: no chart urls", p.ChartName)
-			}
-
-			charturl, err := helmrepo.ResolveReferenceURL(p.ChartRepo.Address, repochartversion.URLs[0])
-			if err != nil {
-				return err
-			}
-
-			log("DEBUG packages "+SPAC+"chart url==%v", charturl)
-
-			chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetter.All(helmenvsettings)}
-			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
-			if p.ChartRepo.Username != "" {
-				chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithBasicAuth(p.ChartRepo.Username, p.ChartRepo.Password))
-			}
-
-			chartpath, _, err = chartdownloader.DownloadTo(charturl, chartversion, ConfigDir)
-			if err != nil {
-				return err
+				charturl, err := helmrepo.ResolveReferenceURL(p.ChartRepo.Address, repochartversion.URLs[0])
+				if err != nil {
+					return err
+				}
+				if chartpath, _, err = chartdownloader.DownloadTo(charturl, chartversion, ConfigDir); err != nil {
+					return err
+				}
 			}
 
 		} else if p.ChartAddress != "" {
@@ -741,14 +737,10 @@ func ServerPackagesUpdate() (err error) {
 				log("DEBUG packages "+SPAC+"LOCAL chartpath==%v exists==%v", chartpath, fileExists(chartpath))
 			}
 
-			// TODO check if already have the chart downloaded
-
-			chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetter.All(helmenvsettings)}
-			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
-
-			chartpath, _, err = chartdownloader.DownloadTo(p.ChartAddress, chartversion, ConfigDir)
-			if err != nil {
-				return err
+			if !fileExists(chartpath) {
+				if chartpath, _, err = chartdownloader.DownloadTo(p.ChartAddress, chartversion, ConfigDir); err != nil {
+					return err
+				}
 			}
 
 		} else if p.ChartLocalFilename != "" {
@@ -767,7 +759,6 @@ func ServerPackagesUpdate() (err error) {
 			} else {
 				sort.Sort(sort.Reverse(sort.StringSlice(mm)))
 				chartpath = mm[0]
-				log("DEBUG packages "+SPAC+"LOCAL chartpath==%v exists==%v", chartpath, fileExists(chartpath))
 			}
 
 		} else {
@@ -799,8 +790,6 @@ func ServerPackagesUpdate() (err error) {
 				log("ERROR packages "+SPAC+"create timestamp file: %s", err)
 			}
 		}
-
-		log("DEBUG packages "+SPAC+"chart version==%v", chartversion)
 
 		//
 		// FILL IMAGES VALUES
