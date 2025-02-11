@@ -292,7 +292,7 @@ func main() {
 
 				if d := time.Now().Sub(t0); d < PackagesUpgradeInterval {
 					sleepdur := (PackagesUpgradeInterval - d).Truncate(time.Second)
-					log("DEBUG packages --- sleeping %s", sleepdur)
+					log("DEBUG packages sleeping %s", sleepdur)
 					time.Sleep(sleepdur)
 				}
 				log("---")
@@ -529,12 +529,6 @@ func ServerPackagesUpdate() (err error) {
 	}
 
 	helmactioncfg := new(helmaction.Configuration)
-
-	// HOSTNAME
-
-	if DEBUG {
-		log("DEBUG packages hostname==%v", ServerHostname)
-	}
 
 	// INSTALLED RELEASES
 
