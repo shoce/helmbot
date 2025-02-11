@@ -973,17 +973,23 @@ func ServerPackagesUpdate() (err error) {
 			}
 
 			// TODO report pending update to telegram
-			if err := tglog(
-				TgBossUserIds[0], 0,
-				"`%s`"+NL+
-					"`%s` update pending"+NL+
-					NL+
-					"images values diff:"+NL+
-					"```%s```",
-				ServerHostname,
-				p.HashId(),
-				imagesvaluesdiff,
-			); err != nil {
+
+			tgmsg := fmt.Sprintf("*%s %s %s*", ServerHostname, p.ChartName, p.EnvName) + NL + NL
+			if p.GlobalValuesText != DeployedGlobalValuesText {
+				tgmsg += fmt.Sprintf("`%s` changed", p.GlobalValuesFilename()) + NL + NL
+			}
+			if p.ValuesText != DeployedValuesText {
+				tgmsg += fmt.Sprintf("`%s` changed", p.ValuesFilename()) + NL + NL
+			}
+			if p.EnvValuesText != DeployedEnvValuesText {
+				tgmsg += fmt.Sprintf("`%s` changed", p.EnvValuesFilename()) + NL + NL
+			}
+			if imagesvaluesdiff != "" {
+				tgmsg += fmt.Sprintf("`%s` diff:"+NL+NL+"```"+NL+"%s"+NL+"```", p.ImagesValuesFilename(), imagesvaluesdiff) + NL + NL
+			}
+			tgmsg += fmt.Sprintf("`%s`", p.HashId()) + NL
+
+			if err := tglog(TgBossUserIds[0], 0, tgmsg); err != nil {
 				log("ERROR packages tglog: %v", err)
 			}
 
@@ -1020,13 +1026,11 @@ func ServerPackagesUpdate() (err error) {
 		if todeploy {
 
 			// TODO report starting update to telegram
-			if err := tglog(
-				TgBossUserIds[0], 0,
-				"`%s`"+NL+
-					"`%s` update starting",
-				ServerHostname,
-				p.HashId(),
-			); err != nil {
+
+			tgmsg := fmt.Sprintf("*%s %s %s*", ServerHostname, p.ChartName, p.EnvName) + NL + NL
+			tgmsg += fmt.Sprintf("`%s` update starting in %v", p.HashId(), p.UpdateDelayDuration) + NL
+
+			if err := tglog(TgBossUserIds[0], 0, tgmsg); err != nil {
 				log("ERROR packages tglog: %v", err)
 			}
 
@@ -1143,13 +1147,11 @@ func ServerPackagesUpdate() (err error) {
 			log("DEBUG packages "+SPAC+"release Name==%v Namespace==%v Version==%v Info.Status==%v", release.Name, release.Namespace, release.Version, release.Info.Status)
 
 			// TODO report finished update to telegram
-			if err := tglog(
-				TgBossUserIds[0], 0,
-				"`%s`"+NL+
-					"`%s` update finished",
-				ServerHostname,
-				p.HashId(),
-			); err != nil {
+
+			tgmsg = fmt.Sprintf("*%s %s %s*", ServerHostname, p.ChartName, p.EnvName) + NL + NL
+			tgmsg += fmt.Sprintf("`%s` update finished", p.HashId()) + NL
+
+			if err := tglog(TgBossUserIds[0], 0, tgmsg); err != nil {
 				log("ERROR packages tglog: %v", err)
 			}
 
