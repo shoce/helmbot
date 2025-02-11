@@ -250,7 +250,8 @@ func init() {
 		TgBossUserIds = append(TgBossUserIds, int64(userid))
 	}
 	if len(TgBossUserIds) == 0 {
-		log("WARNING empty or invalid TgBossUserIds env var")
+		log("ERROR empty or invalid TgBossUserIds env var")
+		os.Exit(1)
 	}
 }
 
@@ -568,7 +569,6 @@ func ServerPackagesUpdate() (err error) {
 		}
 
 		// TODO do local ops though
-
 		if d := time.Now().Sub(p.UpdateTimestamp).Truncate(time.Second); d < p.UpdateIntervalDuration {
 			log("DEBUG packages --- Name=%s %v until next update", p.Name, p.UpdateIntervalDuration-d)
 			continue
@@ -970,6 +970,15 @@ func ServerPackagesUpdate() (err error) {
 				return fmt.Errorf("PutValuesTextFile: %w", err)
 			}
 
+			// TODO report pending update to telegram
+			if err := tglog(
+				TgBossUserIds[0], 0,
+				"%s update pending",
+				p.HashId(),
+			); err != nil {
+				log("ERROR packages tglog: %v", err)
+			}
+
 			log("DEBUG packages "+SPAC+"%s reported ", p.HashId())
 
 		}
@@ -1000,11 +1009,16 @@ func ServerPackagesUpdate() (err error) {
 
 		log("DEBUG packages "+SPAC+"todeploy==%v", todeploy)
 
-		// TODO report pending update to telegram
-
 		if todeploy {
 
 			// TODO report starting update to telegram
+			if err := tglog(
+				TgBossUserIds[0], 0,
+				"%s update starting",
+				p.HashId(),
+			); err != nil {
+				log("ERROR packages tglog: %v", err)
+			}
 
 			if p.UpdateDelayDuration > 0 {
 				log("DEBUG packages "+SPAC+"sleeping %v", p.UpdateDelayDuration)
@@ -1119,6 +1133,13 @@ func ServerPackagesUpdate() (err error) {
 			log("DEBUG packages "+SPAC+"release Name==%v Namespace==%v Version==%v Info.Status==%v", release.Name, release.Namespace, release.Version, release.Info.Status)
 
 			// TODO report finished update to telegram
+			if err := tglog(
+				TgBossUserIds[0], 0,
+				"%s update finished",
+				p.HashId(),
+			); err != nil {
+				log("ERROR packages tglog: %v", err)
+			}
 
 		}
 
