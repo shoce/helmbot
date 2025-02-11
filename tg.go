@@ -67,7 +67,7 @@ type TgSetWebhookResponse struct {
 	Result      bool   `json:"result"`
 }
 
-func tglog(chatid int64, replyid int64, msg string, args ...interface{}) error {
+func tglog(chatid int64, replyid int64, msg string, args ...interface{}) (msgid int64, err error) {
 	text := fmt.Sprintf(msg, args...)
 	text = strings.NewReplacer(
 		"(", "\\(",
@@ -96,7 +96,7 @@ func tglog(chatid int64, replyid int64, msg string, args ...interface{}) error {
 	}
 	smreqjs, err := json.Marshal(smreq)
 	if err != nil {
-		return fmt.Errorf("%v", err)
+		return 0, fmt.Errorf("%v", err)
 	}
 	smreqjsBuffer := bytes.NewBuffer(smreqjs)
 
@@ -108,19 +108,19 @@ func tglog(chatid int64, replyid int64, msg string, args ...interface{}) error {
 		smreqjsBuffer,
 	)
 	if err != nil {
-		return fmt.Errorf("apiurl:`%s` apidata:`%s` %v", tgapiurl, smreqjs, err)
+		return 0, fmt.Errorf("apiurl:`%s` apidata:`%s` %v", tgapiurl, smreqjs, err)
 	}
 
 	var smresp TgSendMessageResponse
 	err = json.NewDecoder(resp.Body).Decode(&smresp)
 	if err != nil {
-		return fmt.Errorf("%v", err)
+		return 0, fmt.Errorf("%v", err)
 	}
 	if !smresp.OK {
-		return fmt.Errorf("apiurl:`%s` apidata:`%s` api response not ok: %+v", tgapiurl, smreqjs, smresp)
+		return 0, fmt.Errorf("apiurl:`%s` apidata:`%s` api response not ok: %+v", tgapiurl, smreqjs, smresp)
 	}
 
-	return nil
+	return smresp.Result.MessageId, nil
 }
 
 type TgSendMessageRequest struct {
