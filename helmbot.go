@@ -975,6 +975,7 @@ func ServerPackagesUpdate() (err error) {
 			if err := tglog(
 				TgBossUserIds[0], 0,
 				"%s update pending",
+				"`%s` update pending",
 				p.HashId(),
 			); err != nil {
 				log("ERROR packages tglog: %v", err)
@@ -1015,7 +1016,7 @@ func ServerPackagesUpdate() (err error) {
 			// TODO report starting update to telegram
 			if err := tglog(
 				TgBossUserIds[0], 0,
-				"%s update starting",
+				"`%s` update starting",
 				p.HashId(),
 			); err != nil {
 				log("ERROR packages tglog: %v", err)
@@ -1136,7 +1137,7 @@ func ServerPackagesUpdate() (err error) {
 			// TODO report finished update to telegram
 			if err := tglog(
 				TgBossUserIds[0], 0,
-				"%s update finished",
+				"`%s` update finished",
 				p.HashId(),
 			); err != nil {
 				log("ERROR packages tglog: %v", err)
