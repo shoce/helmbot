@@ -1004,53 +1004,40 @@ func ServerPackagesUpdate() (err error) {
 
 		log("DEBUG packages "+SPAC+"ValuesHash==%v ValuesReportedHash==%v ValuesDeployedHash==%v PermitHash==%v ", p.ValuesHash, ValuesReportedHash, ValuesDeployedHash, PermitHash)
 
-		deploypending := ValuesReportedHash != ValuesDeployedHash
-		deploynow := false
-
-		if deploypending {
-
-			if PermitHash == ValuesReportedHash {
-				deploynow = true
-			}
-
-			if p.AlwaysForceNow != nil && *p.AlwaysForceNow {
-				deploynow = true
-			}
-
-			if len(p.AllowedHoursList) > 0 && deploynow == false {
-				log("DEBUG packages "+SPAC+"AllowedHoursList==%+v timenowhour==%+v", p.AllowedHoursList, timenowhour)
-			}
-
-			if slices.Contains(p.AllowedHoursList, timenowhour) {
-				deploynow = true
-			}
-
-			if !deploynow {
-
-				// TODO report update is not starting now
-
-				tgmsg += "*NOT UPDATING NOW*; update will start *in the next allowed time window*" + NL + NL
-				tgmsg += "TO FORCE START THIS UPDATE NOW REPLY TO THIS MESSAGE WITH TEXT \"`NOW`\" (UPPERCASE)" + NL + NL
-				if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, 0, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
-					log("ERROR packages tglog: %v", tgerr)
-				}
-
-				time.Sleep(1 * time.Second)
-				continue
-
-			}
-		}
-
-		if !deploypending {
+		if ValuesReportedHash == ValuesDeployedHash {
 
 			time.Sleep(1 * time.Second)
 			continue
 
 		}
 
-		log("DEBUG packages "+SPAC+"deploynow==%v", deploynow)
+		deploynow := false
 
-		// TODO report starting update to telegram
+		if PermitHash == ValuesReportedHash {
+			deploynow = true
+		}
+		if p.AlwaysForceNow != nil && *p.AlwaysForceNow {
+			deploynow = true
+		}
+		if len(p.AllowedHoursList) > 0 && deploynow == false {
+			log("DEBUG packages "+SPAC+"AllowedHoursList==%+v timenowhour==%+v", p.AllowedHoursList, timenowhour)
+		}
+		if slices.Contains(p.AllowedHoursList, timenowhour) {
+			deploynow = true
+		}
+
+		if !deploynow {
+
+			tgmsg += "*NOT UPDATING NOW*; update will start *in the next allowed time window*" + NL + NL
+			tgmsg += "TO FORCE START THIS UPDATE NOW REPLY TO THIS MESSAGE WITH TEXT \"`NOW`\" (UPPERCASE)" + NL + NL
+			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, 0, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+				log("ERROR packages tglog: %v", tgerr)
+			}
+
+			time.Sleep(1 * time.Second)
+			continue
+
+		}
 
 		tgmsg += fmt.Sprintf("*STARTING IN %v*", p.UpdateDelayDuration) + NL + NL
 
@@ -1183,8 +1170,6 @@ func ServerPackagesUpdate() (err error) {
 		log("DEBUG packages "+SPAC+"%s deployed ", p.HashId())
 
 		log("DEBUG packages "+SPAC+"release Name==%v Namespace==%v Version==%v Info.Status==%v", release.Name, release.Namespace, release.Version, release.Info.Status)
-
-		// TODO report finished update to telegram
 
 		tgmsg += fmt.Sprintf(
 			"```"+NL+
