@@ -1189,7 +1189,11 @@ func ServerPackagesUpdate() (err error) {
 		err = os.Rename(path.Join(ConfigDir, p.ReportedDir()), path.Join(ConfigDir, p.DeployedDir()))
 		if err != nil {
 			// TODO report error
-			return fmt.Errorf("os.Rename %v %v: %w", path.Join(ConfigDir, p.ReportedDir()), path.Join(ConfigDir, p.DeployedDir()), err)
+			tgmsg += fmt.Sprintf("`INTERNAL ERROR``") + NL + NL
+			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+				log("ERROR packages tglog: %v", tgerr)
+			}
+			return fmt.Errorf("os.Rename: %w", err)
 		}
 
 		if err := PutValuesTextFile(p.ValuesDeployedHashFilename(), p.ValuesHash); err != nil {
