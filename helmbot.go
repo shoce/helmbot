@@ -1028,7 +1028,7 @@ func ServerPackagesUpdate() (err error) {
 
 		log("DEBUG packages "+SPAC+"todeploy==%v", todeploy)
 
-		if !todeploy {
+		if ValuesReportedHash != ValuesDeployedHash && !todeploy {
 
 			// TODO report update is not starting now
 
@@ -1254,8 +1254,8 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 
 			if p.AllowedHours == nil {
 				p.AllowedHours = s.AllowedHours
-			}
-			if p.AllowedHours != nil {
+				p.AllowedHoursList = s.AllowedHoursList
+			} else {
 				p.AllowedHoursList = strings.Split(*p.AllowedHours, " ")
 			}
 
