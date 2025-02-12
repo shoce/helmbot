@@ -1191,7 +1191,7 @@ func ServerPackagesUpdate() (err error) {
 			release.Info.Status,
 			release.Version,
 		) + NL + NL
-		tgmsg += fmt.Sprintf("*%s %s %s UPDATE FINISHED*", strings.ToUpper(ServerHostname), strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
+		tgmsg += fmt.Sprintf("*%s %s UPDATE FINISHED*", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
 
 		if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 			log("ERROR packages tglog: %v", tgerr)
