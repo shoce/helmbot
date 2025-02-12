@@ -1203,7 +1203,7 @@ func ServerPackagesUpdate() (err error) {
 
 		// TODO remove p.ValuesPermitHashFilename()
 
-		log("DEBUG packages "+SPAC+"release Name==%v Namespace==%v Version==%v Info.Status==%v HashId==%v", release.Name, release.Namespace, release.Version, release.Info.Status, p.HashId())
+		log("DEBUG packages "+SPAC+"release Name==%v Namespace==%v Info.Status==%v Revision==%v HashId==%v", release.Name, release.Namespace, release.Info.Status, release.Version, p.HashId())
 
 		tgmsg += fmt.Sprintf(
 			"```"+NL+
