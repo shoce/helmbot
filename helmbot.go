@@ -888,7 +888,7 @@ func ServerPackagesUpdate() (err error) {
 			for name, v1 := range iv1 {
 				if v2, ok := iv2[name]; ok {
 					if v2 != v1 {
-						imagesvaluesdiff += fmt.Sprintf("%s: %#v => %#v "+NL, name, v1, v2)
+						imagesvaluesdiff += fmt.Sprintf("%s: %#v=>%#v "+NL, name, v1, v2)
 					}
 				} else {
 					imagesvaluesdiff += fmt.Sprintf("-- %s: %#v "+NL, name, v1)
