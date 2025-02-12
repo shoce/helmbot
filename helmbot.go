@@ -545,8 +545,8 @@ func ServerPackagesUpdate() (err error) {
 
 	if DEBUG {
 		for _, r := range installedreleases {
-			log("DEBUG packages Status==%s Name==%s Namespace==%s Version==%d Chart.Version==%s",
-				r.Info.Status, r.Name, r.Namespace, r.Version, r.Chart.Metadata.Version,
+			log("DEBUG packages Name==%s Namespace==%s Status==%s Revision==%d Version==%s",
+				r.Name, r.Namespace, r.Info.Status, r.Version, r.Chart.Metadata.Version,
 			)
 		}
 	}
@@ -572,7 +572,7 @@ func ServerPackagesUpdate() (err error) {
 		}
 
 		if d := time.Now().Sub(p.UpdateTimestamp).Truncate(time.Second); d < p.UpdateIntervalDuration {
-			log("DEBUG packages --- Name=%s %v until next update", p.Name, p.UpdateIntervalDuration-d)
+			log("DEBUG packages --- Name==%s %v until next update", p.Name, p.UpdateIntervalDuration-d)
 			continue
 		}
 
@@ -1269,6 +1269,11 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 			}
 		}
 
+		if s.DryRun == nil {
+			varfalse := false
+			s.DryRun = &varfalse
+		}
+
 		for _, p := range s.Packages {
 
 			p.Name = fmt.Sprintf("%s-%s", p.ChartName, p.EnvName)
@@ -1328,12 +1333,7 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 			}
 
 			if p.DryRun == nil {
-				if s.DryRun == nil {
-					varfalse := false
-					p.DryRun = &varfalse
-				} else {
-					p.DryRun = s.DryRun
-				}
+				p.DryRun = s.DryRun
 			}
 
 			p.GlobalValues = make(map[string]interface{})
