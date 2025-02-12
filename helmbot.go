@@ -1188,7 +1188,7 @@ func ServerPackagesUpdate() (err error) {
 			return fmt.Errorf("os.Rename %v %v: %w", path.Join(ConfigDir, p.ReportedDir()), path.Join(ConfigDir, p.DeployedDir()), err)
 		}
 
-		if err := PutValuesTextFile(p.ValuesDeployedHashFilename(), ValuesReportedHash); err != nil {
+		if err := PutValuesTextFile(p.ValuesDeployedHashFilename(), p.ValuesHash); err != nil {
 			return fmt.Errorf("PutValuesTextFile: %w", err)
 		}
 
