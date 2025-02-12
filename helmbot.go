@@ -980,8 +980,7 @@ func ServerPackagesUpdate() (err error) {
 
 			// TODO report pending update to telegram
 
-			tgmsg = fmt.Sprintf("*%s %s UPDATE*", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL
-			tgmsg += fmt.Sprintf("*%s*", ServerHostname) + NL + NL
+			tgmsg = fmt.Sprintf("*%s %s UPDATE*", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
 			if p.GlobalValuesText != DeployedGlobalValuesText {
 				tgmsg += fmt.Sprintf("`%s` changed", p.GlobalValuesFilename()) + NL + NL
 			}
@@ -1029,162 +1028,173 @@ func ServerPackagesUpdate() (err error) {
 
 		log("DEBUG packages "+SPAC+"todeploy==%v", todeploy)
 
-		if todeploy {
+		if !todeploy {
 
-			// TODO report starting update to telegram
+			// TODO report update is not starting now
 
-			tgmsg += fmt.Sprintf("*STARTING IN %v*", p.UpdateDelayDuration) + NL + NL
-
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+			tgmsg += "*NOT UPDATING NOW*; update will start *in the next allowed time window*" + NL + NL
+			tgmsg += "TO FORCE START THIS UPDATE NOW REPLY TO THIS MESSAGE WITH TEXT \"`NOW`\" (UPPERCASE)" + NL + NL
+			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, 0, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 				log("ERROR packages tglog: %v", tgerr)
 			}
 
-			if p.UpdateDelayDuration > 0 {
-				log("DEBUG packages "+SPAC+"sleeping %v", p.UpdateDelayDuration)
-				time.Sleep(p.UpdateDelayDuration)
+			time.Sleep(1 * time.Second)
+			continue
+
+		}
+
+		// TODO report starting update to telegram
+
+		tgmsg += fmt.Sprintf("*STARTING IN %v*", p.UpdateDelayDuration) + NL + NL
+
+		if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+			log("ERROR packages tglog: %v", tgerr)
+		}
+
+		if p.UpdateDelayDuration > 0 {
+			log("DEBUG packages "+SPAC+"sleeping %v", p.UpdateDelayDuration)
+			time.Sleep(p.UpdateDelayDuration)
+		}
+
+		//
+		// DEPLOY
+		//
+
+		namespaceexists := false
+		if kns, err := kclientset.CoreV1().Namespaces().Get(context.TODO(), p.Namespace, kmetav1.GetOptions{}); kerrors.IsNotFound(err) {
+			// namespaceexists == false
+		} else if err != nil {
+			log("ERROR packages Namespaces.Get: %v", err)
+			return err
+		} else if kns.Name == p.Namespace {
+			namespaceexists = true
+		}
+
+		if !namespaceexists {
+			pnamespace := &kcorev1.Namespace{
+				ObjectMeta: kmetav1.ObjectMeta{
+					Name: p.Namespace,
+				},
 			}
-
-			//
-			// DEPLOY
-			//
-
-			namespaceexists := false
-			if kns, err := kclientset.CoreV1().Namespaces().Get(context.TODO(), p.Namespace, kmetav1.GetOptions{}); kerrors.IsNotFound(err) {
-				// namespaceexists == false
-			} else if err != nil {
-				log("ERROR packages Namespaces.Get: %v", err)
-				return err
-			} else if kns.Name == p.Namespace {
-				namespaceexists = true
-			}
-
-			if !namespaceexists {
-				pnamespace := &kcorev1.Namespace{
-					ObjectMeta: kmetav1.ObjectMeta{
-						Name: p.Namespace,
-					},
-				}
-				if _, err := kclientset.CoreV1().Namespaces().Create(context.TODO(), pnamespace, kmetav1.CreateOptions{}); err != nil {
-					log("ERROR packages Namespaces.Create: %v", err)
-					return err
-				}
-			}
-
-			isinstalled := false
-			for _, r := range installedreleases {
-				if r.Name == p.Name && r.Namespace == p.Namespace {
-					isinstalled = true
-				}
-			}
-
-			var release *helmrelease.Release
-
-			// VALUES
-
-			values := make(map[string]interface{})
-			helmchartutil.MergeTables(values, p.ImagesValues)
-			helmchartutil.MergeTables(values, p.EnvValues)
-			helmchartutil.MergeTables(values, p.Values)
-			helmchartutil.MergeTables(values, p.GlobalValues)
-			helmchartutil.MergeTables(values, chartfull.Values)
-
-			log("DEBUG packages "+SPAC+"values==%+v", values)
-
-			if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), p.Namespace, "", log); err != nil {
+			if _, err := kclientset.CoreV1().Namespaces().Create(context.TODO(), pnamespace, kmetav1.CreateOptions{}); err != nil {
+				log("ERROR packages Namespaces.Create: %v", err)
 				return err
 			}
+		}
 
-			tgmsg += fmt.Sprintf("*STARTED*") + NL + NL
-
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
-				log("ERROR packages tglog: %v", tgerr)
+		isinstalled := false
+		for _, r := range installedreleases {
+			if r.Name == p.Name && r.Namespace == p.Namespace {
+				isinstalled = true
 			}
+		}
 
-			if isinstalled {
+		var release *helmrelease.Release
 
-				// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Upgrade
-				helmupgrade := helmaction.NewUpgrade(helmactioncfg)
-				helmupgrade.DryRun = *p.DryRun
-				helmupgrade.Namespace = p.Namespace
+		// VALUES
 
-				release, err = helmupgrade.Run(
-					p.Name,
-					chartfull,
-					values,
-				)
-				if err != nil {
-					log("ERROR packages helmupgrade.Run: %v", err)
-					tgmsg += fmt.Sprintf("*ERROR:*"+NL+"```"+NL+"%v"+NL+"```", err)
-					if _, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
-						log("ERROR packages tglog: %v", tgerr)
-					}
-					return err
-				}
+		values := make(map[string]interface{})
+		helmchartutil.MergeTables(values, p.ImagesValues)
+		helmchartutil.MergeTables(values, p.EnvValues)
+		helmchartutil.MergeTables(values, p.Values)
+		helmchartutil.MergeTables(values, p.GlobalValues)
+		helmchartutil.MergeTables(values, chartfull.Values)
 
-			} else {
+		log("DEBUG packages "+SPAC+"values==%+v", values)
 
-				// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Install
-				helminstall := helmaction.NewInstall(helmactioncfg)
-				helminstall.DryRun = *p.DryRun
-				helminstall.CreateNamespace = true
-				helminstall.Namespace = p.Namespace
-				helminstall.ReleaseName = p.Name
+		if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), p.Namespace, "", log); err != nil {
+			return err
+		}
 
-				release, err = helminstall.Run(
-					chartfull,
-					values,
-				)
-				if err != nil {
-					log("ERROR packages helminstall.Run: %v", err)
-					tgmsg += fmt.Sprintf("*ERROR:*"+NL+"```"+NL+"%v"+NL+"```", err)
-					if _, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
-						log("ERROR packages tglog: %v", tgerr)
-					}
-					return err
-				}
+		tgmsg += fmt.Sprintf("*STARTED*") + NL + NL
 
-			}
+		if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+			log("ERROR packages tglog: %v", tgerr)
+		}
 
-			err = os.RemoveAll(path.Join(ConfigDir, p.DeployedDir()))
+		if isinstalled {
+
+			// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Upgrade
+			helmupgrade := helmaction.NewUpgrade(helmactioncfg)
+			helmupgrade.DryRun = *p.DryRun
+			helmupgrade.Namespace = p.Namespace
+
+			release, err = helmupgrade.Run(
+				p.Name,
+				chartfull,
+				values,
+			)
 			if err != nil {
-				return fmt.Errorf("os.RemoveAll %v: %w", path.Join(ConfigDir, p.DeployedDir()), err)
+				log("ERROR packages helmupgrade.Run: %v", err)
+				tgmsg += fmt.Sprintf("*ERROR:*"+NL+"```"+NL+"%v"+NL+"```", err)
+				if _, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+					log("ERROR packages tglog: %v", tgerr)
+				}
+				return err
 			}
 
-			err = os.Rename(path.Join(ConfigDir, p.ReportedDir()), path.Join(ConfigDir, p.DeployedDir()))
+		} else {
+
+			// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Install
+			helminstall := helmaction.NewInstall(helmactioncfg)
+			helminstall.DryRun = *p.DryRun
+			helminstall.CreateNamespace = true
+			helminstall.Namespace = p.Namespace
+			helminstall.ReleaseName = p.Name
+
+			release, err = helminstall.Run(
+				chartfull,
+				values,
+			)
 			if err != nil {
-				return fmt.Errorf("os.Rename %v %v: %w", path.Join(ConfigDir, p.ReportedDir()), path.Join(ConfigDir, p.DeployedDir()), err)
+				log("ERROR packages helminstall.Run: %v", err)
+				tgmsg += fmt.Sprintf("*ERROR:*"+NL+"```"+NL+"%v"+NL+"```", err)
+				if _, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+					log("ERROR packages tglog: %v", tgerr)
+				}
+				return err
 			}
 
-			if err := PutValuesTextFile(p.ValuesDeployedHashFilename(), ValuesReportedHash); err != nil {
-				return fmt.Errorf("PutValuesTextFile: %w", err)
-			}
+		}
 
-			// TODO remove p.ValuesPermitHashFilename()
+		err = os.RemoveAll(path.Join(ConfigDir, p.DeployedDir()))
+		if err != nil {
+			return fmt.Errorf("os.RemoveAll %v: %w", path.Join(ConfigDir, p.DeployedDir()), err)
+		}
 
-			log("DEBUG packages "+SPAC+"%s deployed ", p.HashId())
+		err = os.Rename(path.Join(ConfigDir, p.ReportedDir()), path.Join(ConfigDir, p.DeployedDir()))
+		if err != nil {
+			return fmt.Errorf("os.Rename %v %v: %w", path.Join(ConfigDir, p.ReportedDir()), path.Join(ConfigDir, p.DeployedDir()), err)
+		}
 
-			log("DEBUG packages "+SPAC+"release Name==%v Namespace==%v Version==%v Info.Status==%v", release.Name, release.Namespace, release.Version, release.Info.Status)
+		if err := PutValuesTextFile(p.ValuesDeployedHashFilename(), ValuesReportedHash); err != nil {
+			return fmt.Errorf("PutValuesTextFile: %w", err)
+		}
 
-			// TODO report finished update to telegram
+		// TODO remove p.ValuesPermitHashFilename()
 
-			tgmsg += fmt.Sprintf(
-				"```"+NL+
-					"name: %v"+NL+
-					"namespace: %v"+NL+
-					"status: %v"+NL+
-					"revision: %v"+NL+
-					"```",
-				release.Name,
-				release.Namespace,
-				release.Info.Status,
-				release.Version,
-			) + NL + NL
-			tgmsg += fmt.Sprintf("*%s %s %s UPDATE FINISHED*", strings.ToUpper(ServerHostname), strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
+		log("DEBUG packages "+SPAC+"%s deployed ", p.HashId())
 
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
-				log("ERROR packages tglog: %v", tgerr)
-			}
+		log("DEBUG packages "+SPAC+"release Name==%v Namespace==%v Version==%v Info.Status==%v", release.Name, release.Namespace, release.Version, release.Info.Status)
 
+		// TODO report finished update to telegram
+
+		tgmsg += fmt.Sprintf(
+			"```"+NL+
+				"name: %v"+NL+
+				"namespace: %v"+NL+
+				"status: %v"+NL+
+				"revision: %v"+NL+
+				"```",
+			release.Name,
+			release.Namespace,
+			release.Info.Status,
+			release.Version,
+		) + NL + NL
+		tgmsg += fmt.Sprintf("*%s %s %s UPDATE FINISHED*", strings.ToUpper(ServerHostname), strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
+
+		if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+			log("ERROR packages tglog: %v", tgerr)
 		}
 
 		time.Sleep(1 * time.Second)
