@@ -981,7 +981,7 @@ func ServerPackagesUpdate() (err error) {
 			// TODO report pending update to telegram
 
 			tgmsg = fmt.Sprintf("*%s %s UPDATE*", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL
-			tgmsg += fmt.Sprintf("`%s` *server*", ServerHostname) + NL + NL
+			tgmsg += fmt.Sprintf("*%s*", ServerHostname) + NL + NL
 			if p.GlobalValuesText != DeployedGlobalValuesText {
 				tgmsg += fmt.Sprintf("`%s` changed", p.GlobalValuesFilename()) + NL + NL
 			}
