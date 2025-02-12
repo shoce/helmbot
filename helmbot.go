@@ -998,7 +998,7 @@ func ServerPackagesUpdate() (err error) {
 				log("ERROR packages tglog: %v", tgerr)
 			}
 
-			log("DEBUG packages "+SPAC+"%s reported ", p.HashId())
+			log("DEBUG packages "+SPAC+"%s reported", p.HashId())
 
 		}
 
