@@ -571,7 +571,6 @@ func ServerPackagesUpdate() (err error) {
 			p.UpdateTimestamp = updatetimestampfilestat.ModTime()
 		}
 
-		// TODO do local ops though
 		if d := time.Now().Sub(p.UpdateTimestamp).Truncate(time.Second); d < p.UpdateIntervalDuration {
 			log("DEBUG packages --- Name=%s %v until next update", p.Name, p.UpdateIntervalDuration-d)
 			continue
@@ -580,6 +579,11 @@ func ServerPackagesUpdate() (err error) {
 		timenowhour := fmt.Sprintf("%02d", time.Now().In(p.TimezoneLocation).Hour())
 
 		log("DEBUG packages --- Name==%s Namespace:%s AlwaysForceNow==%v AllowedHours==%v TimeNowHour==%v UpdateInterval==%v", p.Name, p.Namespace, *p.AlwaysForceNow, p.AllowedHoursList, timenowhour, p.UpdateIntervalDuration)
+
+		if DEBUG {
+			//log("DEBUG packages "+SPAC+"config==%#v", p)
+			log("DEBUG packages "+SPAC+"repo.address==%#v chartaddress==%#v chartlocalfilename==%#v", p.ChartRepo.Address, p.ChartAddress, p.ChartLocalFilename)
+		}
 
 		//
 		// READ LATEST VALUES
@@ -598,11 +602,6 @@ func ServerPackagesUpdate() (err error) {
 		err = GetValuesFile(p.EnvValuesFilename(), &p.EnvValuesText, p.EnvValues)
 		if err != nil {
 			return fmt.Errorf("GetValuesFile %v: %w", p.EnvValuesFilename(), err)
-		}
-
-		if DEBUG {
-			log("DEBUG packages "+SPAC+"config==%#v", p)
-			log("DEBUG packages "+SPAC+"repo.address==%#v chartaddress==%#v chartlocalfilename==%#v", p.ChartRepo.Address, p.ChartAddress, p.ChartLocalFilename)
 		}
 
 		//
@@ -785,15 +784,6 @@ func ServerPackagesUpdate() (err error) {
 		chartversion = chartfull.Metadata.Version
 		log("DEBUG packages "+SPAC+"chart version==%v", chartversion)
 
-		tnow := time.Now()
-		if err := os.Chtimes(updatetimestampfilename, tnow, tnow); os.IsNotExist(err) {
-			if f, err := os.Create(updatetimestampfilename); err == nil {
-				f.Close()
-			} else {
-				log("ERROR packages "+SPAC+"create timestamp file: %s", err)
-			}
-		}
-
 		//
 		// FILL IMAGES VALUES
 		//
@@ -816,11 +806,45 @@ func ServerPackagesUpdate() (err error) {
 		log("DEBUG packages "+SPAC+"ImagesValues==%#v", p.ImagesValues)
 
 		//
+		// LATEST UPDATE TIMESTAMP
+		//
+
+		timenow := time.Now()
+		if err := os.Chtimes(updatetimestampfilename, timenow, timenow); os.IsNotExist(err) {
+			if f, err := os.Create(updatetimestampfilename); err == nil {
+				f.Close()
+			} else {
+				log("ERROR packages "+SPAC+"create timestamp file: %v", err)
+			}
+		}
+
+		//
 		// LATEST VALUES HASH
 		//
 
 		allvaluestext := p.GlobalValuesText + p.ValuesText + p.EnvValuesText + p.ImagesValuesText
 		p.ValuesHash = fmt.Sprintf("%x", sha256.Sum256([]byte(allvaluestext)))[:10]
+
+		//
+		// READ DEPLOYED HASH
+		//
+
+		var ValuesDeployedHash string
+		if err := GetValuesTextFile(p.ValuesDeployedHashFilename(), &ValuesDeployedHash); err != nil {
+			log("ERROR packages "+SPAC+"GetValuesTextFile: %s", err)
+		}
+
+		//
+		// COMPARE LATEST HASH VS DEPLOYED HASH
+		//
+
+		if p.ValuesHash == ValuesDeployedHash {
+
+			log("DEBUG packages " + SPAC + "ValuesHash==ValuesDeployedHash")
+			time.Sleep(1 * time.Second)
+			continue
+
+		}
 
 		//
 		// READ DEPLOYED VALUES
@@ -846,32 +870,28 @@ func ServerPackagesUpdate() (err error) {
 			log("ERROR packages "+SPAC+"GetValuesTextFile: %s", err)
 		}
 
-		// READ DEPLOYED HASH
-
-		var ValuesDeployedHash string
-		if err := GetValuesTextFile(p.ValuesDeployedHashFilename(), &ValuesDeployedHash); err != nil {
-			log("ERROR packages "+SPAC+"GetValuesTextFile: %s", err)
-		}
-
+		//
 		// COMPARE LATEST VS DEPLOYED
+		//
+
+		globalvaluesdiff := false
+		valuesdiff := false
+		envvaluesdiff := false
+		imagesvaluesdiff := ""
 
 		if p.GlobalValuesText != DeployedGlobalValuesText {
-			log("DEBUG packages " + SPAC + "GlobalValuesText diff ")
+			globalvaluesdiff = true
 		}
 
 		if p.ValuesText != DeployedValuesText {
-			log("DEBUG packages " + SPAC + "ValuesText diff ")
+			valuesdiff = true
 		}
 
 		if p.EnvValuesText != DeployedEnvValuesText {
-			log("DEBUG packages " + SPAC + "EnvValuesText diff ")
+			envvaluesdiff = true
 		}
 
-		imagesvaluesdiff := ""
-
 		if p.ImagesValuesText != DeployedImagesValuesText {
-
-			log("DEBUG packages " + SPAC + "ImagesValuesText diff ")
 
 			DeployedImagesValuesMap := make(map[string]string)
 			yd := yaml.NewDecoder(strings.NewReader(DeployedImagesValuesText))
@@ -911,16 +931,23 @@ func ServerPackagesUpdate() (err error) {
 			log("ERROR packages "+SPAC+"GetValuesTextFile: %s", err)
 		}
 
-		// READ PERMIT HASH
-
-		var PermitHash string
-		if err := GetValuesTextFile(p.ValuesPermitHashFilename(), &PermitHash); err != nil {
-			log("ERROR packages "+SPAC+"GetValuesTextFile: %s", err)
-		}
-
 		var tgmsg string
 		var tgmsgid int64
 		var tgerr error
+
+		tgmsg = fmt.Sprintf("*%s %s UPDATE*", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
+		if globalvaluesdiff {
+			tgmsg += fmt.Sprintf("`%s` changed", p.GlobalValuesFilename()) + NL + NL
+		}
+		if valuesdiff {
+			tgmsg += fmt.Sprintf("`%s` changed", p.ValuesFilename()) + NL + NL
+		}
+		if envvaluesdiff {
+			tgmsg += fmt.Sprintf("`%s` changed", p.EnvValuesFilename()) + NL + NL
+		}
+		if imagesvaluesdiff != "" {
+			tgmsg += fmt.Sprintf("`%s` diff:"+NL+"```"+NL+"%s"+NL+"```", p.ImagesValuesFilename(), imagesvaluesdiff) + NL + NL
+		}
 
 		if p.ValuesHash != ValuesReportedHash {
 
@@ -978,51 +1005,32 @@ func ServerPackagesUpdate() (err error) {
 				return fmt.Errorf("PutValuesTextFile: %w", err)
 			}
 
-			// TODO report pending update to telegram
+		}
 
-			tgmsg = fmt.Sprintf("*%s %s UPDATE*", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
-			if p.GlobalValuesText != DeployedGlobalValuesText {
-				tgmsg += fmt.Sprintf("`%s` changed", p.GlobalValuesFilename()) + NL + NL
-			}
-			if p.ValuesText != DeployedValuesText {
-				tgmsg += fmt.Sprintf("`%s` changed", p.ValuesFilename()) + NL + NL
-			}
-			if p.EnvValuesText != DeployedEnvValuesText {
-				tgmsg += fmt.Sprintf("`%s` changed", p.EnvValuesFilename()) + NL + NL
-			}
-			if imagesvaluesdiff != "" {
-				tgmsg += fmt.Sprintf("`%s` diff:"+NL+"```"+NL+"%s"+NL+"```", p.ImagesValuesFilename(), imagesvaluesdiff) + NL + NL
-			}
+		//
+		// READ PERMIT HASH
+		//
 
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, 0, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
-				log("ERROR packages tglog: %v", tgerr)
-			}
-
-			log("DEBUG packages "+SPAC+"%s reported", p.HashId())
-
+		var PermitHash string
+		if err := GetValuesTextFile(p.ValuesPermitHashFilename(), &PermitHash); err != nil {
+			log("ERROR packages "+SPAC+"GetValuesTextFile: %s", err)
 		}
 
 		log("DEBUG packages "+SPAC+"ValuesHash==%v ValuesReportedHash==%v ValuesDeployedHash==%v PermitHash==%v ", p.ValuesHash, ValuesReportedHash, ValuesDeployedHash, PermitHash)
 
-		if ValuesReportedHash == ValuesDeployedHash {
-
-			time.Sleep(1 * time.Second)
-			continue
-
-		}
+		//
+		// CHECK IF DEPLOY IS ALLOWED NOW
+		//
 
 		deploynow := false
 
-		if PermitHash == ValuesReportedHash {
-			deploynow = true
-		}
 		if p.AlwaysForceNow != nil && *p.AlwaysForceNow {
 			deploynow = true
 		}
-		if len(p.AllowedHoursList) > 0 && deploynow == false {
-			log("DEBUG packages "+SPAC+"AllowedHoursList==%+v timenowhour==%+v", p.AllowedHoursList, timenowhour)
-		}
 		if slices.Contains(p.AllowedHoursList, timenowhour) {
+			deploynow = true
+		}
+		if PermitHash == ValuesReportedHash {
 			deploynow = true
 		}
 
@@ -1039,27 +1047,53 @@ func ServerPackagesUpdate() (err error) {
 
 		}
 
-		tgmsg += fmt.Sprintf("*STARTING IN %v*", p.UpdateDelayDuration) + NL + NL
-
-		if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
-			log("ERROR packages tglog: %v", tgerr)
-		}
-
 		if p.UpdateDelayDuration > 0 {
+
+			tgmsg += fmt.Sprintf("*STARTING IN %v*", p.UpdateDelayDuration) + NL + NL
+
+			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+				log("ERROR packages tglog: %v", tgerr)
+			}
+
 			log("DEBUG packages "+SPAC+"sleeping %v", p.UpdateDelayDuration)
 			time.Sleep(p.UpdateDelayDuration)
+
 		}
 
 		//
 		// DEPLOY
 		//
 
+		//
+		// PREPARE VALUES
+		//
+
+		values := make(map[string]interface{})
+		helmchartutil.MergeTables(values, p.ImagesValues)
+		helmchartutil.MergeTables(values, p.EnvValues)
+		helmchartutil.MergeTables(values, p.Values)
+		helmchartutil.MergeTables(values, p.GlobalValues)
+		helmchartutil.MergeTables(values, chartfull.Values)
+
+		log("DEBUG packages "+SPAC+"values==%+v", values)
+
+		if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), p.Namespace, "", log); err != nil {
+			return err
+		}
+
+		tgmsg += fmt.Sprintf("*STARTED*") + NL + NL
+
+		if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+			log("ERROR packages tglog: %v", tgerr)
+		}
+
 		namespaceexists := false
 		if kns, err := kclientset.CoreV1().Namespaces().Get(context.TODO(), p.Namespace, kmetav1.GetOptions{}); kerrors.IsNotFound(err) {
 			// namespaceexists == false
 		} else if err != nil {
 			log("ERROR packages Namespaces.Get: %v", err)
-			return err
+			time.Sleep(1 * time.Second)
+			continue
 		} else if kns.Name == p.Namespace {
 			namespaceexists = true
 		}
@@ -1085,27 +1119,6 @@ func ServerPackagesUpdate() (err error) {
 
 		var release *helmrelease.Release
 
-		// VALUES
-
-		values := make(map[string]interface{})
-		helmchartutil.MergeTables(values, p.ImagesValues)
-		helmchartutil.MergeTables(values, p.EnvValues)
-		helmchartutil.MergeTables(values, p.Values)
-		helmchartutil.MergeTables(values, p.GlobalValues)
-		helmchartutil.MergeTables(values, chartfull.Values)
-
-		log("DEBUG packages "+SPAC+"values==%+v", values)
-
-		if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), p.Namespace, "", log); err != nil {
-			return err
-		}
-
-		tgmsg += fmt.Sprintf("*STARTED*") + NL + NL
-
-		if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
-			log("ERROR packages tglog: %v", tgerr)
-		}
-
 		if isinstalled {
 
 			// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Upgrade
@@ -1119,12 +1132,18 @@ func ServerPackagesUpdate() (err error) {
 				values,
 			)
 			if err != nil {
+
 				log("ERROR packages helmupgrade.Run: %v", err)
+
 				tgmsg += fmt.Sprintf("*ERROR:*"+NL+"```"+NL+"%v"+NL+"```", err)
+
 				if _, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 					log("ERROR packages tglog: %v", tgerr)
 				}
-				return err
+
+				time.Sleep(1 * time.Second)
+				continue
+
 			}
 
 		} else {
@@ -1141,12 +1160,18 @@ func ServerPackagesUpdate() (err error) {
 				values,
 			)
 			if err != nil {
+
 				log("ERROR packages helminstall.Run: %v", err)
+
 				tgmsg += fmt.Sprintf("*ERROR:*"+NL+"```"+NL+"%v"+NL+"```", err)
+
 				if _, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 					log("ERROR packages tglog: %v", tgerr)
 				}
-				return err
+
+				time.Sleep(1 * time.Second)
+				continue
+
 			}
 
 		}
@@ -1167,9 +1192,7 @@ func ServerPackagesUpdate() (err error) {
 
 		// TODO remove p.ValuesPermitHashFilename()
 
-		log("DEBUG packages "+SPAC+"%s deployed ", p.HashId())
-
-		log("DEBUG packages "+SPAC+"release Name==%v Namespace==%v Version==%v Info.Status==%v", release.Name, release.Namespace, release.Version, release.Info.Status)
+		log("DEBUG packages "+SPAC+"release Name==%v Namespace==%v Version==%v Info.Status==%v HashId==%v", release.Name, release.Namespace, release.Version, release.Info.Status, p.HashId())
 
 		tgmsg += fmt.Sprintf(
 			"```"+NL+
@@ -1190,6 +1213,7 @@ func ServerPackagesUpdate() (err error) {
 		}
 
 		time.Sleep(1 * time.Second)
+		continue
 
 	}
 
