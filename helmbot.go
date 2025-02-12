@@ -931,24 +931,6 @@ func ServerPackagesUpdate() (err error) {
 			log("ERROR packages "+SPAC+"GetValuesTextFile: %s", err)
 		}
 
-		var tgmsg string
-		var tgmsgid int64
-		var tgerr error
-
-		tgmsg = fmt.Sprintf("*%s %s UPDATE*", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
-		if globalvaluesdiff {
-			tgmsg += fmt.Sprintf("`%s` changed", p.GlobalValuesFilename()) + NL + NL
-		}
-		if valuesdiff {
-			tgmsg += fmt.Sprintf("`%s` changed", p.ValuesFilename()) + NL + NL
-		}
-		if envvaluesdiff {
-			tgmsg += fmt.Sprintf("`%s` changed", p.EnvValuesFilename()) + NL + NL
-		}
-		if imagesvaluesdiff != "" {
-			tgmsg += fmt.Sprintf("`%s` diff:"+NL+"```"+NL+"%s"+NL+"```", p.ImagesValuesFilename(), imagesvaluesdiff) + NL + NL
-		}
-
 		if p.ValuesHash != ValuesReportedHash {
 
 			//
@@ -985,8 +967,6 @@ func ServerPackagesUpdate() (err error) {
 				return fmt.Errorf("PutValuesTextFile: %w", err)
 			}
 
-			log("DEBUG packages "+SPAC+"%s latest ", p.HashId())
-
 			//
 			// LATEST => REPORTED
 			//
@@ -999,9 +979,7 @@ func ServerPackagesUpdate() (err error) {
 				return fmt.Errorf("os.Rename %v %v: %w", path.Join(ConfigDir, p.LatestDir()), path.Join(ConfigDir, p.ReportedDir()), err)
 			}
 
-			ValuesReportedHash = p.ValuesHash
-
-			if err := PutValuesTextFile(p.ValuesReportedHashFilename(), ValuesReportedHash); err != nil {
+			if err := PutValuesTextFile(p.ValuesReportedHashFilename(), p.ValuesHash); err != nil {
 				return fmt.Errorf("PutValuesTextFile: %w", err)
 			}
 
@@ -1030,16 +1008,42 @@ func ServerPackagesUpdate() (err error) {
 		if slices.Contains(p.AllowedHoursList, timenowhour) {
 			deploynow = true
 		}
-		if PermitHash == ValuesReportedHash {
+		if PermitHash == p.ValuesHash {
 			deploynow = true
+		}
+
+		//
+		// PREPARE TELEGRAM MESSAGE
+		//
+
+		var tgmsg string
+		var tgmsgid int64
+		var tgerr error
+
+		tgmsg = fmt.Sprintf("*%s %s UPDATE*", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
+		if globalvaluesdiff {
+			tgmsg += fmt.Sprintf("`%s` changed", p.GlobalValuesFilename()) + NL + NL
+		}
+		if valuesdiff {
+			tgmsg += fmt.Sprintf("`%s` changed", p.ValuesFilename()) + NL + NL
+		}
+		if envvaluesdiff {
+			tgmsg += fmt.Sprintf("`%s` changed", p.EnvValuesFilename()) + NL + NL
+		}
+		if imagesvaluesdiff != "" {
+			tgmsg += fmt.Sprintf("`%s` diff:"+NL+"```"+NL+"%s"+NL+"```", p.ImagesValuesFilename(), imagesvaluesdiff) + NL + NL
 		}
 
 		if !deploynow {
 
-			tgmsg += "*NOT UPDATING NOW*; update will start *in the next allowed time window*" + NL + NL
-			tgmsg += "TO FORCE START THIS UPDATE NOW REPLY TO THIS MESSAGE WITH TEXT \"`NOW`\" (UPPERCASE)" + NL + NL
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, 0, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
-				log("ERROR packages tglog: %v", tgerr)
+			if p.ValuesHash != ValuesReportedHash {
+
+				tgmsg += "*NOT UPDATING NOW*; update will start *in the next allowed time window*" + NL + NL
+				tgmsg += "TO FORCE START THIS UPDATE NOW REPLY TO THIS MESSAGE WITH TEXT \"`NOW`\" (UPPERCASE)" + NL + NL
+				if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, 0, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+					log("ERROR packages tglog: %v", tgerr)
+				}
+
 			}
 
 			time.Sleep(1 * time.Second)
@@ -1064,9 +1068,13 @@ func ServerPackagesUpdate() (err error) {
 		// DEPLOY
 		//
 
-		//
+		tgmsg += fmt.Sprintf("*STARTED*") + NL + NL
+
+		if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+			log("ERROR packages tglog: %v", tgerr)
+		}
+
 		// PREPARE VALUES
-		//
 
 		values := make(map[string]interface{})
 		helmchartutil.MergeTables(values, p.ImagesValues)
@@ -1079,12 +1087,6 @@ func ServerPackagesUpdate() (err error) {
 
 		if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), p.Namespace, "", log); err != nil {
 			return err
-		}
-
-		tgmsg += fmt.Sprintf("*STARTED*") + NL + NL
-
-		if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
-			log("ERROR packages tglog: %v", tgerr)
 		}
 
 		namespaceexists := false
