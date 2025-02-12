@@ -981,7 +981,7 @@ func ServerPackagesUpdate() (err error) {
 			// TODO report pending update to telegram
 
 			tgmsg = fmt.Sprintf("*%s %s UPDATE*", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL
-			tgmsg += fmt.Sprintf("`%s` *server*", strings.ToUpper(ServerHostname)) + NL + NL
+			tgmsg += fmt.Sprintf("`%s` *server*", ServerHostname) + NL + NL
 			if p.GlobalValuesText != DeployedGlobalValuesText {
 				tgmsg += fmt.Sprintf("`%s` changed", p.GlobalValuesFilename()) + NL + NL
 			}
@@ -995,7 +995,7 @@ func ServerPackagesUpdate() (err error) {
 				tgmsg += fmt.Sprintf("`%s` diff:"+NL+"```"+NL+"%s"+NL+"```", p.ImagesValuesFilename(), imagesvaluesdiff) + NL + NL
 			}
 
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, 0, tgmsg+p.HashId()); tgerr != nil {
+			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, 0, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 				log("ERROR packages tglog: %v", tgerr)
 			}
 
@@ -1035,7 +1035,7 @@ func ServerPackagesUpdate() (err error) {
 
 			tgmsg += fmt.Sprintf("*STARTING IN %v*", p.UpdateDelayDuration) + NL + NL
 
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+p.HashId()); tgerr != nil {
+			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 				log("ERROR packages tglog: %v", tgerr)
 			}
 
@@ -1096,7 +1096,7 @@ func ServerPackagesUpdate() (err error) {
 
 			tgmsg += fmt.Sprintf("*STARTED*") + NL + NL
 
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+p.HashId()); tgerr != nil {
+			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 				log("ERROR packages tglog: %v", tgerr)
 			}
 
@@ -1115,7 +1115,7 @@ func ServerPackagesUpdate() (err error) {
 				if err != nil {
 					log("ERROR packages helmupgrade.Run: %v", err)
 					tgmsg += fmt.Sprintf("*ERROR:*"+NL+"```"+NL+"%v"+NL+"```", err)
-					if _, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+p.HashId()); tgerr != nil {
+					if _, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 						log("ERROR packages tglog: %v", tgerr)
 					}
 					return err
@@ -1137,7 +1137,7 @@ func ServerPackagesUpdate() (err error) {
 				if err != nil {
 					log("ERROR packages helminstall.Run: %v", err)
 					tgmsg += fmt.Sprintf("*ERROR:*"+NL+"```"+NL+"%v"+NL+"```", err)
-					if _, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+p.HashId()); tgerr != nil {
+					if _, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 						log("ERROR packages tglog: %v", tgerr)
 					}
 					return err
@@ -1169,10 +1169,10 @@ func ServerPackagesUpdate() (err error) {
 
 			tgmsg += fmt.Sprintf(
 				"```"+NL+
-					"NAME: %s"+NL+
-					"NAMESPACE: %s"+NL+
-					"STATUS: %s"+NL+
-					"REVISION: %s"+NL+
+					"name: %v"+NL+
+					"namespace: %v"+NL+
+					"status: %v"+NL+
+					"revision: %v"+NL+
 					"```",
 				release.Name,
 				release.Namespace,
@@ -1181,7 +1181,7 @@ func ServerPackagesUpdate() (err error) {
 			) + NL + NL
 			tgmsg += fmt.Sprintf("*%s %s %s UPDATE FINISHED*", strings.ToUpper(ServerHostname), strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
 
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+p.HashId()); tgerr != nil {
+			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 				log("ERROR packages tglog: %v", tgerr)
 			}
 
