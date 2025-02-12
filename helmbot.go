@@ -1086,6 +1086,7 @@ func ServerPackagesUpdate() (err error) {
 		log("DEBUG packages "+SPAC+"values==%+v", values)
 
 		if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), p.Namespace, "", log); err != nil {
+			// TODO report error
 			return err
 		}
 
@@ -1108,6 +1109,7 @@ func ServerPackagesUpdate() (err error) {
 			}
 			if _, err := kclientset.CoreV1().Namespaces().Create(context.TODO(), pnamespace, kmetav1.CreateOptions{}); err != nil {
 				log("ERROR packages Namespaces.Create: %v", err)
+				// TODO report error
 				return err
 			}
 		}
@@ -1137,7 +1139,7 @@ func ServerPackagesUpdate() (err error) {
 
 				log("ERROR packages helmupgrade.Run: %v", err)
 
-				tgmsg += fmt.Sprintf("*ERROR:*"+NL+"```"+NL+"%v"+NL+"```", err)
+				tgmsg += fmt.Sprintf("*ERROR*:"+NL+"```"+NL+"%v"+NL+"```", err)
 
 				if _, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 					log("ERROR packages tglog: %v", tgerr)
@@ -1165,7 +1167,7 @@ func ServerPackagesUpdate() (err error) {
 
 				log("ERROR packages helminstall.Run: %v", err)
 
-				tgmsg += fmt.Sprintf("*ERROR:*"+NL+"```"+NL+"%v"+NL+"```", err)
+				tgmsg += fmt.Sprintf("*ERROR*:"+NL+"```"+NL+"%v"+NL+"```", err)
 
 				if _, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 					log("ERROR packages tglog: %v", tgerr)
@@ -1180,15 +1182,18 @@ func ServerPackagesUpdate() (err error) {
 
 		err = os.RemoveAll(path.Join(ConfigDir, p.DeployedDir()))
 		if err != nil {
+			// TODO report error
 			return fmt.Errorf("os.RemoveAll %v: %w", path.Join(ConfigDir, p.DeployedDir()), err)
 		}
 
 		err = os.Rename(path.Join(ConfigDir, p.ReportedDir()), path.Join(ConfigDir, p.DeployedDir()))
 		if err != nil {
+			// TODO report error
 			return fmt.Errorf("os.Rename %v %v: %w", path.Join(ConfigDir, p.ReportedDir()), path.Join(ConfigDir, p.DeployedDir()), err)
 		}
 
 		if err := PutValuesTextFile(p.ValuesDeployedHashFilename(), p.ValuesHash); err != nil {
+			// TODO report error
 			return fmt.Errorf("PutValuesTextFile: %w", err)
 		}
 
