@@ -1004,44 +1004,51 @@ func ServerPackagesUpdate() (err error) {
 
 		log("DEBUG packages "+SPAC+"ValuesHash==%v ValuesReportedHash==%v ValuesDeployedHash==%v PermitHash==%v ", p.ValuesHash, ValuesReportedHash, ValuesDeployedHash, PermitHash)
 
-		todeploy := false
+		deploypending := ValuesReportedHash != ValuesDeployedHash
+		deploynow := false
 
-		if ValuesReportedHash != ValuesDeployedHash {
+		if deploypending {
 
 			if PermitHash == ValuesReportedHash {
-				todeploy = true
+				deploynow = true
 			}
 
 			if p.AlwaysForceNow != nil && *p.AlwaysForceNow {
-				todeploy = true
+				deploynow = true
 			}
 
-			if len(p.AllowedHoursList) > 0 && todeploy == false {
+			if len(p.AllowedHoursList) > 0 && deploynow == false {
 				log("DEBUG packages "+SPAC+"AllowedHoursList==%+v timenowhour==%+v", p.AllowedHoursList, timenowhour)
 			}
 
 			if slices.Contains(p.AllowedHoursList, timenowhour) {
-				todeploy = true
+				deploynow = true
 			}
 
+			if !deploynow {
+
+				// TODO report update is not starting now
+
+				tgmsg += "*NOT UPDATING NOW*; update will start *in the next allowed time window*" + NL + NL
+				tgmsg += "TO FORCE START THIS UPDATE NOW REPLY TO THIS MESSAGE WITH TEXT \"`NOW`\" (UPPERCASE)" + NL + NL
+				if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, 0, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+					log("ERROR packages tglog: %v", tgerr)
+				}
+
+				time.Sleep(1 * time.Second)
+				continue
+
+			}
 		}
 
-		log("DEBUG packages "+SPAC+"todeploy==%v", todeploy)
-
-		if ValuesReportedHash != ValuesDeployedHash && !todeploy {
-
-			// TODO report update is not starting now
-
-			tgmsg += "*NOT UPDATING NOW*; update will start *in the next allowed time window*" + NL + NL
-			tgmsg += "TO FORCE START THIS UPDATE NOW REPLY TO THIS MESSAGE WITH TEXT \"`NOW`\" (UPPERCASE)" + NL + NL
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, 0, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
-				log("ERROR packages tglog: %v", tgerr)
-			}
+		if !deploypending {
 
 			time.Sleep(1 * time.Second)
 			continue
 
 		}
+
+		log("DEBUG packages "+SPAC+"deploynow==%v", deploynow)
 
 		// TODO report starting update to telegram
 
