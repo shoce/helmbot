@@ -1098,8 +1098,11 @@ func ServerPackagesUpdate() (err error) {
 			// namespaceexists == false
 		} else if err != nil {
 			log("ERROR packages Namespaces.Get: %v", err)
-			time.Sleep(1 * time.Second)
-			continue
+			tgmsg += fmt.Sprintf("`INTERNAL ERROR`") + NL + NL
+			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+				log("ERROR packages tglog: %v", tgerr)
+			}
+			return err
 		} else if kns.Name == p.Namespace {
 			namespaceexists = true
 		}
@@ -1151,8 +1154,7 @@ func ServerPackagesUpdate() (err error) {
 					log("ERROR packages tglog: %v", tgerr)
 				}
 
-				time.Sleep(1 * time.Second)
-				continue
+				return err
 
 			}
 
@@ -1179,8 +1181,7 @@ func ServerPackagesUpdate() (err error) {
 					log("ERROR packages tglog: %v", tgerr)
 				}
 
-				time.Sleep(1 * time.Second)
-				continue
+				return err
 
 			}
 
@@ -1241,6 +1242,10 @@ func ServerPackagesUpdate() (err error) {
 		if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 			log("ERROR packages tglog: %v", tgerr)
 		}
+
+		//
+		// DEPLOY FINISHED
+		//
 
 		time.Sleep(1 * time.Second)
 		continue
