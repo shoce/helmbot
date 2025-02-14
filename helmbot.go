@@ -140,9 +140,7 @@ func init() {
 	log("DEBUG ConfigDir==%v", ConfigDir)
 
 	PackagesConfigFilename = os.Getenv("PackagesConfigFilename")
-	if PackagesConfigFilename == "" {
-		log("WARNING empty PackagesConfigFilename env var")
-	}
+	log("DEBUG PackagesConfigFilename==%v", PackagesConfigFilename)
 
 	if v := os.Getenv("PackagesUpgradeInterval"); v != "" {
 		if d, err := time.ParseDuration(v); err != nil {
@@ -215,9 +213,7 @@ func init() {
 	}
 
 	TgWebhookUrl = os.Getenv("TgWebhookUrl")
-	if TgWebhookUrl == "" {
-		log("WARNING empty TgWebhookUrl env var")
-	}
+	log("DEBUG TgWebhookUrl==%v", TgWebhookUrl)
 
 	TgWebhookToken = os.Getenv("TgWebhookToken")
 	if TgWebhookToken == "" {
@@ -258,7 +254,7 @@ func init() {
 func main() {
 
 	if TgWebhookUrl != "" {
-		log("TgWebhookUrl==`%s` so setting webhook with telegram to receive updates.", TgWebhookUrl)
+		log("DEBUG TgWebhookUrl==%v so setting webhook with telegram to receive updates.", TgWebhookUrl)
 		if err := TgSetWebhook(TgWebhookUrl, []string{"message", "channel_post"}, TgWebhookToken); err != nil {
 			log("ERROR TgSetWebhook: %+v", err)
 			os.Exit(1)
@@ -268,13 +264,13 @@ func main() {
 
 		go func() {
 			for {
-				log("http: serving requests on `%s`.", ListenAddr)
+				log("DEBUG webhook serving requests on %v.", ListenAddr)
 				err := http.ListenAndServe(ListenAddr, nil)
 				if err != nil {
-					log("ERROR http: %+v", err)
+					log("ERROR webhook ListenAndServe: %+v", err)
 				}
 				retryinterval := 11 * time.Second
-				log("http: retrying in %s.", retryinterval)
+				log("DEBUG webhook retrying ListenAndServe in %v", retryinterval)
 				time.Sleep(retryinterval)
 			}
 		}()
