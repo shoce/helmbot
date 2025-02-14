@@ -1296,6 +1296,14 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 
 		for _, p := range s.Packages {
 
+			if p.ChartName == "" {
+				return nil, fmt.Errorf("package ChartName is empty")
+			}
+
+			if p.EnvName == "" {
+				return nil, fmt.Errorf("package EnvName is empty")
+			}
+
 			p.Name = fmt.Sprintf("%s-%s", p.ChartName, p.EnvName)
 
 			if p.Namespace == "" {
