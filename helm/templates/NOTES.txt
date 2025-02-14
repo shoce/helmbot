@@ -1,0 +1,3 @@
+these notes are for testing purposes only.
+chart name is {{ .Chart.Name }}.
+release name is {{ .Release.Name }}.
