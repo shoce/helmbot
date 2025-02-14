@@ -1075,7 +1075,7 @@ func ServerPackagesUpdate() (err error) {
 		log("DEBUG packages "+SPAC+"values==%+v", values)
 
 		if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), p.Namespace, "", log); err != nil {
-			tgmsg += fmt.Sprintf("`INTERNAL ERROR`") + NL + NL
+			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
 			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 				log("ERROR packages tglog: %v", tgerr)
 			}
@@ -1087,7 +1087,7 @@ func ServerPackagesUpdate() (err error) {
 			// namespaceexists == false
 		} else if err != nil {
 			log("ERROR packages Namespaces.Get: %v", err)
-			tgmsg += fmt.Sprintf("`INTERNAL ERROR`") + NL + NL
+			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
 			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 				log("ERROR packages tglog: %v", tgerr)
 			}
@@ -1104,7 +1104,7 @@ func ServerPackagesUpdate() (err error) {
 			}
 			if _, err := kclientset.CoreV1().Namespaces().Create(context.TODO(), pnamespace, kmetav1.CreateOptions{}); err != nil {
 				log("ERROR packages Namespaces.Create: %v", err)
-				tgmsg += fmt.Sprintf("`INTERNAL ERROR`") + NL + NL
+				tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
 				if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 					log("ERROR packages tglog: %v", tgerr)
 				}
@@ -1178,7 +1178,7 @@ func ServerPackagesUpdate() (err error) {
 
 		err = os.RemoveAll(path.Join(ConfigDir, p.DeployedDir()))
 		if err != nil {
-			tgmsg += fmt.Sprintf("`INTERNAL ERROR`") + NL + NL
+			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
 			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 				log("ERROR packages tglog: %v", tgerr)
 			}
@@ -1187,7 +1187,7 @@ func ServerPackagesUpdate() (err error) {
 
 		err = os.Rename(path.Join(ConfigDir, p.ReportedDir()), path.Join(ConfigDir, p.DeployedDir()))
 		if err != nil {
-			tgmsg += fmt.Sprintf("`INTERNAL ERROR`") + NL + NL
+			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
 			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 				log("ERROR packages tglog: %v", tgerr)
 			}
@@ -1195,7 +1195,7 @@ func ServerPackagesUpdate() (err error) {
 		}
 
 		if err := PutValuesTextFile(p.ValuesDeployedHashFilename(), p.ValuesHash); err != nil {
-			tgmsg += fmt.Sprintf("`INTERNAL ERROR`") + NL + NL
+			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
 			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 				log("ERROR packages tglog: %v", tgerr)
 			}
