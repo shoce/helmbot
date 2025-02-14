@@ -702,25 +702,22 @@ func ServerPackagesUpdate() (err error) {
 		} else if p.ChartAddress != "" {
 
 			if !helmregistry.IsOCI(p.ChartAddress) {
-				log("WARNING packages "+SPAC+"ChartAddress==%v is not OCI", p.ChartAddress)
+				return fmt.Errorf("ChartAddress==%v is not OCI", p.ChartAddress)
 			}
 
 			hrclient, err := helmregistry.NewClient(helmregistry.ClientOptDebug(true))
 			if err != nil {
-				log("ERROR packages "+SPAC+"helmregistry.NewClient: %v", err)
-				return err
+				return fmt.Errorf("helmregistry.NewClient: %v", err)
 			}
 
 			chartaddress := strings.TrimPrefix(p.ChartAddress, "oci://")
 			tags, err := hrclient.Tags(chartaddress)
 			if err != nil {
-				log("ERROR packages "+SPAC+"hrclient.Tags: %v", err)
-				continue
+				return fmt.Errorf("hrclient.Tags: %v", err)
 			}
 
 			if len(tags) == 0 {
-				log("WARNING packages "+SPAC+"empty tags list", err)
-				continue
+				return fmt.Errorf("ChartAddress==%v empty tags list", p.ChartAddress, err)
 			}
 
 			log("DEBUG packages "+SPAC+"tags==%+v", tags)
@@ -728,7 +725,7 @@ func ServerPackagesUpdate() (err error) {
 			chartversion = tags[0]
 
 			if u, err := url.Parse(p.ChartAddress); err != nil {
-				log("WARNING packages "+SPAC+"parse ChartAddress: %s", err)
+				return fmt.Errorf("parse ChartAddress==%v: %v", p.ChartAddress, err)
 			} else {
 				chartname = path.Base(u.Path)
 				chartpath = path.Join(ConfigDir, fmt.Sprintf("%s-%s.tgz", chartname, chartversion))
@@ -744,16 +741,13 @@ func ServerPackagesUpdate() (err error) {
 		} else if p.ChartLocalFilename != "" {
 
 			if !strings.HasSuffix(p.ChartLocalFilename, ".tgz") {
-				log("ERROR packages "+SPAC+"ChartLocalFilename==%v is not a .tgz file", p.ChartLocalFilename)
-				continue
+				return fmt.Errorf("ChartLocalFilename==%v is not a .tgz file", p.ChartLocalFilename)
 			}
 
 			if mm, err := filepath.Glob(path.Join(ConfigDir, p.ChartLocalFilename)); err != nil {
-				log("ERROR packages "+SPAC+"Glob ConfigDir==%v ChartLocalFilename==%v: %s", ConfigDir, p.ChartLocalFilename, err)
-				continue
+				return fmt.Errorf("Glob ConfigDir==%v ChartLocalFilename==%v: %s", ConfigDir, p.ChartLocalFilename, err)
 			} else if len(mm) == 0 {
-				log("ERROR packages "+SPAC+"Glob ConfigDir==%v ChartLocalFilename==%v files not found", ConfigDir, p.ChartLocalFilename)
-				continue
+				return fmt.Errorf("Glob ConfigDir==%v ChartLocalFilename==%v files not found", ConfigDir, p.ChartLocalFilename)
 			} else {
 				sort.Sort(sort.Reverse(sort.StringSlice(mm)))
 				chartpath = mm[0]
@@ -761,8 +755,7 @@ func ServerPackagesUpdate() (err error) {
 
 		} else {
 
-			log("ERROR package %s has no ChartRepoAddress, ChartAddress, ChartLocalFilename", p.Name)
-			continue
+			return fmt.Errorf("no ChartRepoAddress, ChartAddress, ChartLocalFilename")
 
 		}
 
