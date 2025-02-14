@@ -1217,6 +1217,15 @@ func ServerPackagesUpdate() (err error) {
 			release.Info.Status,
 			release.Version,
 		) + NL + NL
+		if release.Info.Notes != "" {
+			tgmsg += fmt.Sprintf(
+				"```"+NL+
+					"notes:"+NL+NL+
+					"%s"+NL+
+					"```",
+				release.Info.Notes,
+			) + NL + NL
+		}
 		tgmsg += fmt.Sprintf("*%s %s UPDATE FINISHED*", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
 
 		if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
