@@ -1300,6 +1300,9 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 			}
 
 			if p.EnvName == "" {
+				p.EnvName = s.EnvName
+			}
+			if p.EnvName == "" {
 				return nil, fmt.Errorf("package EnvName is empty")
 			}
 
@@ -1455,10 +1458,12 @@ func PutValuesTextFile(name string, valuestext string) (err error) {
 }
 
 type PackageConfig struct {
-	Name      string `yaml:"Name"`
-	Namespace string `yaml:"Namespace,omitempty"`
+	Name string `yaml:"Name"`
+
 	ChartName string `yaml:"ChartName"`
 	EnvName   string `yaml:"EnvName"`
+
+	Namespace string `yaml:"Namespace,omitempty"`
 
 	ChartVersion    string `yaml:"ChartVersion"`
 	ChartVersionKey string `yaml:"ChartVersionKey"`
@@ -1559,6 +1564,8 @@ func (p *PackageConfig) HashId() string {
 
 type ServerConfig struct {
 	ServerHostname string `yaml:"ServerHostname"`
+
+	EnvName string `yaml:"EnvName"`
 
 	AlwaysForceNow *bool `yaml:"AlwaysForceNow,omitempty"`
 
