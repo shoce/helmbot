@@ -1229,7 +1229,7 @@ func ServerPackagesUpdate() (err error) {
 				"```"+NL+
 					"%s"+NL+
 					"```",
-				release.Info.Notes,
+				strings.TrimSpace(release.Info.Notes),
 			) + NL + NL
 		}
 		tgmsg += fmt.Sprintf("*%s %s UPDATE FINISHED*", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
