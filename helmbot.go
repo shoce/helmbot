@@ -1214,10 +1214,10 @@ func ServerPackagesUpdate() (err error) {
 
 		tgmsg += fmt.Sprintf(
 			"```"+NL+
-				"name: %v"+NL+
-				"namespace: %v"+NL+
-				"status: %v"+NL+
-				"revision: %v"+NL+
+				"NAME: %v"+NL+
+				"NAMESPACE: %v"+NL+
+				"STATUS: %v"+NL+
+				"REVISION: %v"+NL+
 				"```",
 			release.Name,
 			release.Namespace,
