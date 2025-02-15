@@ -1353,6 +1353,7 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 			}
 
 			if p.ChartVersionKey == "" {
+				return nil, fmt.Errorf("package ChartVersionKey is empty")
 				// TODO prometheus-node-exporter => PrometheusNodeExporter
 				//p.ChartVersionKey = "HelmChartVersion" + textcases.Title(textlanguage.English, textcases.NoLower).String(p.ChartName)
 			}
