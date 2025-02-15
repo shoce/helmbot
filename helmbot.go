@@ -920,7 +920,7 @@ func ServerPackagesUpdate() (err error) {
 			log("ERROR packages "+SPAC+"GetValuesTextFile: %s", err)
 		}
 
-		if p.ValuesHash != ValuesReportedHash {
+		if p.ValuesHash != ValuesReportedHash || !dirExists(path.Join(ConfigDir, p.ReportedDir())) {
 
 			//
 			// WRITE LATEST
