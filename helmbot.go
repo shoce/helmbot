@@ -1352,6 +1352,11 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 				}
 			}
 
+			if p.ChartVersionKey == "" {
+				// TODO prometheus-node-exporter => PrometheusNodeExporter
+				//p.ChartVersionKey = "HelmChartVersion" + textcases.Title(textlanguage.English, textcases.NoLower).String(p.ChartName)
+			}
+
 			if p.TgChatId == nil {
 				p.TgChatId = s.TgChatId
 			}
