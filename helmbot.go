@@ -11,10 +11,14 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha1"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -30,6 +34,8 @@ import (
 	_ "time/tzdata"
 
 	yaml "gopkg.in/yaml.v3"
+
+	dregistry "github.com/rusenask/docker-registry-client/registry"
 
 	kcorev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -1606,4 +1612,405 @@ func fileExists(path string) bool {
 		return false
 	}
 	return err == nil && s.Mode().IsRegular()
+}
+
+// get/put values file from/to a minio storage
+// https://gist.github.com/gabo89/5e3e316bd4be0fb99369eac512a66537
+// https://stackoverflow.com/questions/72047783/how-do-i-download-files-from-a-minio-s3-bucket-using-curl
+func MinioNewRequest(method, name string, payload []byte) (r *http.Request, err error) {
+	r, err = http.NewRequest(method, ValuesMinioUrl+name, bytes.NewBuffer(payload))
+	if err != nil {
+		return nil, err
+	}
+
+	r.Header.Set("User-Agent", "helmbot")
+	r.Header.Set("Content-Type", "application/octet-stream")
+	r.Header.Set("Host", ValuesMinioUrl)
+	r.Header.Set("Date", time.Now().UTC().Format(time.RFC1123Z))
+
+	hdrauthsig := method + NL + NL + r.Header.Get("Content-Type") + NL + r.Header.Get("Date") + NL + ValuesMinioUrlPath + name
+	hdrauthsighmac := hmac.New(sha1.New, []byte(ValuesMinioPassword))
+	hdrauthsighmac.Write([]byte(hdrauthsig))
+	hdrauthsig = base64.StdEncoding.EncodeToString(hdrauthsighmac.Sum(nil))
+	r.Header.Set("Authorization", fmt.Sprintf("AWS %s:%s", ValuesMinioUsername, hdrauthsig))
+
+	return r, nil
+}
+
+func GetValuesTextMinio(name string, valuestext *string) (err error) {
+	r, err := MinioNewRequest(http.MethodGet, name, nil)
+
+	resp, err := http.DefaultClient.Do(r)
+	if err != nil {
+		return err
+	}
+
+	valuesbytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	*valuestext = string(valuesbytes)
+
+	if DEBUG {
+		log("DEBUG GetValuesTextMinio %s [len %d]: %s...", name, len(*valuestext), strings.ReplaceAll((*valuestext), NL, " <nl> "))
+	}
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("minio server response status %s", resp.Status)
+	}
+
+	return nil
+}
+
+func GetValuesMinio(name string, valuestext *string, values interface{}) (err error) {
+	if valuestext == nil {
+		var valuestext1 string
+		valuestext = &valuestext1
+	}
+
+	err = GetValuesTextMinio(name, valuestext)
+	if err != nil {
+		return err
+	}
+
+	d := yaml.NewDecoder(strings.NewReader(*valuestext))
+	err = d.Decode(values)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func PutValuesTextMinio(name string, valuestext string) (err error) {
+	r, err := MinioNewRequest(http.MethodPut, name, []byte(valuestext))
+
+	if DEBUG {
+		log("DEBUG PutValuesTextMinio %s [len %d]: %s...", name, len(valuestext), strings.ReplaceAll((valuestext), NL, " <nl> "))
+	}
+
+	resp, err := http.DefaultClient.Do(r)
+	log("DEBUG PutValuesTextMinio resp.Status: %s", resp.Status)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("minio server response status %s", resp.Status)
+	}
+
+	return nil
+}
+
+type DrLatestYamlItem struct {
+	KeyPrefix        string `yaml:"KeyPrefix"`
+	KeyPrefixReplace string `yaml:"KeyPrefixReplace"`
+	RegistryUsername string `yaml:"RegistryUsername"`
+	RegistryPassword string `yaml:"RegistryPassword"`
+}
+
+type DrVersions []string
+
+func (vv DrVersions) Len() int {
+	return len(vv)
+}
+
+func (vv DrVersions) Less(i, j int) bool {
+	v1, v2 := vv[i], vv[j]
+	v1s := strings.Split(v1, ".")
+	v2s := strings.Split(v2, ".")
+	if len(v1s) < len(v2s) {
+		return true
+	} else if len(v1s) > len(v2s) {
+		return false
+	}
+	for e := 0; e < len(v1s); e++ {
+		d1, _ := strconv.Atoi(v1s[e])
+		d2, _ := strconv.Atoi(v2s[e])
+		if d1 < d2 {
+			return true
+		} else if d1 > d2 {
+			return false
+		}
+	}
+	return false
+}
+
+func (vv DrVersions) Swap(i, j int) {
+	vv[i], vv[j] = vv[j], vv[i]
+}
+
+func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLatestYamlItem, imagesvalues *map[string]interface{}) (err error) {
+	for helmvalueskey, helmvaluesvalue := range helmvalues {
+		for _, e := range drlatestyamlitems {
+			if strings.HasPrefix(helmvalueskey, e.KeyPrefix) {
+
+				imagename := helmvalueskey
+				imagenamereplace := e.KeyPrefixReplace + strings.TrimPrefix(imagename, e.KeyPrefix)
+
+				if v, ok := helmvalues[imagenamereplace]; ok && v != "" {
+					continue
+				}
+
+				imageurl := helmvaluesvalue.(string)
+
+				if !strings.HasPrefix(imageurl, "https://") && !strings.HasPrefix(imageurl, "http://") {
+					imageurl = fmt.Sprintf("https://%s", imageurl)
+				}
+
+				var u *url.URL
+				if u, err = url.Parse(imageurl); err != nil {
+					return fmt.Errorf("url.Parse %s %v: %w", imagename, imageurl, err)
+				}
+
+				RegistryUrl := fmt.Sprintf("%s://%s", u.Scheme, u.Host)
+				RegistryRepository := u.Path
+
+				//log("drlatestyaml registry %s %s", RegistryUrl, RegistryRepository)
+
+				r := dregistry.NewInsecure(RegistryUrl, e.RegistryUsername, e.RegistryPassword)
+				r.Logf = dregistry.Quiet
+
+				imagetags, err := r.Tags(RegistryRepository)
+				if err != nil {
+					return fmt.Errorf("registry.Tags %s %v: %w", imagename, imageurl, err)
+				}
+
+				sort.Sort(sort.Reverse(DrVersions(imagetags)))
+
+				imagetag := ""
+
+				if len(imagetags) > 0 {
+					imagetag = imagetags[0]
+				} else {
+					imagetag = "latest"
+				}
+
+				(*imagesvalues)[imagenamereplace] = imagetag
+
+			}
+		}
+	}
+
+	return nil
+}
+
+func ImagesValuesToList(imagesvaluesmap map[string]interface{}) (imagesvalueslist []map[string]interface{}, imagesvaluestext string, err error) {
+	imagesvalueslist = make([]map[string]interface{}, 0)
+	for k, v := range imagesvaluesmap {
+		imagesvalueslist = append(imagesvalueslist, map[string]interface{}{k: v})
+	}
+	sort.Slice(
+		imagesvalueslist,
+		func(i, j int) bool {
+			for ik := range imagesvalueslist[i] {
+				for jk := range imagesvalueslist[j] {
+					return ik < jk
+				}
+			}
+			return false
+		},
+	)
+
+	for _, iv := range imagesvalueslist {
+		if bb, err := yaml.Marshal(iv); err != nil {
+			return nil, "", fmt.Errorf("yaml.Encoder: %w", err)
+		} else {
+			imagesvaluestext += string(bb)
+		}
+	}
+
+	return imagesvalueslist, imagesvaluestext, nil
+}
+
+func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error {
+	if DEBUG {
+		log("DEBUG TgSetWebhook url==%s allowedupdates==%s secrettoken==%s", url, allowedupdates, secrettoken)
+	}
+
+	swreq := TgSetWebhookRequest{
+		Url:            url,
+		MaxConnections: TgWebhookMaxConnections,
+		AllowedUpdates: allowedupdates,
+		SecretToken:    secrettoken,
+	}
+	swreqjs, err := json.Marshal(swreq)
+	if err != nil {
+		return err
+	}
+	swreqjsBuffer := bytes.NewBuffer(swreqjs)
+
+	var resp *http.Response
+	tgapiurl := fmt.Sprintf("https://api.telegram.org/bot%s/setWebhook", TgToken)
+	resp, err = http.Post(
+		tgapiurl,
+		"application/json",
+		swreqjsBuffer,
+	)
+	if err != nil {
+		return fmt.Errorf("apiurl:`%s` apidata:`%s` %v", tgapiurl, swreqjs, err)
+	}
+
+	var swresp TgSetWebhookResponse
+	var swrespbody []byte
+	swrespbody, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("io.ReadAll: %w", err)
+	}
+	err = json.NewDecoder(bytes.NewBuffer(swrespbody)).Decode(&swresp)
+	if err != nil {
+		return fmt.Errorf("json.Decoder.Decode: %w", err)
+	}
+	if !swresp.OK || !swresp.Result {
+		return fmt.Errorf("apiurl:`%s` apidata:`%s` api response not ok: %+v", tgapiurl, swreqjs, swresp)
+	}
+
+	return nil
+}
+
+type TgSetWebhookRequest struct {
+	Url            string   `json:"url"`
+	MaxConnections int64    `json:"max_connections"`
+	AllowedUpdates []string `json:"allowed_updates"`
+	SecretToken    string   `json:"secret_token,omitempty"`
+}
+
+type TgSetWebhookResponse struct {
+	OK          bool   `json:"ok"`
+	Description string `json:"description"`
+	Result      bool   `json:"result"`
+}
+
+func tglog(chatid int64, replyid int64, editid int64, msg string, args ...interface{}) (msgid int64, err error) {
+	text := fmt.Sprintf(msg, args...)
+	text = strings.NewReplacer(
+		"(", "\\(",
+		")", "\\)",
+		"[", "\\[",
+		"]", "\\]",
+		"{", "\\{",
+		"}", "\\}",
+		"~", "\\~",
+		">", "\\>",
+		"#", "\\#",
+		"+", "\\+",
+		"-", "\\-",
+		"=", "\\=",
+		"|", "\\|",
+		"!", "\\!",
+		".", "\\.",
+	).Replace(text)
+
+	var reqjs []byte
+	var tgurl string
+
+	if editid == 0 {
+		tgurl = fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", TgToken)
+		smreq := TgSendMessageRequest{
+			ChatId:              chatid,
+			ReplyToMessageId:    replyid,
+			Text:                text,
+			ParseMode:           TgParseMode,
+			DisableNotification: TgDisableNotification,
+		}
+		reqjs, err = json.Marshal(smreq)
+		if err != nil {
+			return 0, err
+		}
+	} else {
+		tgurl = fmt.Sprintf("https://api.telegram.org/bot%s/editMessageText", TgToken)
+		emreq := TgEditMessageRequest{
+			TgSendMessageRequest: TgSendMessageRequest{
+				ChatId:              chatid,
+				ReplyToMessageId:    replyid,
+				Text:                text,
+				ParseMode:           TgParseMode,
+				DisableNotification: TgDisableNotification,
+			},
+			MessageId: editid,
+		}
+		reqjs, err = json.Marshal(emreq)
+		if err != nil {
+			return 0, err
+		}
+	}
+	reqjsBuffer := bytes.NewBuffer(reqjs)
+
+	var resp *http.Response
+	resp, err = http.Post(
+		tgurl,
+		"application/json",
+		reqjsBuffer,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("url==%v data==%v error: %v", tgurl, reqjs, err)
+	}
+
+	var smresp TgSendMessageResponse
+	err = json.NewDecoder(resp.Body).Decode(&smresp)
+	if err != nil {
+		return 0, fmt.Errorf("%v", err)
+	}
+	if !smresp.OK {
+		return 0, fmt.Errorf("apiurl==%v apidata==%v api response not ok: %+v", tgurl, reqjs, smresp)
+	}
+
+	return smresp.Result.MessageId, nil
+}
+
+type TgSendMessageRequest struct {
+	ChatId              int64  `json:"chat_id"`
+	ReplyToMessageId    int64  `json:"reply_to_message_id,omitempty"`
+	Text                string `json:"text"`
+	ParseMode           string `json:"parse_mode,omitempty"`
+	DisableNotification bool   `json:"disable_notification"`
+}
+
+type TgSendMessageResponse struct {
+	OK          bool   `json:"ok"`
+	Description string `json:"description"`
+	Result      struct {
+		MessageId int64 `json:"message_id"`
+	} `json:"result"`
+}
+
+type TgEditMessageRequest struct {
+	TgSendMessageRequest
+	MessageId int64 `json:"message_id"`
+}
+
+type TgUpdate struct {
+	UpdateId    int64     `json:"update_id"`
+	Message     TgMessage `json:"message"`
+	ChannelPost TgMessage `json:"channel_post"`
+}
+
+type TgMessage struct {
+	MessageId      int64  `json:"message_id"`
+	From           TgUser `json:"from"`
+	SenderChat     TgChat `json:"sender_chat"`
+	Chat           TgChat `json:"chat"`
+	Date           int64  `json:"date"`
+	Text           string `json:"text"`
+	ReplyToMessage struct {
+		MessageId  int64  `json:"message_id"`
+		From       TgUser `json:"from"`
+		SenderChat TgChat `json:"sender_chat"`
+		Chat       TgChat `json:"chat"`
+		Date       int64  `json:"date"`
+		Text       string `json:"text"`
+	} `json:"reply_to_message"`
+}
+
+type TgUser struct {
+	Id        int64  `json:"id"`
+	IsBot     bool   `json:"is_bot"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Username  string `json:"username"`
+}
+
+type TgChat struct {
+	Id    int64  `json:"id"`
+	Title string `json:"title"`
+	Type  string `json:"type"`
 }

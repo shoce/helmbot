@@ -24,8 +24,7 @@ var (
 		"linux/amd64",
 	}
 	SourceFiles = []string{
-		"helmbot.go", "drlatest.go", "minio.go", "tg.go",
-		"go.mod", "go.sum",
+		"helmbot.go", "go.mod", "go.sum",
 	}
 
 	Ctx = context.TODO()
