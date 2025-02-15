@@ -707,16 +707,15 @@ func ServerPackagesUpdate() (err error) {
 
 		} else if p.ChartAddress != "" {
 
-			if !helmregistry.IsOCI(p.ChartAddress) {
-				return fmt.Errorf("ChartAddress==%v is not OCI", p.ChartAddress)
-			}
+			chartaddress := p.ChartAddress
+			chartaddress = strings.TrimPrefix(chartaddress, "https://")
+			chartaddress = strings.TrimPrefix(chartaddress, "oci://")
 
 			hrclient, err := helmregistry.NewClient(helmregistry.ClientOptDebug(true))
 			if err != nil {
 				return fmt.Errorf("helmregistry.NewClient: %v", err)
 			}
 
-			chartaddress := strings.TrimPrefix(p.ChartAddress, "oci://")
 			tags, err := hrclient.Tags(chartaddress)
 			if err != nil {
 				return fmt.Errorf("hrclient.Tags: %v", err)
