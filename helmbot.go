@@ -74,8 +74,8 @@ var (
 
 	ConfigDir string
 
-	ConfigFilename string
-	HostConfigFilename       string
+	ConfigFilename     string
+	HostConfigFilename string
 
 	PackagesUpgradeInterval time.Duration
 
@@ -507,13 +507,13 @@ func ServerPackagesUpdate() (err error) {
 	}
 
 	if ConfigFilename != "" {
-		if err := GetValuesFile(ConfigFilename, nil, &Config); err != nil {
+		if err := GetValues(ConfigFilename, nil, &Config); err != nil {
 			log("ERROR packages GetValues: %v", err)
 			return err
 		}
 	}
 	if HostConfigFilename != "" {
-		if err := GetValuesFile(HostConfigFilename, nil, &Config); err != nil {
+		if err := GetValues(HostConfigFilename, nil, &Config); err != nil {
 			log("ERROR packages GetValues: %v", err)
 			return err
 		}
@@ -603,19 +603,19 @@ func ServerPackagesUpdate() (err error) {
 		// READ LATEST VALUES
 		//
 
-		err = GetValuesFile(p.GlobalValuesFilename(), &p.GlobalValuesText, p.GlobalValues)
+		err = GetValues(p.GlobalValuesFilename(), &p.GlobalValuesText, p.GlobalValues)
 		if err != nil {
-			return fmt.Errorf("GetValuesFile %v: %w", p.GlobalValuesFilename(), err)
+			return fmt.Errorf("GetValues %v: %w", p.GlobalValuesFilename(), err)
 		}
 
-		err = GetValuesFile(p.ValuesFilename(), &p.ValuesText, p.Values)
+		err = GetValues(p.ValuesFilename(), &p.ValuesText, p.Values)
 		if err != nil {
-			return fmt.Errorf("GetValuesFile %v: %w", p.ValuesFilename(), err)
+			return fmt.Errorf("GetValues %v: %w", p.ValuesFilename(), err)
 		}
 
-		err = GetValuesFile(p.EnvValuesFilename(), &p.EnvValuesText, p.EnvValues)
+		err = GetValues(p.EnvValuesFilename(), &p.EnvValuesText, p.EnvValues)
 		if err != nil {
-			return fmt.Errorf("GetValuesFile %v: %w", p.EnvValuesFilename(), err)
+			return fmt.Errorf("GetValues %v: %w", p.EnvValuesFilename(), err)
 		}
 
 		//
@@ -831,8 +831,8 @@ func ServerPackagesUpdate() (err error) {
 		allvaluestext := p.GlobalValuesText + p.ValuesText + p.EnvValuesText + p.ImagesValuesText
 		p.ValuesHash = fmt.Sprintf("%x", sha256.Sum256([]byte(allvaluestext)))[:10]
 
-		if err := PutValuesTextFile(p.ValuesLatestHashFilename(), p.ValuesHash); err != nil {
-			return fmt.Errorf("PutValuesTextFile: %w", err)
+		if err := PutValuesText(p.ValuesLatestHashFilename(), p.ValuesHash); err != nil {
+			return fmt.Errorf("PutValuesText: %w", err)
 		}
 
 		//
@@ -840,8 +840,8 @@ func ServerPackagesUpdate() (err error) {
 		//
 
 		var ValuesDeployedHash string
-		if err := GetValuesTextFile(p.ValuesDeployedHashFilename(), &ValuesDeployedHash); err != nil {
-			log("ERROR packages "+SPAC+"GetValuesTextFile: %s", err)
+		if err := GetValuesText(p.ValuesDeployedHashFilename(), &ValuesDeployedHash); err != nil {
+			log("ERROR packages "+SPAC+"GetValuesText: %s", err)
 		}
 
 		//
@@ -939,8 +939,8 @@ func ServerPackagesUpdate() (err error) {
 		//
 
 		var ValuesReportedHash string
-		if err := GetValuesTextFile(p.ValuesReportedHashFilename(), &ValuesReportedHash); err != nil {
-			log("ERROR packages "+SPAC+"GetValuesTextFile: %s", err)
+		if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash); err != nil {
+			log("ERROR packages "+SPAC+"GetValuesText: %s", err)
 		}
 
 		if p.ValuesHash != ValuesReportedHash {
@@ -949,8 +949,8 @@ func ServerPackagesUpdate() (err error) {
 			// WRITE REPORTED HASH
 			//
 
-			if err := PutValuesTextFile(p.ValuesReportedHashFilename(), p.ValuesHash); err != nil {
-				return fmt.Errorf("PutValuesTextFile: %w", err)
+			if err := PutValuesText(p.ValuesReportedHashFilename(), p.ValuesHash); err != nil {
+				return fmt.Errorf("PutValuesText: %w", err)
 			}
 
 		}
@@ -960,8 +960,8 @@ func ServerPackagesUpdate() (err error) {
 		//
 
 		var PermitHash string
-		if err := GetValuesTextFile(p.ValuesPermitHashFilename(), &PermitHash); err != nil {
-			log("ERROR packages "+SPAC+"GetValuesTextFile: %s", err)
+		if err := GetValuesText(p.ValuesPermitHashFilename(), &PermitHash); err != nil {
+			log("ERROR packages "+SPAC+"GetValuesText: %s", err)
 		}
 
 		log("DEBUG packages "+SPAC+"ValuesHash==%v ValuesReportedHash==%v ValuesDeployedHash==%v PermitHash==%v ", p.ValuesHash, ValuesReportedHash, ValuesDeployedHash, PermitHash)
@@ -1198,12 +1198,12 @@ func ServerPackagesUpdate() (err error) {
 			return err
 		}
 
-		if err := PutValuesTextFile(p.ValuesDeployedHashFilename(), p.ValuesHash); err != nil {
+		if err := PutValuesText(p.ValuesDeployedHashFilename(), p.ValuesHash); err != nil {
 			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
 			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 				log("ERROR packages tglog: %v", tgerr)
 			}
-			return fmt.Errorf("PutValuesTextFile: %w", err)
+			return fmt.Errorf("PutValuesText: %w", err)
 		}
 
 		// TODO remove p.ValuesPermitHashFilename()
@@ -1685,7 +1685,7 @@ func PutValuesTextMinio(name string, valuestext string) (err error) {
 	r, err := MinioNewRequest(http.MethodPut, name, []byte(valuestext))
 
 	if DEBUG {
-		log("DEBUG PutValuesTextMinio %s [len %d]: %s...", name, len(valuestext), strings.ReplaceAll((valuestext), NL, " <nl> "))
+		log("DEBUG PutValuesTextMinio %s [len==%d]: %s...", name, len(valuestext), strings.ReplaceAll((valuestext), NL, " <nl> "))
 	}
 
 	resp, err := http.DefaultClient.Do(r)
