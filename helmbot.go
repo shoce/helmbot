@@ -562,7 +562,7 @@ func ServerPackagesUpdate() (err error) {
 	for _, p := range Packages {
 
 		var pkgpaused string
-		if err := GetValuesTextFile(path.Join(p.Dir(), "paused"), &pkgpaused); err == nil {
+		if err := GetValuesTextFile(path.Join(p.DeployedDir(), "paused"), &pkgpaused); err == nil {
 			// paused package update - skip with no error
 			log("DEBUG packages --- Name==%s update paused", p.Name)
 			continue
@@ -813,11 +813,15 @@ func ServerPackagesUpdate() (err error) {
 		}
 
 		//
-		// LATEST VALUES HASH
+		// WRITE LATEST VALUES HASH
 		//
 
 		allvaluestext := p.GlobalValuesText + p.ValuesText + p.EnvValuesText + p.ImagesValuesText
 		p.ValuesHash = fmt.Sprintf("%x", sha256.Sum256([]byte(allvaluestext)))[:10]
+
+		if err := PutValuesTextFile(p.ValuesLatestHashFilename(), p.ValuesHash); err != nil {
+			return fmt.Errorf("PutValuesTextFile: %w", err)
+		}
 
 		//
 		// READ DEPLOYED HASH
@@ -918,60 +922,20 @@ func ServerPackagesUpdate() (err error) {
 
 		}
 
+		//
 		// READ REPORTED HASH
+		//
 
 		var ValuesReportedHash string
 		if err := GetValuesTextFile(p.ValuesReportedHashFilename(), &ValuesReportedHash); err != nil {
 			log("ERROR packages "+SPAC+"GetValuesTextFile: %s", err)
 		}
 
-		if p.ValuesHash != ValuesReportedHash || !dirExists(path.Join(ConfigDir, p.ReportedDir())) {
+		if p.ValuesHash != ValuesReportedHash {
 
 			//
-			// WRITE LATEST
+			// WRITE REPORTED HASH
 			//
-
-			err = os.RemoveAll(path.Join(ConfigDir, p.LatestDir()))
-			if err != nil {
-				return fmt.Errorf("os.RemoveAll %v: %w", path.Join(ConfigDir, p.LatestDir()), err)
-			}
-
-			err = os.MkdirAll(path.Join(ConfigDir, p.LatestDir()), 0700)
-			if err != nil {
-				return fmt.Errorf("os.MkdirAll %v: %w", path.Join(ConfigDir, p.LatestDir()), err)
-			}
-
-			if err := PutValuesTextFile(path.Join(p.LatestDir(), p.GlobalValuesFilename()), p.GlobalValuesText); err != nil {
-				return fmt.Errorf("PutValuesTextFile: %w", err)
-			}
-
-			if err := PutValuesTextFile(path.Join(p.LatestDir(), p.ValuesFilename()), p.ValuesText); err != nil {
-				return fmt.Errorf("PutValuesTextFile: %w", err)
-			}
-
-			if err := PutValuesTextFile(path.Join(p.LatestDir(), p.EnvValuesFilename()), p.EnvValuesText); err != nil {
-				return fmt.Errorf("PutValuesTextFile: %w", err)
-			}
-
-			if err := PutValuesTextFile(path.Join(p.LatestDir(), p.ImagesValuesFilename()), p.ImagesValuesText); err != nil {
-				return fmt.Errorf("PutValuesTextFile: %w", err)
-			}
-
-			if err := PutValuesTextFile(p.ValuesLatestHashFilename(), p.ValuesHash); err != nil {
-				return fmt.Errorf("PutValuesTextFile: %w", err)
-			}
-
-			//
-			// LATEST => REPORTED
-			//
-
-			if err := os.RemoveAll(path.Join(ConfigDir, p.ReportedDir())); err != nil {
-				return fmt.Errorf("os.RemoveAll %v: %w", p.ReportedDir(), err)
-			}
-
-			if err := os.Rename(path.Join(ConfigDir, p.LatestDir()), path.Join(ConfigDir, p.ReportedDir())); err != nil {
-				return fmt.Errorf("os.Rename %v %v: %w", path.Join(ConfigDir, p.LatestDir()), path.Join(ConfigDir, p.ReportedDir()), err)
-			}
 
 			if err := PutValuesTextFile(p.ValuesReportedHashFilename(), p.ValuesHash); err != nil {
 				return fmt.Errorf("PutValuesTextFile: %w", err)
@@ -1181,34 +1145,6 @@ func ServerPackagesUpdate() (err error) {
 
 		}
 
-		err = os.RemoveAll(path.Join(ConfigDir, p.DeployedDir()))
-		if err != nil {
-			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
-				log("ERROR packages tglog: %v", tgerr)
-			}
-			return fmt.Errorf("os.RemoveAll %v: %w", path.Join(ConfigDir, p.DeployedDir()), err)
-		}
-
-		err = os.Rename(path.Join(ConfigDir, p.ReportedDir()), path.Join(ConfigDir, p.DeployedDir()))
-		if err != nil {
-			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
-				log("ERROR packages tglog: %v", tgerr)
-			}
-			return fmt.Errorf("os.Rename: %w", err)
-		}
-
-		if err := PutValuesTextFile(p.ValuesDeployedHashFilename(), p.ValuesHash); err != nil {
-			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
-				log("ERROR packages tglog: %v", tgerr)
-			}
-			return fmt.Errorf("PutValuesTextFile: %w", err)
-		}
-
-		// TODO remove p.ValuesPermitHashFilename()
-
 		log("DEBUG packages "+SPAC+"release Name==%v Namespace==%v Info.Status==%v Revision==%v HashId==%v", release.Name, release.Namespace, release.Info.Status, release.Version, p.HashId())
 
 		tgmsg += fmt.Sprintf(
@@ -1236,6 +1172,29 @@ func ServerPackagesUpdate() (err error) {
 		if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 			log("ERROR packages tglog: %v", tgerr)
 		}
+
+		//
+		// WRITE DEPLOYED VALUES
+		//
+
+		if err := p.WriteDeployedValues(); err != nil {
+			log("ERROR packages "+SPAC+"WriteDeployedValues: %v", err)
+			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
+			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+				log("ERROR packages tglog: %v", tgerr)
+			}
+			return err
+		}
+
+		if err := PutValuesTextFile(p.ValuesDeployedHashFilename(), p.ValuesHash); err != nil {
+			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
+			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+				log("ERROR packages tglog: %v", tgerr)
+			}
+			return fmt.Errorf("PutValuesTextFile: %w", err)
+		}
+
+		// TODO remove p.ValuesPermitHashFilename()
 
 		//
 		// DEPLOY FINISHED
@@ -1514,17 +1473,8 @@ type PackageConfig struct {
 	DryRun *bool `yaml:"DryRun,omitempty"`
 }
 
-func (p *PackageConfig) Dir() string {
-	return p.Name
-}
-func (p *PackageConfig) LatestDir() string {
-	return path.Join(p.Dir(), "latest")
-}
-func (p *PackageConfig) ReportedDir() string {
-	return path.Join(p.Dir(), "reported")
-}
 func (p *PackageConfig) DeployedDir() string {
-	return path.Join(p.Dir(), "deployed")
+	return p.Name
 }
 
 func (p *PackageConfig) GlobalValuesFilename() string {
@@ -1559,6 +1509,31 @@ func (p *PackageConfig) UpdateTimestampFilename() string {
 
 func (p *PackageConfig) HashId() string {
 	return fmt.Sprintf("#%s#%s#%s", p.ChartName, p.EnvName, p.ValuesHash)
+}
+
+func (p *PackageConfig) WriteDeployedValues() error {
+
+	if err := os.RemoveAll(path.Join(ConfigDir, p.DeployedDir())); err != nil {
+		return fmt.Errorf("RemoveAll: %w", err)
+	}
+	if err := os.MkdirAll(path.Join(ConfigDir, p.DeployedDir()), 0700); err != nil {
+		return fmt.Errorf("MkdirAll: %w", err)
+	}
+
+	if err := PutValuesTextFile(path.Join(p.DeployedDir(), p.GlobalValuesFilename()), p.GlobalValuesText); err != nil {
+		return fmt.Errorf("PutValuesTextFile: %w", err)
+	}
+	if err := PutValuesTextFile(path.Join(p.DeployedDir(), p.ValuesFilename()), p.ValuesText); err != nil {
+		return fmt.Errorf("PutValuesTextFile: %w", err)
+	}
+	if err := PutValuesTextFile(path.Join(p.DeployedDir(), p.EnvValuesFilename()), p.EnvValuesText); err != nil {
+		return fmt.Errorf("PutValuesTextFile: %w", err)
+	}
+	if err := PutValuesTextFile(path.Join(p.DeployedDir(), p.ImagesValuesFilename()), p.ImagesValuesText); err != nil {
+		return fmt.Errorf("PutValuesTextFile: %w", err)
+	}
+
+	return nil
 }
 
 type ServerConfig struct {
