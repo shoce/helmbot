@@ -9,8 +9,9 @@ DEBUG: ""
 ServerHostname: ""
 
 ConfigDir: /opt/helmbot/
+ConfigFilename: helmbot.config.yaml
+HostConfigFilename: "" # helmbot.config.hostname.yaml
 
-PackagesConfigFilename: helmbot.config.yaml
 PackagesUpgradeInterval: 333s
 
 ValuesMinioUrl: ""

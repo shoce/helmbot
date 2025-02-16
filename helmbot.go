@@ -74,7 +74,9 @@ var (
 
 	ConfigDir string
 
-	PackagesConfigFilename  string
+	ConfigFilename string
+	HostConfigFilename       string
+
 	PackagesUpgradeInterval time.Duration
 
 	ValuesMinioUrl      string
@@ -145,8 +147,10 @@ func init() {
 	}
 	log("DEBUG ConfigDir==%v", ConfigDir)
 
-	PackagesConfigFilename = os.Getenv("PackagesConfigFilename")
-	log("DEBUG PackagesConfigFilename==%v", PackagesConfigFilename)
+	ConfigFilename = os.Getenv("ConfigFilename")
+	log("DEBUG ConfigFilename==%v", ConfigFilename)
+	HostConfigFilename = os.Getenv("HostConfigFilename")
+	log("DEBUG HostConfigFilename==%v", HostConfigFilename)
 
 	if v := os.Getenv("PackagesUpgradeInterval"); v != "" {
 		if d, err := time.ParseDuration(v); err != nil {
@@ -284,7 +288,7 @@ func main() {
 		log("TgWebhookUrl is not set so this instance will not register telegram webhook.")
 	}
 
-	if PackagesConfigFilename != "" {
+	if ConfigFilename != "" || HostConfigFilename != "" {
 		go func() {
 			for {
 				t0 := time.Now()
@@ -302,7 +306,7 @@ func main() {
 			}
 		}()
 	} else {
-		log("PackagesConfigFilename is not set so this instance will not process packages.")
+		log("ConfigFilename nor HostConfigFilename are not set so this instance will not process packages.")
 	}
 
 	log("start done.")
@@ -502,9 +506,17 @@ func ServerPackagesUpdate() (err error) {
 		return nil
 	}
 
-	if err := GetValuesFile(PackagesConfigFilename, nil, &Config); err != nil {
-		log("ERROR packages GetValues: %v", err)
-		return err
+	if ConfigFilename != "" {
+		if err := GetValuesFile(ConfigFilename, nil, &Config); err != nil {
+			log("ERROR packages GetValues: %v", err)
+			return err
+		}
+	}
+	if HostConfigFilename != "" {
+		if err := GetValuesFile(HostConfigFilename, nil, &Config); err != nil {
+			log("ERROR packages GetValues: %v", err)
+			return err
+		}
 	}
 
 	if DEBUG {

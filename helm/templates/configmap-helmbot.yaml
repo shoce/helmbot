@@ -16,8 +16,9 @@ data:
   ServerHostname: "{{ $.Values.ServerHostname }}"
 
   ConfigDir: "{{ $.Values.ConfigDir }}"
+  ConfigFilename: "{{ $.Values.ConfigFilename }}"
+  HostConfigFilename: "{{ $.Values.HostConfigFilename }}"
 
-  PackagesConfigFilename: "{{ $.Values.PackagesConfigFilename }}"
   PackagesUpgradeInterval: "{{ $.Values.PackagesUpgradeInterval }}"
 
   ValuesMinioUrl: "{{ $.Values.ValuesMinioUrl }}"
