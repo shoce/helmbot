@@ -63,6 +63,8 @@ const (
 	UpdateHashIdReString = "#([-a-z]+)#([-a-z]+)#([a-z0-9]+)$"
 
 	HashLength = 12
+
+	PackagesSleepDuration = 2 * time.Second
 )
 
 var (
@@ -872,7 +874,7 @@ func ServerPackagesUpdate() (err error) {
 		if p.ValuesHash == ValuesDeployedHash {
 
 			log("DEBUG packages " + SPAC + "ValuesHash==ValuesDeployedHash")
-			time.Sleep(1 * time.Second)
+			time.Sleep(PackagesSleepDuration)
 			continue
 
 		}
@@ -1033,7 +1035,7 @@ func ServerPackagesUpdate() (err error) {
 
 			}
 
-			time.Sleep(1 * time.Second)
+			time.Sleep(PackagesSleepDuration)
 			continue
 
 		}
@@ -1244,7 +1246,7 @@ func ServerPackagesUpdate() (err error) {
 		// DEPLOY FINISHED
 		//
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(PackagesSleepDuration)
 		continue
 
 	}
