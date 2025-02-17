@@ -654,7 +654,7 @@ func ServerPackagesUpdate() (err error) {
 			if err != nil {
 				return fmt.Errorf("DownloadIndexFile %w", err)
 			}
-			log("DEBUG packages "+SPAC+"chart repo index file path==%#v", indexfilepath)
+			log("DEBUG packages "+SPAC+"chart repo index file path %s", indexfilepath)
 
 			idx, err := helmrepo.LoadIndexFile(indexfilepath)
 			if err != nil {
@@ -1637,25 +1637,20 @@ func MinioNewRequest(method, name string, payload []byte) (r *http.Request, err 
 }
 
 func GetValuesTextMinio(name string, valuestext *string) (err error) {
-	r, err := MinioNewRequest(http.MethodGet, name, nil)
-
-	resp, err := http.DefaultClient.Do(r)
-	if err != nil {
+	if req, err := MinioNewRequest(http.MethodGet, name, nil); err != nil {
 		return err
-	}
-
-	valuesbytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
+	} else if resp, err := http.DefaultClient.Do(req); err != nil {
 		return err
+	} else if resp.StatusCode != 200 {
+		return fmt.Errorf("minio server response status %s", resp.Status)
+	} else if bb, err := ioutil.ReadAll(resp.Body); err != nil {
+		return err
+	} else {
+		*valuestext = string(bb)
 	}
-	*valuestext = string(valuesbytes)
 
 	if DEBUG {
-		log("DEBUG GetValuesTextMinio %s [len %d]: %s...", name, len(*valuestext), strings.ReplaceAll((*valuestext), NL, " <nl> "))
-	}
-
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("minio server response status %s", resp.Status)
+		log("DEBUG GetValuesTextMinio %s [len %d]: %s", name, len(*valuestext), strings.ReplaceAll(*valuestext, NL, " <nl> "))
 	}
 
 	return nil
@@ -1685,7 +1680,7 @@ func PutValuesTextMinio(name string, valuestext string) (err error) {
 	r, err := MinioNewRequest(http.MethodPut, name, []byte(valuestext))
 
 	if DEBUG {
-		log("DEBUG PutValuesTextMinio %s [len==%d]: %s...", name, len(valuestext), strings.ReplaceAll((valuestext), NL, " <nl> "))
+		log("DEBUG PutValuesTextMinio %s [len==%d]: %s", name, len(valuestext), strings.ReplaceAll((valuestext), NL, " <nl> "))
 	}
 
 	resp, err := http.DefaultClient.Do(r)
