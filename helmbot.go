@@ -1064,7 +1064,8 @@ func ServerPackagesUpdate() (err error) {
 		helmchartutil.MergeTables(values, p.GlobalValues)
 		helmchartutil.MergeTables(values, chartfull.Values)
 
-		log("DEBUG packages "+SPAC+"values==%+v", values)
+		// TODO make sure values are correct
+		//log("DEBUG packages "+SPAC+"values==%+v", values)
 
 		if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), p.Namespace, "", log); err != nil {
 			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
