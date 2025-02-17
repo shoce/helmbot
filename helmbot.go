@@ -1637,6 +1637,8 @@ func MinioNewRequest(method, name string, payload []byte) (r *http.Request, err 
 }
 
 func GetValuesTextMinio(name string, valuestext *string) (err error) {
+	var respbody string
+
 	if req, err := MinioNewRequest(http.MethodGet, name, nil); err != nil {
 		return err
 	} else if resp, err := http.DefaultClient.Do(req); err != nil {
@@ -1646,12 +1648,14 @@ func GetValuesTextMinio(name string, valuestext *string) (err error) {
 	} else if bb, err := ioutil.ReadAll(resp.Body); err != nil {
 		return err
 	} else {
-		*valuestext = string(bb)
+		respbody = string(bb)
 	}
 
 	if DEBUG {
-		log("DEBUG GetValuesTextMinio %s [len %d]: %s", name, len(*valuestext), strings.ReplaceAll(*valuestext, NL, " <nl> "))
+		log("DEBUG GetValuesTextMinio %s [len %d]: %s", name, len(respbody), strings.ReplaceAll(respbody, NL, " <nl> "))
 	}
+
+	*valuestext = respbody
 
 	return nil
 }
