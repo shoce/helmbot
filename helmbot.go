@@ -1130,19 +1130,6 @@ func ServerPackagesUpdate() (err error) {
 				chartfull,
 				values,
 			)
-			if err != nil {
-
-				log("ERROR packages helmupgrade.Run: %v", err)
-
-				tgmsg += fmt.Sprintf("*ERROR*"+NL+NL+"```"+NL+"%v"+NL+"```"+NL, err)
-
-				if _, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
-					log("ERROR packages tglog: %v", tgerr)
-				}
-
-				return err
-
-			}
 
 		} else {
 
@@ -1157,19 +1144,20 @@ func ServerPackagesUpdate() (err error) {
 				chartfull,
 				values,
 			)
-			if err != nil {
 
-				log("ERROR packages helminstall.Run: %v", err)
+		}
 
-				tgmsg += fmt.Sprintf("*ERROR*:"+NL+"```"+NL+"%v"+NL+"```", err)
+		if err != nil {
 
-				if _, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
-					log("ERROR packages tglog: %v", tgerr)
-				}
+			log("ERROR packages helm Run: %v", err)
 
-				return err
+			tgmsg += fmt.Sprintf("*ERROR*"+NL+NL+"```"+NL+"%v"+NL+"```"+NL, err)
 
+			if _, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+				log("ERROR packages tglog: %v", tgerr)
 			}
+
+			return err
 
 		}
 
