@@ -579,13 +579,15 @@ func ServerPackagesUpdate() (err error) {
 		return err
 	}
 
-	if DEBUG {
-		for _, r := range installedreleases {
-			log("DEBUG packages Name==%s Namespace==%s Status==%s Revision==%d Version==%s",
-				r.Name, r.Namespace, r.Info.Status, r.Version, r.Chart.Metadata.Version,
-			)
+	/*
+		if DEBUG {
+			for _, r := range installedreleases {
+				log("DEBUG packages Name==%s Namespace==%s Status==%s Revision==%d Version==%s",
+					r.Name, r.Namespace, r.Info.Status, r.Version, r.Chart.Metadata.Version,
+				)
+			}
 		}
-	}
+	*/
 
 	Packages, err = ProcessServersPackages(Config.Servers)
 	if err != nil {
