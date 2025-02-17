@@ -11,6 +11,7 @@ metadata:
 
 data:
 
+  VERBOSE: "{{ $.Values.VERBOSE }}"
   DEBUG: "{{ $.Values.DEBUG }}"
 
   ServerHostname: "{{ $.Values.ServerHostname }}"

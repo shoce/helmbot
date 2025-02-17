@@ -66,7 +66,8 @@ const (
 )
 
 var (
-	DEBUG bool
+	VERBOSE bool
+	DEBUG   bool
 
 	LogUTCTime bool
 
@@ -123,6 +124,11 @@ func init() {
 		os.Exit(1)
 	}
 
+	if os.Getenv("VERBOSE") != "" {
+		VERBOSE = true
+		log("VERBOSE==%v", VERBOSE)
+	}
+
 	if os.Getenv("DEBUG") != "" {
 		DEBUG = true
 		log("DEBUG==%v", DEBUG)
@@ -147,12 +153,18 @@ func init() {
 		log("ERROR ConfigDir %v does not exist", ConfigDir)
 		os.Exit(1)
 	}
-	log("DEBUG ConfigDir==%v", ConfigDir)
+	if DEBUG {
+		log("DEBUG ConfigDir==%v", ConfigDir)
+	}
 
 	ConfigFilename = os.Getenv("ConfigFilename")
-	log("DEBUG ConfigFilename==%v", ConfigFilename)
+	if DEBUG {
+		log("DEBUG ConfigFilename==%v", ConfigFilename)
+	}
 	HostConfigFilename = os.Getenv("HostConfigFilename")
-	log("DEBUG HostConfigFilename==%v", HostConfigFilename)
+	if DEBUG {
+		log("DEBUG HostConfigFilename==%v", HostConfigFilename)
+	}
 
 	if v := os.Getenv("PackagesUpgradeInterval"); v != "" {
 		if d, err := time.ParseDuration(v); err != nil {
@@ -165,7 +177,9 @@ func init() {
 		log("ERROR empty PackagesUpgradeInterval env var")
 		os.Exit(1)
 	}
-	log("DEBUG PackagesUpgradeInterval==%v", PackagesUpgradeInterval)
+	if DEBUG {
+		log("DEBUG PackagesUpgradeInterval==%v", PackagesUpgradeInterval)
+	}
 
 	ValuesMinioUrl = os.Getenv("ValuesMinioUrl")
 	if ValuesMinioUrl == "" {
@@ -177,7 +191,9 @@ func init() {
 		ValuesMinioUrlHost = u.Host
 		ValuesMinioUrlPath = u.Path
 	}
-	log("DEBUG ValuesMinioUrl==%v", ValuesMinioUrl)
+	if DEBUG {
+		log("DEBUG ValuesMinioUrl==%v", ValuesMinioUrl)
+	}
 
 	ValuesMinioUsername = os.Getenv("ValuesMinioUsername")
 	if ValuesMinioUsername == "" && ValuesMinioUrlHost != "" {
@@ -225,7 +241,9 @@ func init() {
 	}
 
 	TgWebhookUrl = os.Getenv("TgWebhookUrl")
-	log("DEBUG TgWebhookUrl==%v", TgWebhookUrl)
+	if DEBUG {
+		log("DEBUG TgWebhookUrl==%v", TgWebhookUrl)
+	}
 
 	TgWebhookToken = os.Getenv("TgWebhookToken")
 	if TgWebhookToken == "" {
@@ -266,7 +284,9 @@ func init() {
 func main() {
 
 	if TgWebhookUrl != "" {
-		log("DEBUG TgWebhookUrl==%v so setting webhook with telegram to receive updates.", TgWebhookUrl)
+		if DEBUG {
+			log("DEBUG TgWebhookUrl==%v so setting webhook with telegram to receive updates.", TgWebhookUrl)
+		}
 		if err := TgSetWebhook(TgWebhookUrl, []string{"message", "channel_post"}, TgWebhookToken); err != nil {
 			log("ERROR TgSetWebhook: %+v", err)
 			os.Exit(1)
@@ -276,13 +296,13 @@ func main() {
 
 		go func() {
 			for {
-				log("DEBUG webhook serving requests on %v.", ListenAddr)
+				log("webhook serving requests on %v.", ListenAddr)
 				err := http.ListenAndServe(ListenAddr, nil)
 				if err != nil {
 					log("ERROR webhook ListenAndServe: %+v", err)
 				}
 				retryinterval := 11 * time.Second
-				log("DEBUG webhook retrying ListenAndServe in %v", retryinterval)
+				log("webhook retrying ListenAndServe in %v", retryinterval)
 				time.Sleep(retryinterval)
 			}
 		}()
@@ -301,7 +321,9 @@ func main() {
 
 				if d := time.Now().Sub(t0); d < PackagesUpgradeInterval {
 					sleepdur := (PackagesUpgradeInterval - d).Truncate(time.Second)
-					log("DEBUG packages sleeping %s", sleepdur)
+					if VERBOSE {
+						log("packages sleeping %s", sleepdur)
+					}
 					time.Sleep(sleepdur)
 				}
 				log("---")

@@ -4,6 +4,7 @@ ImageNameGithubHelmbot: "ghcr.io/shoce/helmbot/dev"
 ImageTagGithubHelmbot: ""
 
 
+VERBOSE: ""
 DEBUG: ""
 
 ServerHostname: ""
