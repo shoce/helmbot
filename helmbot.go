@@ -670,13 +670,13 @@ func ServerPackagesUpdate() (err error) {
 			if err != nil {
 				return fmt.Errorf("NewChartRepository %w", err)
 			}
-			log("DEBUG packages "+SPAC+"chart repo==%v", chartrepo)
 
 			indexfilepath, err := chartrepo.DownloadIndexFile()
 			if err != nil {
 				return fmt.Errorf("DownloadIndexFile %w", err)
 			}
-			log("DEBUG packages "+SPAC+"chart repo index file path %s", indexfilepath)
+			//log("DEBUG packages "+SPAC+"chart repo index file path %s", indexfilepath)
+			// TODO store chart repo indexes in /opt/helmbot/, not at /root/.cache/helm/
 
 			idx, err := helmrepo.LoadIndexFile(indexfilepath)
 			if err != nil {
@@ -723,7 +723,7 @@ func ServerPackagesUpdate() (err error) {
 			chartname = repochartversion.Name
 			chartversion = repochartversion.Version
 			chartpath = path.Join(ConfigDir, fmt.Sprintf("%s-%s.tgz", chartname, chartversion))
-			log("DEBUG packages "+SPAC+"LOCAL chartpath==%v exists==%v", chartpath, fileExists(chartpath))
+			log("DEBUG packages "+SPAC+"local chartpath==%v exists==%v", chartpath, fileExists(chartpath))
 
 			if !fileExists(chartpath) {
 				if len(repochartversion.URLs) == 0 {
@@ -768,7 +768,7 @@ func ServerPackagesUpdate() (err error) {
 			} else {
 				chartname = path.Base(u.Path)
 				chartpath = path.Join(ConfigDir, fmt.Sprintf("%s-%s.tgz", chartname, chartversion))
-				log("DEBUG packages "+SPAC+"LOCAL chartpath==%v exists==%v", chartpath, fileExists(chartpath))
+				log("DEBUG packages "+SPAC+"local chartpath==%v exists==%v", chartpath, fileExists(chartpath))
 			}
 
 			if !fileExists(chartpath) {
@@ -798,8 +798,6 @@ func ServerPackagesUpdate() (err error) {
 
 		}
 
-		log("DEBUG packages "+SPAC+"chartpath==%v", chartpath)
-
 		// https://pkg.go.dev/helm.sh/helm/v3/pkg/chart/loader#Load
 		chartfull, err = helmloader.Load(chartpath)
 		if err != nil {
@@ -810,7 +808,6 @@ func ServerPackagesUpdate() (err error) {
 
 		// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/chart#Metadata
 		chartversion = chartfull.Metadata.Version
-		log("DEBUG packages "+SPAC+"chart version==%v", chartversion)
 
 		//
 		// FILL IMAGES VALUES
