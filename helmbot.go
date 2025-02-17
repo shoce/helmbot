@@ -827,15 +827,11 @@ func ServerPackagesUpdate() (err error) {
 		}
 
 		//
-		// WRITE LATEST VALUES HASH
+		// LATEST VALUES HASH
 		//
 
 		allvaluestext := p.GlobalValuesText + p.ValuesText + p.EnvValuesText + p.ImagesValuesText
 		p.ValuesHash = fmt.Sprintf("%x", sha256.Sum256([]byte(allvaluestext)))[:HashLength]
-
-		if err := PutValuesText(p.ValuesLatestHashFilename(), p.ValuesHash); err != nil {
-			return fmt.Errorf("PutValuesText: %w", err)
-		}
 
 		//
 		// READ DEPLOYED HASH
@@ -1504,9 +1500,6 @@ func (p *PackageConfig) ImagesValuesFilename() string {
 	return fmt.Sprintf("%s.%s.images.values.yaml", p.ChartName, p.EnvName)
 }
 
-func (p *PackageConfig) ValuesLatestHashFilename() string {
-	return fmt.Sprintf("%s.%s.values.latest.hash.text", p.ChartName, p.EnvName)
-}
 func (p *PackageConfig) ValuesReportedHashFilename() string {
 	return fmt.Sprintf("%s.%s.values.reported.hash.text", p.ChartName, p.EnvName)
 }
@@ -1683,18 +1676,15 @@ func GetValuesMinio(name string, valuestext *string, values interface{}) (err er
 }
 
 func PutValuesTextMinio(name string, valuestext string) (err error) {
-	r, err := MinioNewRequest(http.MethodPut, name, []byte(valuestext))
-
 	if DEBUG {
 		log("DEBUG PutValuesTextMinio %s [len==%d]: %s", name, len(valuestext), strings.ReplaceAll((valuestext), NL, " <nl> "))
 	}
 
-	resp, err := http.DefaultClient.Do(r)
-	log("DEBUG PutValuesTextMinio resp.Status: %s", resp.Status)
-	if err != nil {
+	if req, err := MinioNewRequest(http.MethodPut, name, []byte(valuestext)); err != nil {
 		return err
-	}
-	if resp.StatusCode >= 300 {
+	} else if resp, err := http.DefaultClient.Do(req); err != nil {
+		return err
+	} else if resp.StatusCode != 200 {
 		return fmt.Errorf("minio server response status %s", resp.Status)
 	}
 
