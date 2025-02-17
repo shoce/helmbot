@@ -616,9 +616,12 @@ func ServerPackagesUpdate() (err error) {
 			continue
 		}
 
-		timenowhour := fmt.Sprintf("%02d", time.Now().In(p.TimezoneLocation).Hour())
+		timenow := time.Now()
+		timenowhour := fmt.Sprintf("%02d", timenow.In(p.TimezoneLocation).Hour())
 
-		log("DEBUG packages --- Name==%s Namespace:%s DryRun==%v AlwaysForceNow==%v AllowedHours==%v Timezone==%v TimeNowHour==%v UpdateInterval==%v", p.Name, p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration)
+		if DEBUG {
+			log("DEBUG packages --- Name==%s Namespace:%s DryRun==%v AlwaysForceNow==%v AllowedHours==%v Timezone==%v TimeNowHour==%v UpdateInterval==%v", p.Name, p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration)
+		}
 
 		if DEBUG {
 			//log("DEBUG packages "+SPAC+"config==%#v", p)
@@ -838,7 +841,6 @@ func ServerPackagesUpdate() (err error) {
 		// UPDATE TIMESTAMP
 		//
 
-		timenow := time.Now()
 		if err := os.Chtimes(updatetimestampfilename, timenow, timenow); os.IsNotExist(err) {
 			if f, err := os.Create(updatetimestampfilename); err == nil {
 				f.Close()
