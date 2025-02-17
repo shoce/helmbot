@@ -281,6 +281,8 @@ func init() {
 	}
 }
 
+// TODO tglog replacement for logging to a web page
+
 func main() {
 
 	if TgWebhookUrl != "" {
@@ -1132,7 +1134,7 @@ func ServerPackagesUpdate() (err error) {
 
 				log("ERROR packages helmupgrade.Run: %v", err)
 
-				tgmsg += fmt.Sprintf("*ERROR*:"+NL+"```"+NL+"%v"+NL+"```", err)
+				tgmsg += fmt.Sprintf("*ERROR*"+NL+NL+"```"+NL+"%v"+NL+"```"+NL, err)
 
 				if _, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 					log("ERROR packages tglog: %v", tgerr)
@@ -1170,6 +1172,8 @@ func ServerPackagesUpdate() (err error) {
 			}
 
 		}
+
+		// TODO delay helmbot self-update for saving deployed values and hash
 
 		log("DEBUG packages "+SPAC+"release Name==%v Namespace==%v Info.Status==%v Revision==%v HashId==%v", release.Name, release.Namespace, release.Info.Status, release.Version, p.HashId())
 
