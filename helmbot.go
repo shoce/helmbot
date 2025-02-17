@@ -1204,7 +1204,13 @@ func ServerPackagesUpdate() (err error) {
 			return fmt.Errorf("PutValuesText: %w", err)
 		}
 
-		// TODO remove p.ValuesPermitHashFilename()
+		if err := DeleteValues(p.ValuesPermitHashFilename(), p.ValuesReportedHashFilename()); err != nil {
+			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
+			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+				log("ERROR packages tglog: %v", tgerr)
+			}
+			return fmt.Errorf("DeleteValues: %w", err)
+		}
 
 		//
 		// DEPLOY FINISHED
@@ -1375,12 +1381,18 @@ func PutValuesText(name string, valuestext string) (err error) {
 	return PutValuesTextFile(name, valuestext)
 }
 
+func DeleteValues(names ...string) (err error) {
+	if ValuesMinioUrlHost != "" {
+		return DeleteValuesMinio(names...)
+	}
+	return DeleteValuesFile(names...)
+}
+
 func GetValuesTextFile(name string, valuestext *string) (err error) {
 	filepath := path.Join(ConfigDir, name)
 
 	bb, err := os.ReadFile(filepath)
 	if err != nil {
-		//log("ERROR ReadFile %v: %v", filepath, err)
 		return err
 	}
 
@@ -1419,8 +1431,20 @@ func PutValuesTextFile(name string, valuestext string) (err error) {
 
 	err = os.WriteFile(filepath, []byte(valuestext), 0644)
 	if err != nil {
-		//log("ERROR WriteFile %v: %v", filepath, err)
 		return err
+	}
+	return nil
+}
+
+func DeleteValuesFile(names ...string) (err error) {
+	if DEBUG {
+		log("DEBUG DeleteValuesFile %v", names)
+	}
+	for _, name := range names {
+		filepath := path.Join(ConfigDir, name)
+		if DEBUG {
+			log("DEBUG DeleteValuesFile %s", filepath)
+		}
 	}
 	return nil
 }
@@ -1686,6 +1710,24 @@ func PutValuesTextMinio(name string, valuestext string) (err error) {
 		return err
 	} else if resp.StatusCode != 200 {
 		return fmt.Errorf("minio server response status %s", resp.Status)
+	}
+
+	return nil
+}
+
+func DeleteValuesMinio(names ...string) (err error) {
+	if DEBUG {
+		log("DEBUG DeleteValuesMinio %v", names)
+	}
+
+	for _, name := range names {
+		if req, err := MinioNewRequest(http.MethodDelete, name, nil); err != nil {
+			return fmt.Errorf("%s: %w", name, err)
+		} else if resp, err := http.DefaultClient.Do(req); err != nil {
+			return fmt.Errorf("%s: %w", name, err)
+		} else if resp.StatusCode != 200 {
+			return fmt.Errorf("%s: minio server response status %s", name, resp.Status)
+		}
 	}
 
 	return nil
