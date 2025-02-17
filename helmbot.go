@@ -61,6 +61,8 @@ const (
 	NL   = "\n"
 
 	UpdateHashIdReString = "#([-a-z]+)#([-a-z]+)#([a-z0-9]+)$"
+
+	HashLength = 12
 )
 
 var (
@@ -829,7 +831,7 @@ func ServerPackagesUpdate() (err error) {
 		//
 
 		allvaluestext := p.GlobalValuesText + p.ValuesText + p.EnvValuesText + p.ImagesValuesText
-		p.ValuesHash = fmt.Sprintf("%x", sha256.Sum256([]byte(allvaluestext)))[:10]
+		p.ValuesHash = fmt.Sprintf("%x", sha256.Sum256([]byte(allvaluestext)))[:HashLength]
 
 		if err := PutValuesText(p.ValuesLatestHashFilename(), p.ValuesHash); err != nil {
 			return fmt.Errorf("PutValuesText: %w", err)
