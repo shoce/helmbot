@@ -1224,10 +1224,10 @@ func ServerPackagesUpdate() (err error) {
 		}
 
 		if err := DeleteValues(p.ValuesPermitHashFilename()); err != nil {
-			log("WARNING packages "+SPAC+"DeleteValues: %v", err)
+			log("WARNING packages "+SPAC+"%v", err)
 		}
 		if err := DeleteValues(p.ValuesReportedHashFilename()); err != nil {
-			log("WARNING packages "+SPAC+"DeleteValues: %v", err)
+			log("WARNING packages "+SPAC+"%v", err)
 		}
 
 		//
@@ -1399,11 +1399,11 @@ func PutValuesText(name string, valuestext string) (err error) {
 	return PutValuesTextFile(name, valuestext)
 }
 
-func DeleteValues(names ...string) (err error) {
+func DeleteValues(name string) (err error) {
 	if ValuesMinioUrlHost != "" {
-		return DeleteValuesMinio(names...)
+		return DeleteValuesMinio(name)
 	}
-	return DeleteValuesFile(names...)
+	return DeleteValuesFile(name)
 }
 
 func GetValuesTextFile(name string, valuestext *string) (err error) {
@@ -1454,16 +1454,12 @@ func PutValuesTextFile(name string, valuestext string) (err error) {
 	return nil
 }
 
-func DeleteValuesFile(names ...string) (err error) {
+func DeleteValuesFile(name string) (err error) {
 	if DEBUG {
-		log("DEBUG DeleteValuesFile %v", names)
+		log("DEBUG DeleteValuesFile %v", name)
 	}
-	for _, name := range names {
-		filepath := path.Join(ConfigDir, name)
-		if DEBUG {
-			log("DEBUG DeleteValuesFile %s", filepath)
-		}
-	}
+	//filepath := path.Join(ConfigDir, name)
+	// TODO delete filepath
 	return nil
 }
 
@@ -1733,19 +1729,17 @@ func PutValuesTextMinio(name string, valuestext string) (err error) {
 	return nil
 }
 
-func DeleteValuesMinio(names ...string) (err error) {
+func DeleteValuesMinio(name string) (err error) {
 	if DEBUG {
-		log("DEBUG DeleteValuesMinio %v", names)
+		log("DEBUG DeleteValuesMinio %v", name)
 	}
 
-	for _, name := range names {
-		if req, err := MinioNewRequest(http.MethodDelete, name, nil); err != nil {
-			return fmt.Errorf("DeleteValuesMinio %s: %w", name, err)
-		} else if resp, err := http.DefaultClient.Do(req); err != nil {
-			return fmt.Errorf("DeleteValuesMinio %s: %w", name, err)
-		} else if resp.StatusCode != 200 {
-			return fmt.Errorf("DeleteValuesMinio %s: minio server response status %s", name, resp.Status)
-		}
+	if req, err := MinioNewRequest(http.MethodDelete, name, nil); err != nil {
+		return fmt.Errorf("DeleteValuesMinio %v: %w", name, err)
+	} else if resp, err := http.DefaultClient.Do(req); err != nil {
+		return fmt.Errorf("DeleteValuesMinio %v: %w", name, err)
+	} else if resp.StatusCode != 200 {
+		return fmt.Errorf("DeleteValuesMinio %v: minio server response status %s", name, resp.Status)
 	}
 
 	return nil
