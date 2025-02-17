@@ -532,13 +532,11 @@ func ServerPackagesUpdate() (err error) {
 
 	if ConfigFilename != "" {
 		if err := GetValues(ConfigFilename, nil, &Config); err != nil {
-			log("ERROR packages GetValues: %v", err)
 			return err
 		}
 	}
 	if HostConfigFilename != "" {
 		if err := GetValues(HostConfigFilename, nil, &Config); err != nil {
-			log("ERROR packages GetValues: %v", err)
 			return err
 		}
 	}
@@ -629,17 +627,17 @@ func ServerPackagesUpdate() (err error) {
 
 		err = GetValues(p.GlobalValuesFilename(), &p.GlobalValuesText, p.GlobalValues)
 		if err != nil {
-			return fmt.Errorf("GetValues %v: %w", p.GlobalValuesFilename(), err)
+			return err
 		}
 
 		err = GetValues(p.ValuesFilename(), &p.ValuesText, p.Values)
 		if err != nil {
-			return fmt.Errorf("GetValues %v: %w", p.ValuesFilename(), err)
+			return err
 		}
 
 		err = GetValues(p.EnvValuesFilename(), &p.EnvValuesText, p.EnvValues)
 		if err != nil {
-			return fmt.Errorf("GetValues %v: %w", p.EnvValuesFilename(), err)
+			return err
 		}
 
 		//
@@ -1413,7 +1411,7 @@ func GetValuesTextFile(name string, valuestext *string) (err error) {
 
 	bb, err := os.ReadFile(filepath)
 	if err != nil {
-		return err
+		return fmt.Errorf("GetValuesTextFile %s: %w", name, err)
 	}
 
 	if valuestext == nil {
@@ -1434,13 +1432,13 @@ func GetValuesFile(name string, valuestext *string, values interface{}) (err err
 
 	err = GetValuesTextFile(name, valuestext)
 	if err != nil {
-		return err
+		return fmt.Errorf("GetValuesFile %s: %w", name, err)
 	}
 
 	d := yaml.NewDecoder(strings.NewReader(*valuestext))
 	err = d.Decode(values)
 	if err != nil {
-		return err
+		return fmt.Errorf("GetValuesFile %s: %w", name, err)
 	}
 
 	return nil
@@ -1451,7 +1449,7 @@ func PutValuesTextFile(name string, valuestext string) (err error) {
 
 	err = os.WriteFile(filepath, []byte(valuestext), 0644)
 	if err != nil {
-		return err
+		return fmt.Errorf("PutValuesTextFile %s: %w", name, err)
 	}
 	return nil
 }
@@ -1655,37 +1653,37 @@ func fileExists(path string) bool {
 // get/put values file from/to a minio storage
 // https://gist.github.com/gabo89/5e3e316bd4be0fb99369eac512a66537
 // https://stackoverflow.com/questions/72047783/how-do-i-download-files-from-a-minio-s3-bucket-using-curl
-func MinioNewRequest(method, name string, payload []byte) (r *http.Request, err error) {
-	r, err = http.NewRequest(method, ValuesMinioUrl+name, bytes.NewBuffer(payload))
+func MinioNewRequest(method, name string, payload []byte) (req *http.Request, err error) {
+	req, err = http.NewRequest(method, ValuesMinioUrl+name, bytes.NewBuffer(payload))
 	if err != nil {
 		return nil, err
 	}
 
-	r.Header.Set("User-Agent", "helmbot")
-	r.Header.Set("Content-Type", "application/octet-stream")
-	r.Header.Set("Host", ValuesMinioUrl)
-	r.Header.Set("Date", time.Now().UTC().Format(time.RFC1123Z))
+	req.Header.Set("User-Agent", "helmbot")
+	req.Header.Set("Content-Type", "application/octet-stream")
+	req.Header.Set("Host", ValuesMinioUrl)
+	req.Header.Set("Date", time.Now().UTC().Format(time.RFC1123Z))
 
-	hdrauthsig := method + NL + NL + r.Header.Get("Content-Type") + NL + r.Header.Get("Date") + NL + ValuesMinioUrlPath + name
+	hdrauthsig := method + NL + NL + req.Header.Get("Content-Type") + NL + req.Header.Get("Date") + NL + ValuesMinioUrlPath + name
 	hdrauthsighmac := hmac.New(sha1.New, []byte(ValuesMinioPassword))
 	hdrauthsighmac.Write([]byte(hdrauthsig))
 	hdrauthsig = base64.StdEncoding.EncodeToString(hdrauthsighmac.Sum(nil))
-	r.Header.Set("Authorization", fmt.Sprintf("AWS %s:%s", ValuesMinioUsername, hdrauthsig))
+	req.Header.Set("Authorization", fmt.Sprintf("AWS %s:%s", ValuesMinioUsername, hdrauthsig))
 
-	return r, nil
+	return req, nil
 }
 
 func GetValuesTextMinio(name string, valuestext *string) (err error) {
 	var respbody string
 
 	if req, err := MinioNewRequest(http.MethodGet, name, nil); err != nil {
-		return err
+		return fmt.Errorf("GetValuesTextMinio %s: %w", name, err)
 	} else if resp, err := http.DefaultClient.Do(req); err != nil {
-		return err
+		return fmt.Errorf("GetValuesTextMinio %s: %w", name, err)
 	} else if resp.StatusCode != 200 {
-		return fmt.Errorf("minio server response status %s", resp.Status)
+		return fmt.Errorf("GetValuesTextMinio %s: minio server response status %s", name, resp.Status)
 	} else if bb, err := ioutil.ReadAll(resp.Body); err != nil {
-		return err
+		return fmt.Errorf("GetValuesTextMinio %s: %w", name, err)
 	} else {
 		respbody = string(bb)
 	}
@@ -1707,13 +1705,13 @@ func GetValuesMinio(name string, valuestext *string, values interface{}) (err er
 
 	err = GetValuesTextMinio(name, valuestext)
 	if err != nil {
-		return err
+		return fmt.Errorf("GetValuesMinio %s: %w", name, err)
 	}
 
 	d := yaml.NewDecoder(strings.NewReader(*valuestext))
 	err = d.Decode(values)
 	if err != nil {
-		return err
+		return fmt.Errorf("GetValuesMinio %s: %w", name, err)
 	}
 
 	return nil
@@ -1725,11 +1723,11 @@ func PutValuesTextMinio(name string, valuestext string) (err error) {
 	}
 
 	if req, err := MinioNewRequest(http.MethodPut, name, []byte(valuestext)); err != nil {
-		return err
+		return fmt.Errorf("PutValuesTextMinio %s: %w", name, err)
 	} else if resp, err := http.DefaultClient.Do(req); err != nil {
-		return err
+		return fmt.Errorf("PutValuesTextMinio %s: %w", name, err)
 	} else if resp.StatusCode != 200 {
-		return fmt.Errorf("minio server response status %s", resp.Status)
+		return fmt.Errorf("PutValuesTextMinio %s: minio server response status %s", name, resp.Status)
 	}
 
 	return nil
@@ -1742,11 +1740,11 @@ func DeleteValuesMinio(names ...string) (err error) {
 
 	for _, name := range names {
 		if req, err := MinioNewRequest(http.MethodDelete, name, nil); err != nil {
-			return fmt.Errorf("%s: %w", name, err)
+			return fmt.Errorf("DeleteValuesMinio %s: %w", name, err)
 		} else if resp, err := http.DefaultClient.Do(req); err != nil {
-			return fmt.Errorf("%s: %w", name, err)
+			return fmt.Errorf("DeleteValuesMinio %s: %w", name, err)
 		} else if resp.StatusCode != 200 {
-			return fmt.Errorf("%s: minio server response status %s", name, resp.Status)
+			return fmt.Errorf("DeleteValuesMinio %s: minio server response status %s", name, resp.Status)
 		}
 	}
 
