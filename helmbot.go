@@ -814,7 +814,7 @@ func ServerPackagesUpdate() (err error) {
 		log("DEBUG packages "+SPAC+"ImagesValues==%#v", p.ImagesValues)
 
 		//
-		// LATEST UPDATE TIMESTAMP
+		// UPDATE TIMESTAMP
 		//
 
 		timenow := time.Now()
@@ -853,6 +853,26 @@ func ServerPackagesUpdate() (err error) {
 			continue
 
 		}
+
+		//
+		// READ REPORTED HASH
+		//
+
+		var ValuesReportedHash string
+		if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash); err != nil {
+			log("ERROR packages "+SPAC+"GetValuesText: %s", err)
+		}
+
+		//
+		// READ PERMIT HASH
+		//
+
+		var PermitHash string
+		if err := GetValuesText(p.ValuesPermitHashFilename(), &PermitHash); err != nil {
+			log("ERROR packages "+SPAC+"GetValuesText: %s", err)
+		}
+
+		log("DEBUG packages "+SPAC+"ValuesHash==%v ValuesReportedHash==%v ValuesDeployedHash==%v PermitHash==%v ", p.ValuesHash, ValuesReportedHash, ValuesDeployedHash, PermitHash)
 
 		//
 		// READ DEPLOYED VALUES
@@ -933,38 +953,6 @@ func ServerPackagesUpdate() (err error) {
 		}
 
 		//
-		// READ REPORTED HASH
-		//
-
-		var ValuesReportedHash string
-		if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash); err != nil {
-			log("ERROR packages "+SPAC+"GetValuesText: %s", err)
-		}
-
-		if p.ValuesHash != ValuesReportedHash {
-
-			//
-			// WRITE REPORTED HASH
-			//
-
-			if err := PutValuesText(p.ValuesReportedHashFilename(), p.ValuesHash); err != nil {
-				return fmt.Errorf("PutValuesText: %w", err)
-			}
-
-		}
-
-		//
-		// READ PERMIT HASH
-		//
-
-		var PermitHash string
-		if err := GetValuesText(p.ValuesPermitHashFilename(), &PermitHash); err != nil {
-			log("ERROR packages "+SPAC+"GetValuesText: %s", err)
-		}
-
-		log("DEBUG packages "+SPAC+"ValuesHash==%v ValuesReportedHash==%v ValuesDeployedHash==%v PermitHash==%v ", p.ValuesHash, ValuesReportedHash, ValuesDeployedHash, PermitHash)
-
-		//
 		// CHECK IF DEPLOY IS ALLOWED NOW
 		//
 
@@ -1010,6 +998,14 @@ func ServerPackagesUpdate() (err error) {
 				tgmsg += "TO FORCE START THIS UPDATE NOW REPLY TO THIS MESSAGE WITH TEXT \"`NOW`\" (UPPERCASE)" + NL + NL
 				if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, 0, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 					log("ERROR packages tglog: %v", tgerr)
+				}
+
+				//
+				// WRITE REPORTED HASH
+				//
+
+				if err := PutValuesText(p.ValuesReportedHashFilename(), p.ValuesHash); err != nil {
+					return fmt.Errorf("PutValuesText: %w", err)
 				}
 
 			}
