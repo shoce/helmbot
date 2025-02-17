@@ -1184,20 +1184,45 @@ func ServerPackagesUpdate() (err error) {
 			release.Version,
 		) + NL + NL
 
-		// TODO if ( test `{ echo $HelmOutputTruncated | wc -c } -gt 2000 ) HelmOutputTruncated = ``(){ echo $HelmOutputTruncated | head -c 1000 }^$nl^'...<cut>...'^$nl^``(){ echo $HelmOutputTruncated | tail -c 1000 }
 		if release.Info.Notes != "" {
+			notes := strings.TrimSpace(release.Info.Notes)
+			if len(notes) > 2000 {
+				notes = notes[:1000] + NL + "...<cut>..." + NL + notes[len(notes)-1000:]
+			}
 			tgmsg += fmt.Sprintf(
 				"```"+NL+
 					"%s"+NL+
 					"```",
-				strings.TrimSpace(release.Info.Notes),
+				notes,
 			) + NL + NL
 		}
 
-		tgmsg += fmt.Sprintf("*%s %s UPDATE FINISHED*", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
-
+		// TODO TgBossUserIds
 		if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
 			log("ERROR packages tglog: %v", tgerr)
+		}
+
+		//
+		// WRITE DEPLOYED HASH
+		//
+
+		if err := PutValuesText(p.ValuesDeployedHashFilename(), p.ValuesHash); err != nil {
+			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
+			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+				log("ERROR packages tglog: %v", tgerr)
+			}
+			return fmt.Errorf("PutValuesText: %w", err)
+		}
+
+		//
+		// DELETE PERMIT HASH AND REPORTED HASH
+		//
+
+		if err := DeleteValues(p.ValuesPermitHashFilename()); err != nil {
+			log("WARNING packages "+SPAC+"%v", err)
+		}
+		if err := DeleteValues(p.ValuesReportedHashFilename()); err != nil {
+			log("WARNING packages "+SPAC+"%v", err)
 		}
 
 		//
@@ -1213,19 +1238,10 @@ func ServerPackagesUpdate() (err error) {
 			return err
 		}
 
-		if err := PutValuesText(p.ValuesDeployedHashFilename(), p.ValuesHash); err != nil {
-			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
-				log("ERROR packages tglog: %v", tgerr)
-			}
-			return fmt.Errorf("PutValuesText: %w", err)
-		}
+		tgmsg += fmt.Sprintf("*%s %s UPDATE FINISHED*", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
 
-		if err := DeleteValues(p.ValuesPermitHashFilename()); err != nil {
-			log("WARNING packages "+SPAC+"%v", err)
-		}
-		if err := DeleteValues(p.ValuesReportedHashFilename()); err != nil {
-			log("WARNING packages "+SPAC+"%v", err)
+		if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+			log("ERROR packages tglog: %v", tgerr)
 		}
 
 		//
