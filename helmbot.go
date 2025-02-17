@@ -1169,6 +1169,8 @@ func ServerPackagesUpdate() (err error) {
 			release.Info.Status,
 			release.Version,
 		) + NL + NL
+
+		// TODO if ( test `{ echo $HelmOutputTruncated | wc -c } -gt 2000 ) HelmOutputTruncated = ``(){ echo $HelmOutputTruncated | head -c 1000 }^$nl^'...<cut>...'^$nl^``(){ echo $HelmOutputTruncated | tail -c 1000 }
 		if release.Info.Notes != "" {
 			tgmsg += fmt.Sprintf(
 				"```"+NL+
@@ -1177,6 +1179,7 @@ func ServerPackagesUpdate() (err error) {
 				strings.TrimSpace(release.Info.Notes),
 			) + NL + NL
 		}
+
 		tgmsg += fmt.Sprintf("*%s %s UPDATE FINISHED*", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
 
 		if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
@@ -1204,12 +1207,11 @@ func ServerPackagesUpdate() (err error) {
 			return fmt.Errorf("PutValuesText: %w", err)
 		}
 
-		if err := DeleteValues(p.ValuesPermitHashFilename(), p.ValuesReportedHashFilename()); err != nil {
-			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
-				log("ERROR packages tglog: %v", tgerr)
-			}
-			return fmt.Errorf("DeleteValues: %w", err)
+		if err := DeleteValues(p.ValuesPermitHashFilename()); err != nil {
+			log("WARNING packages "+SPAC+"DeleteValues: %v", err)
+		}
+		if err := DeleteValues(p.ValuesReportedHashFilename()); err != nil {
+			log("WARNING packages "+SPAC+"DeleteValues: %v", err)
 		}
 
 		//
