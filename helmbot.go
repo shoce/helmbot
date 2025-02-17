@@ -614,7 +614,7 @@ func ServerPackagesUpdate() (err error) {
 
 		timenowhour := fmt.Sprintf("%02d", time.Now().In(p.TimezoneLocation).Hour())
 
-		log("DEBUG packages --- Name==%s Namespace:%s DryRun==%v AlwaysForceNow==%v AllowedHours==%v TimeNowHour==%v UpdateInterval==%v", p.Name, p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, timenowhour, p.UpdateIntervalDuration)
+		log("DEBUG packages --- Name==%s Namespace:%s DryRun==%v AlwaysForceNow==%v AllowedHours==%v Timezone==%v TimeNowHour==%v UpdateInterval==%v", p.Name, p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration)
 
 		if DEBUG {
 			//log("DEBUG packages "+SPAC+"config==%#v", p)
