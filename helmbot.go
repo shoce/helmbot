@@ -10,7 +10,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"crypto/hmac"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -36,12 +35,6 @@ import (
 	yaml "gopkg.in/yaml.v3"
 
 	dregistry "github.com/rusenask/docker-registry-client/registry"
-
-	kcorev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	kmetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kubernetes "k8s.io/client-go/kubernetes"
-	krest "k8s.io/client-go/rest"
 
 	helmaction "helm.sh/helm/v3/pkg/action"
 	helmchart "helm.sh/helm/v3/pkg/chart"
@@ -549,21 +542,6 @@ func ServerPackagesUpdate() (err error) {
 		//log("DEBUG packages Config==%+v", Config)
 	}
 
-	// KUBERNETES
-
-	krestconfig, err := krest.InClusterConfig()
-	if err != nil {
-		return err
-	}
-	if DEBUG {
-		//log("DEBUG packages krestconfig==%+v", krestconfig)
-	}
-
-	kclientset, err := kubernetes.NewForConfig(krestconfig)
-	if err != nil {
-		return err
-	}
-
 	// HELM
 
 	helmenvsettings := helmcli.New()
@@ -612,6 +590,8 @@ func ServerPackagesUpdate() (err error) {
 		if updatetimestampfilestat, err := os.Stat(updatetimestampfilename); err == nil {
 			p.UpdateTimestamp = updatetimestampfilestat.ModTime()
 		}
+
+		// TODO update values but not images.values
 
 		if d := time.Now().Sub(p.UpdateTimestamp).Truncate(time.Second); d < p.UpdateIntervalDuration {
 			log("DEBUG packages --- Name==%s %v until next update", p.Name, p.UpdateIntervalDuration-d)
@@ -1072,8 +1052,10 @@ func ServerPackagesUpdate() (err error) {
 		helmchartutil.MergeTables(values, p.GlobalValues)
 		helmchartutil.MergeTables(values, chartfull.Values)
 
-		// TODO make sure values are correct
+		// TODO make sure values are correctly merged
 		//log("DEBUG packages "+SPAC+"values==%+v", values)
+
+		// TODO objects get created in helmbot namespace if namespace not specified in the yaml manifest
 
 		if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), p.Namespace, "", log); err != nil {
 			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
@@ -1081,36 +1063,6 @@ func ServerPackagesUpdate() (err error) {
 				log("ERROR packages tglog: %v", tgerr)
 			}
 			return err
-		}
-
-		namespaceexists := false
-		if kns, err := kclientset.CoreV1().Namespaces().Get(context.TODO(), p.Namespace, kmetav1.GetOptions{}); kerrors.IsNotFound(err) {
-			// namespaceexists == false
-		} else if err != nil {
-			log("ERROR packages Namespaces.Get: %v", err)
-			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
-				log("ERROR packages tglog: %v", tgerr)
-			}
-			return err
-		} else if kns.Name == p.Namespace {
-			namespaceexists = true
-		}
-
-		if !namespaceexists {
-			pnamespace := &kcorev1.Namespace{
-				ObjectMeta: kmetav1.ObjectMeta{
-					Name: p.Namespace,
-				},
-			}
-			if _, err := kclientset.CoreV1().Namespaces().Create(context.TODO(), pnamespace, kmetav1.CreateOptions{}); err != nil {
-				log("ERROR packages Namespaces.Create: %v", err)
-				tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
-				if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
-					log("ERROR packages tglog: %v", tgerr)
-				}
-				return err
-			}
 		}
 
 		isinstalled := false
