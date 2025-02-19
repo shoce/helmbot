@@ -542,15 +542,10 @@ func ServerPackagesUpdate() (err error) {
 		//log("DEBUG packages Config==%+v", Config)
 	}
 
-	// HELM
-
-	helmenvsettings := helmcli.New()
-	if DEBUG {
-		//log("DEBUG packages helmenvsettings==%+v", helmenvsettings)
-	}
-
 	// INSTALLED RELEASES
 
+	// https://pkg.go.dev/helm.sh/helm/v3/pkg/cli
+	helmenvsettings := helmcli.New()
 	helmactioncfg := new(helmaction.Configuration)
 	if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), "", "", log); err != nil {
 		return err
@@ -1056,6 +1051,8 @@ func ServerPackagesUpdate() (err error) {
 
 		// TODO objects get created in helmbot namespace if namespace not specified in the yaml manifest
 
+		helmenvsettings := helmcli.New()
+		helmenvsettings.SetNamespace(p.Namespace)
 		helmactioncfg := new(helmaction.Configuration)
 		if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), p.Namespace, "", log); err != nil {
 			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
