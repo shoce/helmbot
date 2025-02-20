@@ -995,7 +995,7 @@ func ServerPackagesUpdate() (err error) {
 
 				tgmsg += "*NOT UPDATING NOW*; update will start *in the next allowed time window*" + NL + NL
 				tgmsg += "TO FORCE START THIS UPDATE NOW REPLY TO THIS MESSAGE WITH TEXT \"`NOW`\" (UPPERCASE)" + NL + NL
-				if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, 0, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+				if tgmsgid, tgerr = p.tglog(0, 0, tgmsg); tgerr != nil {
 					log("ERROR packages tglog: %v", tgerr)
 				}
 
@@ -1018,7 +1018,7 @@ func ServerPackagesUpdate() (err error) {
 
 			tgmsg += fmt.Sprintf("*STARTING IN %v*", p.UpdateDelayDuration) + NL + NL
 
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+			if tgmsgid, tgerr = p.tglog(0, tgmsgid, tgmsg); tgerr != nil {
 				log("ERROR packages tglog: %v", tgerr)
 			}
 
@@ -1033,7 +1033,7 @@ func ServerPackagesUpdate() (err error) {
 
 		tgmsg += fmt.Sprintf("*STARTED*") + NL + NL
 
-		if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+		if tgmsgid, tgerr = p.tglog(0, tgmsgid, tgmsg); tgerr != nil {
 			log("ERROR packages tglog: %v", tgerr)
 		}
 
@@ -1056,7 +1056,7 @@ func ServerPackagesUpdate() (err error) {
 		helmactioncfg := new(helmaction.Configuration)
 		if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), p.Namespace, "", log); err != nil {
 			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+			if tgmsgid, tgerr = p.tglog(0, tgmsgid, tgmsg); tgerr != nil {
 				log("ERROR packages tglog: %v", tgerr)
 			}
 			return err
@@ -1106,7 +1106,7 @@ func ServerPackagesUpdate() (err error) {
 
 			tgmsg += fmt.Sprintf("*ERROR*"+NL+NL+"```"+NL+"%v"+NL+"```"+NL, err)
 
-			if _, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+			if _, tgerr = p.tglog(0, tgmsgid, tgmsg); tgerr != nil {
 				log("ERROR packages tglog: %v", tgerr)
 			}
 
@@ -1145,7 +1145,7 @@ func ServerPackagesUpdate() (err error) {
 		}
 
 		// TODO TgBossUserIds
-		if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+		if tgmsgid, tgerr = p.tglog(0, tgmsgid, tgmsg); tgerr != nil {
 			log("ERROR packages tglog: %v", tgerr)
 		}
 
@@ -1155,7 +1155,7 @@ func ServerPackagesUpdate() (err error) {
 
 		if err := PutValuesText(p.ValuesDeployedHashFilename(), p.ValuesHash); err != nil {
 			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+			if tgmsgid, tgerr = p.tglog(0, tgmsgid, tgmsg); tgerr != nil {
 				log("ERROR packages tglog: %v", tgerr)
 			}
 			return fmt.Errorf("PutValuesText: %w", err)
@@ -1179,7 +1179,7 @@ func ServerPackagesUpdate() (err error) {
 		if err := p.WriteDeployedValues(); err != nil {
 			log("ERROR packages "+SPAC+"WriteDeployedValues: %v", err)
 			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
-			if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+			if tgmsgid, tgerr = p.tglog(0, tgmsgid, tgmsg); tgerr != nil {
 				log("ERROR packages tglog: %v", tgerr)
 			}
 			return err
@@ -1187,7 +1187,7 @@ func ServerPackagesUpdate() (err error) {
 
 		tgmsg += fmt.Sprintf("*%s %s UPDATE FINISHED*", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
 
-		if tgmsgid, tgerr = tglog(TgBossUserIds[0], 0, tgmsgid, tgmsg+fmt.Sprintf("`%s`", p.HashId())); tgerr != nil {
+		if tgmsgid, tgerr = p.tglog(0, tgmsgid, tgmsg); tgerr != nil {
 			log("ERROR packages tglog: %v", tgerr)
 		}
 
@@ -1883,6 +1883,15 @@ type TgSetWebhookResponse struct {
 	OK          bool   `json:"ok"`
 	Description string `json:"description"`
 	Result      bool   `json:"result"`
+}
+
+func (p *PackageConfig) tglog(replyid int64, editid int64, msg string, args ...interface{}) (msgid int64, err error) {
+	chatid := TgBossUserIds[0]
+	if p.TgChatId != nil {
+		chatid = *p.TgChatId
+	}
+	msg += fmt.Sprintf("`%s`", p.HashId())
+	return tglog(chatid, replyid, editid, msg, args...)
 }
 
 func tglog(chatid int64, replyid int64, editid int64, msg string, args ...interface{}) (msgid int64, err error) {
