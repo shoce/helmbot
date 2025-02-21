@@ -1130,7 +1130,6 @@ func ServerPackagesUpdate() (err error) {
 			release.Name,
 			release.Namespace,
 			release.Info.Status,
-			release.Version,
 		) + NL + NL
 
 		if release.Info.Notes != "" {
