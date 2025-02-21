@@ -34,6 +34,9 @@ import (
 
 	yaml "gopkg.in/yaml.v3"
 
+	textcases "golang.org/x/text/cases"
+	textlanguage "golang.org/x/text/language"
+
 	dregistry "github.com/rusenask/docker-registry-client/registry"
 
 	helmaction "helm.sh/helm/v3/pkg/action"
@@ -1123,7 +1126,6 @@ func ServerPackagesUpdate() (err error) {
 				"NAME: %v"+NL+
 				"NAMESPACE: %v"+NL+
 				"STATUS: %v"+NL+
-				"REVISION: %v"+NL+
 				"```",
 			release.Name,
 			release.Namespace,
@@ -1309,9 +1311,11 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 			}
 
 			if p.ChartVersionKey == "" {
-				return nil, fmt.Errorf("package ChartVersionKey is empty")
-				// TODO prometheus-node-exporter => PrometheusNodeExporter
-				//p.ChartVersionKey = "HelmChartVersion" + textcases.Title(textlanguage.English, textcases.NoLower).String(p.ChartName)
+				ww := strings.Split(p.ChartName, "-")
+				for i := range ww {
+					ww[i] = textcases.Title(textlanguage.English, textcases.NoLower).String(ww[i])
+				}
+				p.ChartVersionKey = "HelmChartVersion" + strings.Join(ww, "")
 			}
 
 			if p.TgChatId == nil {
@@ -1432,7 +1436,8 @@ type PackageConfig struct {
 
 	Namespace string `yaml:"Namespace,omitempty"`
 
-	ChartVersion    string `yaml:"ChartVersion"`
+	ChartVersion string `yaml:"ChartVersion"`
+	// TODO ChartVersionKey automatic from ChartName
 	ChartVersionKey string `yaml:"ChartVersionKey"`
 
 	ChartLocalFilename string `yaml:"ChartLocalFilename"`
