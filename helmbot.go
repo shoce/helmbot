@@ -1506,7 +1506,8 @@ func GetValuesTextFile(name string, valuestext *string, notexistok bool) (err er
 	bb, err := os.ReadFile(filepath)
 	if os.IsNotExist(err) && !notexistok {
 		return fmt.Errorf("GetValuesTextFile %s: does not exist", name)
-	} else if err != nil && !os.IsNotExist(err) {
+	} else if os.IsNotExist(err) && notexistok {
+	} else if err != nil {
 		return fmt.Errorf("GetValuesTextFile %s: %w", name, err)
 	}
 
@@ -1772,7 +1773,9 @@ func GetValuesTextMinio(name string, valuestext *string, notexistok bool) (err e
 		return fmt.Errorf("GetValuesTextMinio %s: %w", name, err)
 	} else if resp.StatusCode == 404 && !notexistok {
 		return fmt.Errorf("GetValuesTextMinio %s: minio server response status %s", name, resp.Status)
-	} else if resp.StatusCode != 200 && resp.StatusCode != 404 {
+	} else if resp.StatusCode == 404 && notexistok {
+		respbody = ""
+	} else if resp.StatusCode != 200 {
 		return fmt.Errorf("GetValuesTextMinio %s: minio server response status %s", name, resp.Status)
 	} else if bb, err := ioutil.ReadAll(resp.Body); err != nil {
 		return fmt.Errorf("GetValuesTextMinio %s: %w", name, err)
