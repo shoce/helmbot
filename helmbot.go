@@ -350,7 +350,7 @@ func main() {
 					}
 					time.Sleep(sleepdur)
 				}
-				if VERBOSE {
+				if DEBUG {
 					log("---")
 				}
 			}
