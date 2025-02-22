@@ -1504,6 +1504,9 @@ func GetValuesTextFile(name string, valuestext *string, notexistok bool) (err er
 	filepath := path.Join(ConfigDir, name)
 
 	bb, err := os.ReadFile(filepath)
+	if !notexistok && os.IsNotExist(err) {
+		return fmt.Errorf("GetValuesTextFile %s: does not exist", name)
+	}
 	if err != nil {
 		return fmt.Errorf("GetValuesTextFile %s: %w", name, err)
 	}
