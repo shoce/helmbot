@@ -340,7 +340,9 @@ func main() {
 					}
 					time.Sleep(sleepdur)
 				}
-				log("---")
+				if VERBOSE {
+					log("---")
+				}
 			}
 		}()
 
@@ -666,7 +668,7 @@ func ServerPackagesUpdate() (err error) {
 		timenowhour := fmt.Sprintf("%02d", timenow.In(p.TimezoneLocation).Hour())
 
 		if DEBUG {
-			log("DEBUG Namespace:%s DryRun==%v AlwaysForceNow==%v AllowedHours==%v Timezone==%v TimeNowHour==%v UpdateInterval==%v", p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration)
+			p.log("DEBUG Namespace:%s DryRun==%v AlwaysForceNow==%v AllowedHours==%v Timezone==%v TimeNowHour==%v UpdateInterval==%v", p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration)
 		}
 
 		if DEBUG {
@@ -1551,8 +1553,7 @@ type PackageConfig struct {
 
 	Namespace string `yaml:"Namespace,omitempty"`
 
-	ChartVersion string `yaml:"ChartVersion"`
-	// TODO ChartVersionKey automatic from ChartName
+	ChartVersion    string `yaml:"ChartVersion"`
 	ChartVersionKey string `yaml:"ChartVersionKey"`
 
 	ChartLocalFilename string `yaml:"ChartLocalFilename"`
