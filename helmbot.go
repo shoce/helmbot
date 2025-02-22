@@ -69,7 +69,7 @@ var (
 
 	LogUTC          bool
 	LogTimeZone     string
-	LogTimeLocation time.Location
+	LogTimeLocation *time.Location
 
 	ServerHostname string
 
@@ -850,7 +850,10 @@ func ServerPackagesUpdate() (err error) {
 
 		var ValuesDeployedHash string
 		if err := GetValuesText(p.ValuesDeployedHashFilename(), &ValuesDeployedHash); err != nil {
+
 			log("ERROR packages "+SPAC+"GetValuesText: %s", err)
+			continue
+
 		}
 
 		//
