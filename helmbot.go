@@ -660,6 +660,28 @@ func ServerPackagesUpdate() (err error) {
 			continue
 		}
 
+		//
+		// READ REPORTED HASH
+		//
+
+		var ValuesReportedHash string
+		if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash); err != nil {
+			if DEBUG {
+				p.log("ERROR GetValuesText: %v", err)
+			}
+		}
+
+		//
+		// READ PERMIT HASH
+		//
+
+		var PermitHash string
+		if err := GetValuesText(p.ValuesPermitHashFilename(), &PermitHash); err != nil {
+			if DEBUG {
+				p.log("ERROR GetValuesText: %v", err)
+			}
+		}
+
 		updatetimestampfilename := path.Join(ConfigDir, p.UpdateTimestampFilename())
 		if updatetimestampfilestat, err := os.Stat(updatetimestampfilename); err == nil {
 			p.UpdateTimestamp = updatetimestampfilestat.ModTime()
@@ -667,11 +689,13 @@ func ServerPackagesUpdate() (err error) {
 
 		// TODO update values but not images.values
 
-		if d := time.Now().Sub(p.UpdateTimestamp).Truncate(time.Second); d < p.UpdateIntervalDuration {
-			if DEBUG {
-				p.log("DEBUG %v until next update", p.UpdateIntervalDuration-d)
+		if ValuesReportedHash == "" && PermitHash == "" {
+			if d := time.Now().Sub(p.UpdateTimestamp).Truncate(time.Second); d < p.UpdateIntervalDuration {
+				if DEBUG {
+					p.log("DEBUG %v until next update", p.UpdateIntervalDuration-d)
+				}
+				continue
 			}
-			continue
 		}
 
 		timenow := time.Now()
@@ -952,24 +976,6 @@ func ServerPackagesUpdate() (err error) {
 			time.Sleep(PackagesSleepDuration)
 			continue
 
-		}
-
-		//
-		// READ REPORTED HASH
-		//
-
-		var ValuesReportedHash string
-		if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash); err != nil {
-			p.log("ERROR GetValuesText: %v", err)
-		}
-
-		//
-		// READ PERMIT HASH
-		//
-
-		var PermitHash string
-		if err := GetValuesText(p.ValuesPermitHashFilename(), &PermitHash); err != nil {
-			p.log("ERROR GetValuesText: %v", err)
 		}
 
 		if DEBUG {
