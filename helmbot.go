@@ -661,15 +661,6 @@ func ServerPackagesUpdate() (err error) {
 		}
 
 		//
-		// READ REPORTED HASH
-		//
-
-		var ValuesReportedHash string
-		if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash, true); err != nil {
-			p.log("ERROR GetValuesText: %v", err)
-		}
-
-		//
 		// READ PERMIT HASH
 		//
 
@@ -685,7 +676,7 @@ func ServerPackagesUpdate() (err error) {
 
 		// TODO update values but not images.values
 
-		if ValuesReportedHash == "" && PermitHash == "" {
+		if PermitHash == "" {
 			if d := time.Now().Sub(p.UpdateTimestamp).Truncate(time.Second); d < p.UpdateIntervalDuration {
 				if DEBUG {
 					p.log("DEBUG %v until next update", p.UpdateIntervalDuration-d)
@@ -972,6 +963,15 @@ func ServerPackagesUpdate() (err error) {
 			time.Sleep(PackagesSleepDuration)
 			continue
 
+		}
+
+		//
+		// READ REPORTED HASH
+		//
+
+		var ValuesReportedHash string
+		if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash, true); err != nil {
+			p.log("ERROR GetValuesText: %v", err)
 		}
 
 		if DEBUG {
