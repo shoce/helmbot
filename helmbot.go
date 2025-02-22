@@ -1084,6 +1084,10 @@ func ServerPackagesUpdate() (err error) {
 
 		if !deploynow {
 
+			if VERBOSE {
+				p.log("reporting pending update")
+			}
+
 			if p.ValuesHash != ValuesReportedHash {
 
 				tgmsg += "*NOT UPDATING NOW*; update will start *in the next allowed time window*" + NL + NL
@@ -1107,6 +1111,10 @@ func ServerPackagesUpdate() (err error) {
 
 		}
 
+		if VERBOSE {
+			p.log("installing update")
+		}
+
 		if p.UpdateDelayDuration > 0 {
 
 			tgmsg += fmt.Sprintf("*STARTING IN %v*", p.UpdateDelayDuration) + NL + NL
@@ -1115,8 +1123,8 @@ func ServerPackagesUpdate() (err error) {
 				p.log("ERROR tglog: %v", tgerr)
 			}
 
-			if DEBUG {
-				p.log("DEBUG sleeping %v", p.UpdateDelayDuration)
+			if VERBOSE {
+				p.log("sleeping %v", p.UpdateDelayDuration)
 			}
 			time.Sleep(p.UpdateDelayDuration)
 
@@ -1125,6 +1133,10 @@ func ServerPackagesUpdate() (err error) {
 		//
 		// DEPLOY
 		//
+
+		if VERBOSE {
+			p.log("starting update")
+		}
 
 		tgmsg += fmt.Sprintf("*STARTED*") + NL + NL
 
@@ -1213,8 +1225,8 @@ func ServerPackagesUpdate() (err error) {
 
 		// TODO delay helmbot self-update for saving deployed values and hash
 
-		if DEBUG {
-			p.log("DEBUG release Name==%v Namespace==%v Info.Status==%v HashId==%v", release.Name, release.Namespace, release.Info.Status, p.HashId())
+		if VERBOSE {
+			p.log("installed release Name==%v Namespace==%v Info.Status==%v HashId==%v", release.Name, release.Namespace, release.Info.Status, p.HashId())
 		}
 
 		tgmsg += fmt.Sprintf(
