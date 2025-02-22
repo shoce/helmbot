@@ -1504,10 +1504,9 @@ func GetValuesTextFile(name string, valuestext *string, notexistok bool) (err er
 	filepath := path.Join(ConfigDir, name)
 
 	bb, err := os.ReadFile(filepath)
-	if !notexistok && os.IsNotExist(err) {
+	if os.IsNotExist(err) && !notexistok {
 		return fmt.Errorf("GetValuesTextFile %s: does not exist", name)
-	}
-	if err != nil {
+	} else if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("GetValuesTextFile %s: %w", name, err)
 	}
 
@@ -1771,7 +1770,9 @@ func GetValuesTextMinio(name string, valuestext *string, notexistok bool) (err e
 		return fmt.Errorf("GetValuesTextMinio %s: %w", name, err)
 	} else if resp, err := http.DefaultClient.Do(req); err != nil {
 		return fmt.Errorf("GetValuesTextMinio %s: %w", name, err)
-	} else if resp.StatusCode == 404 && !notexistok || resp.StatusCode != 200 {
+	} else if resp.StatusCode == 404 && !notexistok {
+		return fmt.Errorf("GetValuesTextMinio %s: minio server response status %s", name, resp.Status)
+	} else if resp.StatusCode != 200 && resp.StatusCode != 404 {
 		return fmt.Errorf("GetValuesTextMinio %s: minio server response status %s", name, resp.Status)
 	} else if bb, err := ioutil.ReadAll(resp.Body); err != nil {
 		return fmt.Errorf("GetValuesTextMinio %s: %w", name, err)
