@@ -1263,7 +1263,11 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 			p.Name = fmt.Sprintf("%s-%s", p.ChartName, p.EnvName)
 
 			if p.Namespace == "" {
-				p.Namespace = fmt.Sprintf("%s-%s", p.ChartName, p.EnvName)
+				if s.Namespace != "" {
+					p.Namespace = s.Namespace
+				} else {
+					p.Namespace = fmt.Sprintf("%s-%s", p.ChartName, p.EnvName)
+				}
 			}
 
 			p.ServerHostname = &s.ServerHostname
@@ -1550,6 +1554,8 @@ type ServerConfig struct {
 	ServerHostname string `yaml:"ServerHostname"`
 
 	EnvName string `yaml:"EnvName"`
+
+	Namespace string `yaml:"Namespace,omitempty"`
 
 	AlwaysForceNow *bool `yaml:"AlwaysForceNow,omitempty"`
 
