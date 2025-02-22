@@ -495,7 +495,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	p := PackageConfig{ChartName: UpdateChartName, EnvName: UpdateEnvName}
 
 	var ValuesDeployedHash string
-	if err := GetValuesText(p.ValuesDeployedHashFilename(), &ValuesDeployedHash); err != nil {
+	if err := GetValuesText(p.ValuesDeployedHashFilename(), &ValuesDeployedHash, false); err != nil {
 		log("webhook ERROR %v could not be read: %v", p.ValuesDeployedHashFilename(), err)
 		if _, tgerr = tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
@@ -524,7 +524,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var ValuesReportedHash string
-	if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash); err != nil {
+	if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash, false); err != nil {
 		log("webhook ERROR %v could not be read: %v", p.ValuesReportedHashFilename(), err)
 		if _, tgerr = tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
@@ -599,7 +599,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 func ServerPackagesUpdate() (err error) {
 
 	var paused string
-	if err := GetValuesTextFile("paused", &paused); err == nil {
+	if err := GetValuesTextFile("paused", &paused, false); err == nil {
 		// paused packages update - return with no error
 		if VERBOSE {
 			log("packages update paused")
@@ -654,7 +654,7 @@ func ServerPackagesUpdate() (err error) {
 	for _, p := range Packages {
 
 		var pkgpaused string
-		if err := GetValuesTextFile(path.Join(p.DeployedDir(), "paused"), &pkgpaused); err == nil {
+		if err := GetValuesTextFile(path.Join(p.DeployedDir(), "paused"), &pkgpaused, false); err == nil {
 			// paused package update - skip with no error
 			p.log("DEBUG update paused")
 			continue
@@ -665,10 +665,8 @@ func ServerPackagesUpdate() (err error) {
 		//
 
 		var ValuesReportedHash string
-		if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash); err != nil {
-			if DEBUG {
-				p.log("ERROR GetValuesText: %v", err)
-			}
+		if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash, true); err != nil {
+			p.log("ERROR GetValuesText: %v", err)
 		}
 
 		//
@@ -676,10 +674,8 @@ func ServerPackagesUpdate() (err error) {
 		//
 
 		var PermitHash string
-		if err := GetValuesText(p.ValuesPermitHashFilename(), &PermitHash); err != nil {
-			if DEBUG {
-				p.log("ERROR GetValuesText: %v", err)
-			}
+		if err := GetValuesText(p.ValuesPermitHashFilename(), &PermitHash, true); err != nil {
+			p.log("ERROR GetValuesText: %v", err)
 		}
 
 		updatetimestampfilename := path.Join(ConfigDir, p.UpdateTimestampFilename())
@@ -957,7 +953,7 @@ func ServerPackagesUpdate() (err error) {
 		//
 
 		var ValuesDeployedHash string
-		if err := GetValuesText(p.ValuesDeployedHashFilename(), &ValuesDeployedHash); err != nil {
+		if err := GetValuesText(p.ValuesDeployedHashFilename(), &ValuesDeployedHash, false); err != nil {
 
 			p.log("ERROR GetValuesText: %s", err)
 			continue
@@ -987,22 +983,22 @@ func ServerPackagesUpdate() (err error) {
 		//
 
 		var DeployedGlobalValuesText string
-		if err := GetValuesTextFile(path.Join(p.DeployedDir(), p.GlobalValuesFilename()), &DeployedGlobalValuesText); err != nil {
+		if err := GetValuesTextFile(path.Join(p.DeployedDir(), p.GlobalValuesFilename()), &DeployedGlobalValuesText, false); err != nil {
 			p.log("ERROR GetValuesTextFile: %v", err)
 		}
 
 		var DeployedValuesText string
-		if err := GetValuesTextFile(path.Join(p.DeployedDir(), p.ValuesFilename()), &DeployedValuesText); err != nil {
+		if err := GetValuesTextFile(path.Join(p.DeployedDir(), p.ValuesFilename()), &DeployedValuesText, false); err != nil {
 			p.log("ERROR GetValuesTextFile: %v", err)
 		}
 
 		var DeployedEnvValuesText string
-		if err := GetValuesTextFile(path.Join(p.DeployedDir(), p.EnvValuesFilename()), &DeployedEnvValuesText); err != nil {
+		if err := GetValuesTextFile(path.Join(p.DeployedDir(), p.EnvValuesFilename()), &DeployedEnvValuesText, false); err != nil {
 			p.log("ERROR GetValuesTextFile: %v", err)
 		}
 
 		var DeployedImagesValuesText string
-		if err := GetValuesTextFile(path.Join(p.DeployedDir(), p.ImagesValuesFilename()), &DeployedImagesValuesText); err != nil {
+		if err := GetValuesTextFile(path.Join(p.DeployedDir(), p.ImagesValuesFilename()), &DeployedImagesValuesText, false); err != nil {
 			p.log("ERROR GetValuesTextFile: %v", err)
 		}
 
@@ -1476,11 +1472,11 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 	return packages, nil
 }
 
-func GetValuesText(name string, valuestext *string) (err error) {
+func GetValuesText(name string, valuestext *string, notexistok bool) (err error) {
 	if ValuesMinioUrlHost != "" {
-		return GetValuesTextMinio(name, valuestext)
+		return GetValuesTextMinio(name, valuestext, notexistok)
 	}
-	return GetValuesTextFile(name, valuestext)
+	return GetValuesTextFile(name, valuestext, notexistok)
 }
 
 func GetValues(name string, valuestext *string, values interface{}) (err error) {
@@ -1504,7 +1500,7 @@ func DeleteValues(name string) (err error) {
 	return DeleteValuesFile(name)
 }
 
-func GetValuesTextFile(name string, valuestext *string) (err error) {
+func GetValuesTextFile(name string, valuestext *string, notexistok bool) (err error) {
 	filepath := path.Join(ConfigDir, name)
 
 	bb, err := os.ReadFile(filepath)
@@ -1528,7 +1524,7 @@ func GetValuesFile(name string, valuestext *string, values interface{}) (err err
 		valuestext = &valuestext1
 	}
 
-	err = GetValuesTextFile(name, valuestext)
+	err = GetValuesTextFile(name, valuestext, false)
 	if err != nil {
 		return fmt.Errorf("GetValuesFile %s: %w", name, err)
 	}
@@ -1765,14 +1761,14 @@ func MinioNewRequest(method, name string, payload []byte) (req *http.Request, er
 	return req, nil
 }
 
-func GetValuesTextMinio(name string, valuestext *string) (err error) {
+func GetValuesTextMinio(name string, valuestext *string, notexistok bool) (err error) {
 	var respbody string
 
 	if req, err := MinioNewRequest(http.MethodGet, name, nil); err != nil {
 		return fmt.Errorf("GetValuesTextMinio %s: %w", name, err)
 	} else if resp, err := http.DefaultClient.Do(req); err != nil {
 		return fmt.Errorf("GetValuesTextMinio %s: %w", name, err)
-	} else if resp.StatusCode != 200 {
+	} else if resp.StatusCode == 404 && !notexistok || resp.StatusCode != 200 {
 		return fmt.Errorf("GetValuesTextMinio %s: minio server response status %s", name, resp.Status)
 	} else if bb, err := ioutil.ReadAll(resp.Body); err != nil {
 		return fmt.Errorf("GetValuesTextMinio %s: %w", name, err)
@@ -1795,7 +1791,7 @@ func GetValuesMinio(name string, valuestext *string, values interface{}) (err er
 		valuestext = &valuestext1
 	}
 
-	err = GetValuesTextMinio(name, valuestext)
+	err = GetValuesTextMinio(name, valuestext, false)
 	if err != nil {
 		return fmt.Errorf("GetValuesMinio %s: %w", name, err)
 	}
