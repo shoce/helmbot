@@ -67,6 +67,8 @@ var (
 	VERBOSE bool
 	DEBUG   bool
 
+	VERSION string
+
 	LogUTC          bool
 	LogTimeZone     string         = "+"
 	LogTimeLocation *time.Location = time.UTC
@@ -110,6 +112,9 @@ var (
 
 func init() {
 	var err error
+
+	hostname, err := os.Hostname()
+	log("helmbot version==%v hostname==%v", VERSION, hostname)
 
 	if os.Getenv("LogUTC") != "" {
 		LogUTC = true

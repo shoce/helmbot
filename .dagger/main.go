@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"dagger/helmbot/internal/dagger"
@@ -63,7 +64,7 @@ func (m *Helmbot) Build(
 				WithEnvVariable("CGO_ENABLED", "0").
 				WithEnvVariable("GOARCH", arch).
 				WithExec([]string{"go", "get", "-v"}).
-				WithExec([]string{"go", "build", "-o", "helmbot", "."})
+				WithExec([]string{"go", "build", "-X", "main.VERSION=" + os.Getenv("VERSION"), "-o", "helmbot", "."})
 
 			// https://hub.docker.com/_/alpine/tags/
 			b := dag.Container(dagger.ContainerOpts{Platform: platform}).
