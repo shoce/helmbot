@@ -64,7 +64,7 @@ func (m *Helmbot) Build(
 				WithEnvVariable("CGO_ENABLED", "0").
 				WithEnvVariable("GOARCH", arch).
 				WithExec([]string{"go", "get", "-v"}).
-				WithExec([]string{"go", "build", "-ldflags", "-X main.VERSION=" + os.Getenv("VERSION"), "-o", "helmbot", "."})
+				WithExec([]string{"go", "build", "-o", "helmbot", "-ldflags", "-X main.VERSION=" + os.Getenv("VERSION"), "."})
 
 			// https://hub.docker.com/_/alpine/tags/
 			b := dag.Container(dagger.ContainerOpts{Platform: platform}).
