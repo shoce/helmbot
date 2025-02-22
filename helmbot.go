@@ -340,8 +340,8 @@ func main() {
 
 				if d := time.Now().Sub(t0); d < PackagesUpgradeInterval {
 					sleepdur := (PackagesUpgradeInterval - d).Truncate(time.Second)
-					if VERBOSE {
-						log("packages sleeping %s", sleepdur)
+					if DEBUG {
+						log("packages DEBUG sleeping %s", sleepdur)
 					}
 					time.Sleep(sleepdur)
 				}
@@ -941,8 +941,8 @@ func ServerPackagesUpdate() (err error) {
 
 		if p.ValuesHash == ValuesDeployedHash {
 
-			if VERBOSE {
-				p.log("ValuesHash==ValuesDeployedHash so nothing to do")
+			if DEBUG {
+				p.log("DEBUG ValuesHash==ValuesDeployedHash")
 			}
 			time.Sleep(PackagesSleepDuration)
 			continue
