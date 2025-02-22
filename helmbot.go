@@ -68,8 +68,8 @@ var (
 	DEBUG   bool
 
 	LogUTC          bool
-	LogTimeZone     string
-	LogTimeLocation *time.Location
+	LogTimeZone     string         = "+"
+	LogTimeLocation *time.Location = time.UTC
 
 	ServerHostname string
 
@@ -139,6 +139,11 @@ func init() {
 	if os.Getenv("DEBUG") != "" {
 		DEBUG = true
 		log("DEBUG==%v", DEBUG)
+		// SET VERBOSE IF DEBUG
+		if !VERBOSE {
+			VERBOSE = true
+			log("VERBOSE==%v", VERBOSE)
+		}
 	}
 
 	ServerHostname = os.Getenv("ServerHostname")
