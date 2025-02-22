@@ -1783,10 +1783,6 @@ func GetValuesTextMinio(name string, valuestext *string, notexistok bool) (err e
 		respbody = string(bb)
 	}
 
-	if DEBUG {
-		log("DEBUG GetValuesTextMinio %s [len %d]: %s", name, len(respbody), strings.ReplaceAll(respbody, NL, " <nl> "))
-	}
-
 	*valuestext = respbody
 
 	return nil
