@@ -33,6 +33,8 @@ LoggingUsername: ""
 LoggingPassword: ""
 LoggingTag: "helmbot"
 
+LogUTC: ""
+
 
 IngressRequestMaxBodySizeString: "1m"
 IngressWhitelistSourceRange: []

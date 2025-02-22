@@ -67,9 +67,9 @@ var (
 	VERBOSE bool
 	DEBUG   bool
 
-	LogUTCTime bool
-
-	LocalZone string
+	LogUTC          bool
+	LogTimeZone     string
+	LogTimeLocation time.Location
 
 	ServerHostname string
 
@@ -111,9 +111,18 @@ var (
 func init() {
 	var err error
 
-	LocalZone = time.Now().Local().Format("-0700")
-	if LocalZone == "+0000" {
-		LocalZone = "Z"
+	if os.Getenv("LogUTC") != "" {
+		LogUTC = true
+		log("LogUTC==%v", LogUTC)
+	}
+
+	if LogUTC {
+		LogTimeLocation = time.UTC
+		LogTimeZone = "+"
+	} else {
+		LogTimeLocation = time.Local
+		LogTimeZone = time.Now().Local().Format("-0700")
+		LogTimeZone = strings.TrimRight(LogTimeZone, "0")
 	}
 
 	UpdateHashIdRe, err = regexp.Compile(UpdateHashIdReString)
@@ -1584,21 +1593,17 @@ type HelmbotConfig struct {
 	Servers      []ServerConfig     `yaml:"Servers"`
 }
 
-func log(msg string, args ...interface{}) {
-	t := time.Now()
-	var tzone string
-	if LogUTCTime {
-		t = t.UTC()
-		tzone = "Z"
-	} else {
-		t = t.Local()
-		tzone = LocalZone
-	}
-	ts := fmt.Sprintf(
-		"%d:%02d%02d:%02d%02d%s",
-		t.Year()%1000, t.Month(), t.Day(), t.Hour(), t.Minute(), tzone,
+func ts() string {
+	tnow := time.Now().In(LogTimeLocation)
+	return fmt.Sprintf(
+		"%d%02d%02d:%02d%02d%s",
+		tnow.Year()%1000, tnow.Month(), tnow.Day(),
+		tnow.Hour(), tnow.Minute(), LogTimeZone,
 	)
-	fmt.Fprintf(os.Stderr, ts+" "+msg+NL, args...)
+}
+
+func log(msg string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, ts()+" "+msg+NL, args...)
 }
 
 func dirExists(path string) bool {
