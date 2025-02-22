@@ -1,0 +1,61 @@
+
+name: dagger
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+    paths-ignore:
+      - 'helm/**'
+      - '.github/workflows/helm.yaml'
+      - '.github/workflows/docker.yaml'
+
+env:
+  REGISTRY: ghcr.io
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  DAGGER_NO_NAG: 1
+
+jobs:
+  build-publish:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: version
+        run: |
+          VERSION=$( date -u '+%y.%m%d.%H%M%S' | sed 's/\.0*/./g' )
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - uses: actions/checkout@v4
+
+      # https://github.com/dagger/dagger-for-github
+      - uses: dagger/dagger-for-github@v7
+        with:
+          version: latest
+          call: publish
+            --registry=$REGISTRY
+            --username=${{ github.repository_owner }}
+            --password=env:GITHUB_TOKEN
+            --image=${{ github.repository }}/${{ github.ref_name }}:${{ env.VERSION }}
+
+      - name: tag
+        run: |
+          git config user.name github-actions
+          git config user.email "github-actions@users.noreply.github.com"
+          git tag $VERSION
+          git push origin $VERSION
+
+      # https://github.com/actions/delete-package-versions
+      - uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ github.event.repository.name }}/${{ github.ref_name }}
+          package-type: container
+          min-versions-to-keep: 12
+          delete-only-untagged-versions: "false"
+
+

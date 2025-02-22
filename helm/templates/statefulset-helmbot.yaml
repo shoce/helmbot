@@ -1,0 +1,58 @@
+---
+
+apiVersion: apps/v1
+kind: StatefulSet
+
+metadata:
+  name: helmbot
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app: helmbot
+
+spec:
+
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: helmbot
+
+  template:
+    metadata:
+      name: helmbot
+      labels:
+        app: helmbot
+
+      annotations:
+        checksum/configmap-helmbot: {{ include ( print $.Template.BasePath "/" "configmap-helmbot.yaml" ) . | sha256sum }}
+
+    spec:
+
+      serviceAccountName: helmbot-admin
+
+      volumes:
+        - name: config-dir
+          hostPath:
+            path: "{{ $.Values.ConfigDir }}"
+            type: DirectoryOrCreate
+
+      containers:
+
+        - name: helmbot
+          image: "{{ $.Values.ImageNameGithubHelmbot }}:{{ $.Values.ImageTagGithubHelmbot }}"
+          imagePullPolicy: IfNotPresent
+
+          volumeMounts:
+            - name: config-dir
+              mountPath: "{{ $.Values.ConfigDir }}"
+
+          {{ if $.Values.TgWebhookHost -}}
+          ports:
+            - containerPort: 80
+          {{ end }}
+
+          envFrom:
+            - configMapRef:
+                name: helmbot
+
+

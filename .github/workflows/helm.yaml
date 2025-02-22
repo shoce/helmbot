@@ -1,9 +1,12 @@
 # https://github.com/bsord/helm-push
 # https://docs.github.com/en/actions/learn-github-actions/contexts
+
 name: helm
+
 permissions:
   packages: write
   contents: read
+
 on:
   push:
     branches:
@@ -11,20 +14,27 @@ on:
       - main
     paths:
       - 'helm/**'
+      - '.github/workflows/helm.yaml'
+
 jobs:
   build-push:
     runs-on: ubuntu-latest
     steps:
+
       - name: version
         run: |
-          VERSION=$( date '+%y.%m%d.%H%M' )
-          echo "VERSION:$VERSION"
+          VERSION=$( date -u '+%y.%m%d.%H%M%S' | sed 's/\.0*/./g' )
           echo "VERSION=$VERSION" >> $GITHUB_ENV
+
       - uses: actions/checkout@v4
+
       - name: chart version
         run: |
           sed -i -e "s/__VERSION__/$VERSION/g" helm/Chart.yaml
           cat helm/Chart.yaml
+          HELM_CHART_NAME=$( yq .name helm/Chart.yaml )
+          echo "HELM_CHART_NAME=$HELM_CHART_NAME" >> $GITHUB_ENV
+
       - uses: bsord/helm-push@v4
         with:
           useOCIRegistry: true
@@ -33,4 +43,12 @@ jobs:
           access-token: ${{ secrets.GITHUB_TOKEN }}
           force: true
           chart-folder: helm
+
+      - uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ github.event.repository.name }}/${{ github.ref_name }}/${{ env.HELM_CHART_NAME }}
+          package-type: container
+          min-versions-to-keep: 4
+          delete-only-untagged-versions: "false"
+
 

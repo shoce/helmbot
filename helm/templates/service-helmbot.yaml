@@ -1,14 +1,19 @@
----
 {{ if $.Values.TgWebhookHost -}}
+---
+
 apiVersion: v1
 kind: Service
+
 metadata:
-  name: {{ $.Release.Namespace }}-helmbot-service
+  name: helmbot
+  namespace: {{ $.Release.Namespace }}
   labels:
-    app: {{ $.Release.Namespace }}-helmbot
+    app: helmbot
+
 spec:
   selector:
-    app: {{ $.Release.Namespace }}-helmbot
+    app: helmbot
+
   type: NodePort
   externalTrafficPolicy: Local
   ports:

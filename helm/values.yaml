@@ -1,19 +1,23 @@
 ---
 
-ImageRegistryAddress: ""
-ImageRegistryUsername: ""
-ImageRegistryPassword: ""
+ImageNameGithubHelmbot: "ghcr.io/shoce/helmbot/dev"
+ImageTagGithubHelmbot: ""
 
-ImageNameGithubHelmbot: ""
 
+VERBOSE: ""
+DEBUG: ""
 
 ServerHostname: ""
 
-PackagesDir: ""
+ConfigDir: /opt/helmbot/
+ConfigFilename: helmbot.config.yaml
+HostConfigFilename: "" # helmbot.config.hostname.yaml
 
-PackagesMinioPath: "helmbot.packages.yaml"
-PackagesLocalPath: "/opt/helmbot/helmbot.packages.yaml"
+PackagesUpgradeInterval: 333s
 
+ValuesMinioUrl: ""
+ValuesMinioUsername: ""
+ValuesMinioPassword: ""
 
 TgToken: ""
 TgWebhookHost: ""
@@ -21,22 +25,17 @@ TgWebhookUrl: ""
 TgWebhookToken: ""
 TgChatIds: ""
 TgBossUserIds: ""
-
-GetValuesUrlPrefix: ""
-GetValuesUsername: ""
-GetValuesPassword: ""
-
-PutValuesUrlPrefix: ""
-PutValuesUsername: ""
-PutValuesPassword: ""
-
+TgAdminMention: ""
 
 LoggingHost: ""
 LoggingPort: ""
+LoggingUsername: ""
+LoggingPassword: ""
+LoggingTag: "helmbot"
+
+LogUTC: ""
 
 
 IngressRequestMaxBodySizeString: "1m"
-
 IngressWhitelistSourceRange: []
-
 
