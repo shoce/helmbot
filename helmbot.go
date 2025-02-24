@@ -61,6 +61,8 @@ const (
 	HashLength = 12
 
 	PackagesSleepDuration = 2 * time.Second
+
+	ConfigLocalFilename = "helmbot.config.local.yaml"
 )
 
 var (
@@ -333,34 +335,26 @@ func main() {
 
 	}
 
-	if ConfigFilename != "" || HostConfigFilename != "" {
+	go func() {
+		for {
+			t0 := time.Now()
 
-		go func() {
-			for {
-				t0 := time.Now()
-
-				if err := ServerPackagesUpdate(); err != nil {
-					log("packages ERROR update: %+v", err)
-				}
-
-				if d := time.Now().Sub(t0); d < PackagesUpgradeInterval {
-					sleepdur := (PackagesUpgradeInterval - d).Truncate(time.Second)
-					if DEBUG {
-						log("packages DEBUG sleeping %s", sleepdur)
-					}
-					time.Sleep(sleepdur)
-				}
-				if DEBUG {
-					log("---")
-				}
+			if err := ServerPackagesUpdate(); err != nil {
+				log("packages ERROR update: %+v", err)
 			}
-		}()
 
-	} else {
-
-		log("ConfigFilename nor HostConfigFilename are not set so this instance will not process packages.")
-
-	}
+			if d := time.Now().Sub(t0); d < PackagesUpgradeInterval {
+				sleepdur := (PackagesUpgradeInterval - d).Truncate(time.Second)
+				if DEBUG {
+					log("packages DEBUG sleeping %s", sleepdur)
+				}
+				time.Sleep(sleepdur)
+			}
+			if DEBUG {
+				log("---")
+			}
+		}
+	}()
 
 	log("start done.")
 
@@ -606,6 +600,8 @@ func ServerPackagesUpdate() (err error) {
 		}
 		return nil
 	}
+
+	GetValuesFile(ConfigLocalFilename, nil, &Config)
 
 	if ConfigFilename != "" {
 		if err := GetValues(ConfigFilename, nil, &Config); err != nil {
