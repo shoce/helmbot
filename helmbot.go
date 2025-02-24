@@ -959,7 +959,7 @@ func ServerPackagesUpdate() (err error) {
 		//
 
 		var ValuesDeployedHash string
-		if err := GetValuesText(p.ValuesDeployedHashFilename(), &ValuesDeployedHash, false); err != nil {
+		if err := GetValuesText(p.ValuesDeployedHashFilename(), &ValuesDeployedHash, true); err != nil {
 
 			p.log("ERROR GetValuesText: %s", err)
 			continue
