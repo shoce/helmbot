@@ -1622,14 +1622,14 @@ type PackageConfig struct {
 	Timezone     *string `yaml:"Timezone,omitempty"`
 	AllowedHours *string `yaml:"AllowedHours,omitempty"`
 
+	LocalValues map[string]interface{} `yaml:"LocalValues,omitempty"`
+
 	UpdateIntervalDuration time.Duration
 	UpdateDelayDuration    time.Duration
 	UpdateTimestamp        time.Time
 
 	TimezoneLocation *time.Location
 	AllowedHoursList []string
-
-	LocalValues map[string]interface{}
 
 	GlobalValuesText string
 	ValuesText       string
