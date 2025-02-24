@@ -1254,7 +1254,7 @@ func ServerPackagesUpdate() (err error) {
 
 			p.log("ERROR helm Run: %v", err)
 
-			tgmsg += fmt.Sprintf("*ERROR*"+NL+NL+"```"+NL+"%v"+NL+"```"+NL, err)
+			tgmsg += fmt.Sprintf("*ERROR*"+NL+NL+"```"+NL+"%v"+NL+"```", err) + NL + NL
 
 			if _, tgerr = p.tglog(0, tgmsgid, tgmsg); tgerr != nil {
 				p.log("ERROR tglog: %v", tgerr)
