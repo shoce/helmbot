@@ -91,6 +91,8 @@ var (
 	ValuesMinioUrlHost string
 	ValuesMinioUrlPath string
 
+	ConfigLocal HelmbotConfig
+
 	Config   HelmbotConfig
 	Packages []PackageConfig
 
@@ -601,17 +603,25 @@ func ServerPackagesUpdate() (err error) {
 		return nil
 	}
 
-	GetValuesFile(ConfigLocalFilename, nil, &Config)
-
 	if ConfigFilename != "" {
 		if err := GetValues(ConfigFilename, nil, &Config); err != nil {
 			return err
 		}
 	}
+
 	if HostConfigFilename != "" {
 		if err := GetValues(HostConfigFilename, nil, &Config); err != nil {
 			return err
 		}
+	}
+
+	GetValuesFile(ConfigLocalFilename, nil, &ConfigLocal)
+
+	for _, d := range ConfigLocal.DrLatestYaml {
+		Config.DrLatestYaml = append(Config.DrLatestYaml, d)
+	}
+	for _, s := range ConfigLocal.Servers {
+		Config.Servers = append(Config.Servers, s)
 	}
 
 	if DEBUG {
