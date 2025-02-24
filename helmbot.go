@@ -946,7 +946,12 @@ func ServerPackagesUpdate() (err error) {
 		// LATEST VALUES HASH
 		//
 
-		allvaluestext := p.GlobalValuesText + p.ValuesText + p.EnvValuesText + p.ImagesValuesText
+		var allvaluestext string
+		if len(p.LocalValues) == 0 {
+			allvaluestext = p.GlobalValuesText + p.ValuesText + p.EnvValuesText + p.ImagesValuesText
+		} else {
+			allvaluestext = fmt.Sprintf("%#v", p.LocalValues) + p.ImagesValuesText
+		}
 		p.ValuesHash = fmt.Sprintf("%x", sha256.Sum256([]byte(allvaluestext)))[:HashLength]
 
 		//
