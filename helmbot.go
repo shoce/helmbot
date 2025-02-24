@@ -707,7 +707,7 @@ func ServerPackagesUpdate() (err error) {
 		// READ LATEST VALUES
 		//
 
-		if p.LocalValues == nil {
+		if len(p.LocalValues) == 0 {
 
 			err = GetValues(p.GlobalValuesFilename(), &p.GlobalValuesText, p.GlobalValues)
 			if err != nil {
@@ -997,7 +997,7 @@ func ServerPackagesUpdate() (err error) {
 		var DeployedEnvValuesText string
 		var DeployedImagesValuesText string
 
-		if p.LocalValues == nil {
+		if len(p.LocalValues) == 0 {
 
 			if err := GetValuesTextFile(path.Join(p.DeployedDir(), p.GlobalValuesFilename()), &DeployedGlobalValuesText, false); err != nil {
 				p.log("ERROR GetValuesTextFile: %v", err)
@@ -1179,7 +1179,7 @@ func ServerPackagesUpdate() (err error) {
 
 		helmchartutil.MergeTables(values, p.ImagesValues)
 
-		if p.LocalValues == nil {
+		if len(p.LocalValues) == 0 {
 			helmchartutil.MergeTables(values, p.EnvValues)
 			helmchartutil.MergeTables(values, p.Values)
 			helmchartutil.MergeTables(values, p.GlobalValues)
@@ -1686,7 +1686,7 @@ func (p *PackageConfig) WriteDeployedValues() error {
 		return fmt.Errorf("MkdirAll: %w", err)
 	}
 
-	if p.LocalValues == nil {
+	if len(p.LocalValues) == 0 {
 
 		if err := PutValuesTextFile(path.Join(p.DeployedDir(), p.GlobalValuesFilename()), p.GlobalValuesText); err != nil {
 			return fmt.Errorf("PutValuesTextFile: %w", err)
