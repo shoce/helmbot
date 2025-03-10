@@ -491,7 +491,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	p := PackageConfig{ChartName: UpdateChartName, EnvName: UpdateEnvName}
 
 	var ValuesDeployedHash string
-	if err := GetValuesText(p.ValuesDeployedHashFilename(), &ValuesDeployedHash, false); err != nil {
+	if err := GetValuesText(p.ValuesDeployedHashFilename(), &ValuesDeployedHash, true); err != nil {
 		log("webhook ERROR %v could not be read: %v", p.ValuesDeployedHashFilename(), err)
 		if _, tgerr = tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
@@ -520,7 +520,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var ValuesReportedHash string
-	if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash, false); err != nil {
+	if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash, true); err != nil {
 		log("webhook ERROR %v could not be read: %v", p.ValuesReportedHashFilename(), err)
 		if _, tgerr = tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
