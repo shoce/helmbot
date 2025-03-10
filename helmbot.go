@@ -2022,7 +2022,7 @@ func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error
 		swreqjsBuffer,
 	)
 	if err != nil {
-		return fmt.Errorf("apiurl:`%s` apidata:`%s` %v", tgapiurl, swreqjs, err)
+		return fmt.Errorf("url==%v data==%v error: %v", tgapiurl, string(swreqjs), err)
 	}
 
 	var swresp TgSetWebhookResponse
@@ -2036,7 +2036,7 @@ func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error
 		return fmt.Errorf("json.Decoder.Decode: %w", err)
 	}
 	if !swresp.OK || !swresp.Result {
-		return fmt.Errorf("apiurl:`%s` apidata:`%s` api response not ok: %+v", tgapiurl, swreqjs, swresp)
+		return fmt.Errorf("url==%v data==%v api response not ok: %+v", tgapiurl, string(swreqjs), swresp)
 	}
 
 	return nil
@@ -2069,6 +2069,7 @@ func (p *PackageConfig) tglog(replyid int64, editid int64, msg string, args ...i
 }
 
 func tglog(chatid int64, replyid int64, editid int64, msg string, args ...interface{}) (msgid int64, err error) {
+	// TODO proper formatting escaping
 	text := fmt.Sprintf(msg, args...)
 	text = strings.NewReplacer(
 		"(", "\\(",
@@ -2086,6 +2087,7 @@ func tglog(chatid int64, replyid int64, editid int64, msg string, args ...interf
 		"|", "\\|",
 		"!", "\\!",
 		".", "\\.",
+		"_", "\\_",
 	).Replace(text)
 
 	var reqjs []byte
@@ -2130,7 +2132,7 @@ func tglog(chatid int64, replyid int64, editid int64, msg string, args ...interf
 		reqjsBuffer,
 	)
 	if err != nil {
-		return 0, fmt.Errorf("url==%v data==%v error: %v", tgurl, reqjs, err)
+		return 0, fmt.Errorf("url==%v data==%v error: %v", tgurl, string(reqjs), err)
 	}
 
 	var smresp TgSendMessageResponse
@@ -2139,7 +2141,7 @@ func tglog(chatid int64, replyid int64, editid int64, msg string, args ...interf
 		return 0, fmt.Errorf("%v", err)
 	}
 	if !smresp.OK {
-		return 0, fmt.Errorf("apiurl==%v apidata==%v api response not ok: %+v", tgurl, reqjs, smresp)
+		return 0, fmt.Errorf("url==%v data==%v api response not ok: %+v", tgurl, string(reqjs), smresp)
 	}
 
 	return smresp.Result.MessageId, nil
