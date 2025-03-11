@@ -457,26 +457,6 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		log("webhook DEBUG message text valid")
 	}
 
-	if !slices.Contains(TgBossUserIds, rupdate.Message.From.Id) && !slices.Contains(TgChatIds, rupdate.Message.ReplyToMessage.SenderChat.Id) {
-		if DEBUG {
-			log("webhook DEBUG message user id not valid")
-		}
-		if _, tgerr = tglog(
-			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
-			"*Your request to force update %s is NOT accepted.*"+NL+NL+"Check helmbot TgBossUserIds config value.",
-		); tgerr != nil {
-			log("webhook ERROR tglog: %v", tgerr)
-		}
-		return
-	}
-	if DEBUG {
-		log("webhook DEBUG message user id valid")
-	}
-
-	if DEBUG {
-		log("webhook DEBUG update hash id submatch: %+v", UpdateHashIdSubmatch)
-	}
-
 	UpdateHashId := UpdateHashIdSubmatch[0]
 	UpdateChartName := UpdateHashIdSubmatch[1]
 	UpdateEnvName := UpdateHashIdSubmatch[2]
@@ -490,13 +470,33 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
 	p := PackageConfig{ChartName: UpdateChartName, EnvName: UpdateEnvName}
 
+	if !slices.Contains(TgBossUserIds, rupdate.Message.From.Id) && !slices.Contains(TgChatIds, rupdate.Message.ReplyToMessage.SenderChat.Id) {
+		if DEBUG {
+			log("webhook DEBUG message user id not valid")
+		}
+		if _, tgerr = tglog(
+			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
+			tgbold(fmt.Sprintf("Your request to force update %s-%s is NOT accepted.", p.ChartName, p.EnvName))+NL+NL+tgesc("Check helmbot TgBossUserIds config value."),
+		); tgerr != nil {
+			log("webhook ERROR tglog: %v", tgerr)
+		}
+		return
+	}
+	if DEBUG {
+		log("webhook DEBUG message user id valid")
+	}
+
+	if DEBUG {
+		log("webhook DEBUG update hash id submatch: %+v", UpdateHashIdSubmatch)
+	}
+
 	var ValuesDeployedHash string
 	if err := GetValuesText(p.ValuesDeployedHashFilename(), &ValuesDeployedHash, true); err != nil {
 		log("webhook ERROR %v could not be read: %v", p.ValuesDeployedHashFilename(), err)
 		if _, tgerr = tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
-			"*INTERNAL ERROR*"+NL+
-				TgAdminMention,
+			tgbold("INTERNAL ERROR")+NL+
+				tgesc(TgAdminMention),
 		); tgerr != nil {
 			log("webhook ERROR tglog: %v", tgerr)
 		}
@@ -512,7 +512,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		}
 		if _, tgerr = tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
-			"*THIS UPDATE IS ALREADY DEPLOYED*",
+			tgbold("THIS UPDATE IS ALREADY DEPLOYED"),
 		); tgerr != nil {
 			log("webhook ERROR tglog: %v", tgerr)
 		}
@@ -524,8 +524,8 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		log("webhook ERROR %v could not be read: %v", p.ValuesReportedHashFilename(), err)
 		if _, tgerr = tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
-			"*INTERNAL ERROR*"+NL+
-				TgAdminMention,
+			tgbold("INTERNAL ERROR")+NL+
+				tgesc(TgAdminMention),
 		); tgerr != nil {
 			log("webhook ERROR tglog: %v", tgerr)
 		}
@@ -541,7 +541,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		}
 		if _, tgerr = tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
-			"*THIS IS NOT THE LAST AVAILABLE UPDATE*"+NL+NL+"Only the last available update can be forced.",
+			tgbold("THIS IS NOT THE LAST AVAILABLE UPDATE")+NL+NL+tgesc("Only the last available update can be forced."),
 		); tgerr != nil {
 			log("webhook ERROR tglog: %v", tgerr)
 		}
@@ -563,8 +563,8 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		log("webhook ERROR %v file could not be written: %v", p.ValuesPermitHashFilename(), err)
 		if _, tgerr = tglog(
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
-			"*INTERNAL ERROR*"+NL+
-				TgAdminMention,
+			tgbold("INTERNAL ERROR")+NL+
+				tgesc(TgAdminMention),
 		); tgerr != nil {
 			log("webhook ERROR tglog: %v", tgerr)
 		}
@@ -577,12 +577,11 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
 	if _, tgerr = tglog(
 		rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
-		"*FORCE UPDATE NOW IS ACCEPTED.*"+
+		tgbold("FORCE UPDATE NOW IS ACCEPTED")+
 			NL+NL+
-			"THIS UPDATE WILL START IN FEW MINUTES."+
+			"THIS UPDATE WILL START IN FEW MINUTES"+
 			NL+NL+
-			"`%s`",
-		UpdateHashId,
+			tgcode(UpdateHashId),
 	); tgerr != nil {
 		log("webhook ERROR tglog: %v", tgerr)
 	}
@@ -1102,18 +1101,18 @@ func ServerPackagesUpdate() (err error) {
 		var tgmsgid int64
 		var tgerr error
 
-		tgmsg = fmt.Sprintf("*%s %s UPDATE*", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
+		tgmsg = tgbold(fmt.Sprintf("%s %s UPDATE", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName))) + NL + NL
 		if globalvaluesdiff {
-			tgmsg += fmt.Sprintf("`%s` changed", p.GlobalValuesFilename()) + NL + NL
+			tgmsg += tgcode(p.GlobalValuesFilename()) + " changed" + NL + NL
 		}
 		if valuesdiff {
-			tgmsg += fmt.Sprintf("`%s` changed", p.ValuesFilename()) + NL + NL
+			tgmsg += tgcode(p.ValuesFilename()) + " changed" + NL + NL
 		}
 		if envvaluesdiff {
-			tgmsg += fmt.Sprintf("`%s` changed", p.EnvValuesFilename()) + NL + NL
+			tgmsg += tgcode(p.EnvValuesFilename()) + " changed" + NL + NL
 		}
 		if imagesvaluesdiff != "" {
-			tgmsg += fmt.Sprintf("`%s` diff:"+NL+"```"+NL+"%s"+NL+"```", p.ImagesValuesFilename(), imagesvaluesdiff) + NL + NL
+			tgmsg += tgcode(p.ImagesValuesFilename()) + " diff:" + NL + tgpre(imagesvaluesdiff) + NL + NL
 		}
 
 		if !deploynow {
@@ -1124,8 +1123,8 @@ func ServerPackagesUpdate() (err error) {
 
 			if p.ValuesHash != ValuesReportedHash {
 
-				tgmsg += "*NOT UPDATING NOW*; update will start *in the next allowed time window*" + NL + NL
-				tgmsg += "TO FORCE START THIS UPDATE NOW REPLY TO THIS MESSAGE WITH TEXT \"`NOW`\" (UPPERCASE)" + NL + NL
+				tgmsg += tgbold("NOT UPDATING NOW") + "; update will start " + tgbold("in the next allowed time window") + NL + NL
+				tgmsg += "TO FORCE START THIS UPDATE NOW REPLY TO THIS MESSAGE WITH TEXT \"" + tgcode("NOW") + "\" (UPPERCASE)" + NL + NL
 				if tgmsgid, tgerr = p.tglog(0, 0, tgmsg); tgerr != nil {
 					p.log("ERROR tglog: %v", tgerr)
 				}
@@ -1151,7 +1150,7 @@ func ServerPackagesUpdate() (err error) {
 
 		if p.UpdateDelayDuration > 0 {
 
-			tgmsg += fmt.Sprintf("*STARTING IN %v*", p.UpdateDelayDuration) + NL + NL
+			tgmsg += tgbold(fmt.Sprintf("STARTING IN %v", p.UpdateDelayDuration)) + NL + NL
 
 			if tgmsgid, tgerr = p.tglog(0, tgmsgid, tgmsg); tgerr != nil {
 				p.log("ERROR tglog: %v", tgerr)
@@ -1172,7 +1171,7 @@ func ServerPackagesUpdate() (err error) {
 			p.log("starting update")
 		}
 
-		tgmsg += fmt.Sprintf("*STARTED*") + NL + NL
+		tgmsg += tgbold("STARTED") + NL + NL
 
 		if tgmsgid, tgerr = p.tglog(0, tgmsgid, tgmsg); tgerr != nil {
 			p.log("ERROR tglog: %v", tgerr)
@@ -1205,7 +1204,7 @@ func ServerPackagesUpdate() (err error) {
 		helmenvsettings.SetNamespace(p.Namespace)
 		helmactioncfg := new(helmaction.Configuration)
 		if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), p.Namespace, "", p.log); err != nil {
-			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
+			tgmsg += tgbold("INTERNAL ERROR") + NL + NL
 			if tgmsgid, tgerr = p.tglog(0, tgmsgid, tgmsg); tgerr != nil {
 				p.log("ERROR tglog: %v", tgerr)
 			}
@@ -1254,7 +1253,7 @@ func ServerPackagesUpdate() (err error) {
 
 			p.log("ERROR helm Run: %v", err)
 
-			tgmsg += fmt.Sprintf("*ERROR*"+NL+NL+"```"+NL+"%v"+NL+"```", err) + NL + NL
+			tgmsg += tgbold("ERROR") + NL + NL + tgpre(fmt.Sprintf("%v", err)) + NL + NL
 
 			if _, tgerr = p.tglog(0, tgmsgid, tgmsg); tgerr != nil {
 				p.log("ERROR tglog: %v", tgerr)
@@ -1270,28 +1269,21 @@ func ServerPackagesUpdate() (err error) {
 			p.log("installed release Name==%v Namespace==%v Info.Status==%v HashId==%v", release.Name, release.Namespace, release.Info.Status, p.HashId())
 		}
 
-		tgmsg += fmt.Sprintf(
-			"```"+NL+
-				"NAME: %v"+NL+
+		tgmsg += tgpre(fmt.Sprintf(
+			"NAME: %v"+NL+
 				"NAMESPACE: %v"+NL+
-				"STATUS: %v"+NL+
-				"```",
+				"STATUS: %v",
 			release.Name,
 			release.Namespace,
 			release.Info.Status,
-		) + NL + NL
+		)) + NL + NL
 
 		if release.Info.Notes != "" {
 			notes := strings.TrimSpace(release.Info.Notes)
 			if len(notes) > 2000 {
 				notes = notes[:1000] + NL + "...<cut>..." + NL + notes[len(notes)-1000:]
 			}
-			tgmsg += fmt.Sprintf(
-				"```"+NL+
-					"%s"+NL+
-					"```",
-				notes,
-			) + NL + NL
+			tgmsg += tgpre(notes) + NL + NL
 		}
 
 		// TODO TgBossUserIds
@@ -1304,7 +1296,7 @@ func ServerPackagesUpdate() (err error) {
 		//
 
 		if err := PutValuesText(p.ValuesDeployedHashFilename(), p.ValuesHash); err != nil {
-			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
+			tgmsg += tgbold("INTERNAL ERROR") + NL + NL
 			if tgmsgid, tgerr = p.tglog(0, tgmsgid, tgmsg); tgerr != nil {
 				p.log("ERROR tglog: %v", tgerr)
 			}
@@ -1332,14 +1324,14 @@ func ServerPackagesUpdate() (err error) {
 
 		if err := p.WriteDeployedValues(); err != nil {
 			p.log("ERROR WriteDeployedValues: %v", err)
-			tgmsg += fmt.Sprintf("*INTERNAL ERROR*") + NL + NL
+			tgmsg += tgbold("INTERNAL ERROR") + NL + NL
 			if tgmsgid, tgerr = p.tglog(0, tgmsgid, tgmsg); tgerr != nil {
 				p.log("ERROR tglog: %v", tgerr)
 			}
 			return err
 		}
 
-		tgmsg += fmt.Sprintf("*%s %s UPDATE FINISHED*", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)) + NL + NL
+		tgmsg += tgbold(fmt.Sprintf("%s %s UPDATE FINISHED", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName))) + NL + NL
 
 		if tgmsgid, tgerr = p.tglog(0, tgmsgid, tgmsg); tgerr != nil {
 			p.log("ERROR tglog: %v", tgerr)
@@ -2059,36 +2051,53 @@ func (p *PackageConfig) log(msg string, args ...interface{}) {
 	log(SPAC+p.Name+" "+msg, args...)
 }
 
-func (p *PackageConfig) tglog(replyid int64, editid int64, msg string, args ...interface{}) (msgid int64, err error) {
+func (p *PackageConfig) tglog(replyid int64, editid int64, msg string) (msgid int64, err error) {
 	chatid := TgBossUserIds[0]
 	if p.TgChatId != nil {
 		chatid = *p.TgChatId
 	}
-	msg += fmt.Sprintf("`%s`", p.HashId())
-	return tglog(chatid, replyid, editid, msg, args...)
+	msg += tgcode(p.HashId())
+	return tglog(chatid, replyid, editid, msg)
 }
 
-func tglog(chatid int64, replyid int64, editid int64, msg string, args ...interface{}) (msgid int64, err error) {
+func tgesc(text string) string {
+	for _, c := range "_*[]()~`>#+-=|{}.!" {
+		text = strings.ReplaceAll(text, string(c), "\\"+string(c))
+	}
+	return text
+}
+
+func tgbold(text string) string {
+	return "*" + tgesc(text) + "*"
+}
+
+func tgitalic(text string) string {
+	return "_" + tgesc(text) + "_"
+}
+
+func tgcode(text string) string {
+	for _, c := range "`\\" {
+		text = strings.ReplaceAll(text, string(c), "\\"+string(c))
+	}
+	return "`" + text + "`"
+}
+
+func tgpre(text string) string {
+	for _, c := range "`\\" {
+		text = strings.ReplaceAll(text, string(c), "\\"+string(c))
+	}
+	return "```" + NL + text + NL + "```"
+}
+
+func tglink(text, url string) string {
+	for _, c := range ")\\" {
+		url = strings.ReplaceAll(url, string(c), "\\"+string(c))
+	}
+	return fmt.Sprintf("[%s](%s)", tgesc(text), url)
+}
+
+func tglog(chatid int64, replyid int64, editid int64, msg string) (msgid int64, err error) {
 	// TODO proper formatting escaping
-	text := fmt.Sprintf(msg, args...)
-	text = strings.NewReplacer(
-		"(", "\\(",
-		")", "\\)",
-		"[", "\\[",
-		"]", "\\]",
-		"{", "\\{",
-		"}", "\\}",
-		"~", "\\~",
-		">", "\\>",
-		"#", "\\#",
-		"+", "\\+",
-		"-", "\\-",
-		"=", "\\=",
-		"|", "\\|",
-		"!", "\\!",
-		".", "\\.",
-		"_", "\\_",
-	).Replace(text)
 
 	var reqjs []byte
 	var tgurl string
@@ -2098,7 +2107,7 @@ func tglog(chatid int64, replyid int64, editid int64, msg string, args ...interf
 		smreq := TgSendMessageRequest{
 			ChatId:              chatid,
 			ReplyToMessageId:    replyid,
-			Text:                text,
+			Text:                msg,
 			ParseMode:           TgParseMode,
 			DisableNotification: TgDisableNotification,
 		}
@@ -2112,7 +2121,7 @@ func tglog(chatid int64, replyid int64, editid int64, msg string, args ...interf
 			TgSendMessageRequest: TgSendMessageRequest{
 				ChatId:              chatid,
 				ReplyToMessageId:    replyid,
-				Text:                text,
+				Text:                msg,
 				ParseMode:           TgParseMode,
 				DisableNotification: TgDisableNotification,
 			},
