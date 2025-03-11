@@ -1280,8 +1280,8 @@ func ServerPackagesUpdate() (err error) {
 
 		if release.Info.Notes != "" {
 			notes := strings.TrimSpace(release.Info.Notes)
-			if len(notes) > 2000 {
-				notes = notes[:1000] + NL + "...<cut>..." + NL + notes[len(notes)-1000:]
+			if len(notes) > 1200 {
+				notes = notes[:600] + NL + NL + "<<<cut>>>" + NL + NL + notes[len(notes)-600:]
 			}
 			tgmsg += tgpre(notes) + NL + NL
 		}
@@ -2061,7 +2061,7 @@ func (p *PackageConfig) tglog(replyid int64, editid int64, msg string) (msgid in
 }
 
 func tgesc(text string) string {
-	for _, c := range "_*[]()~`>#+-=|{}.!" {
+	for _, c := range "\\_*[]()~`>#+-=|{}.!" {
 		text = strings.ReplaceAll(text, string(c), "\\"+string(c))
 	}
 	return text
@@ -2076,21 +2076,21 @@ func tgitalic(text string) string {
 }
 
 func tgcode(text string) string {
-	for _, c := range "`\\" {
+	for _, c := range "\\`" {
 		text = strings.ReplaceAll(text, string(c), "\\"+string(c))
 	}
 	return "`" + text + "`"
 }
 
 func tgpre(text string) string {
-	for _, c := range "`\\" {
+	for _, c := range "\\`" {
 		text = strings.ReplaceAll(text, string(c), "\\"+string(c))
 	}
 	return "```" + NL + text + NL + "```"
 }
 
 func tglink(text, url string) string {
-	for _, c := range ")\\" {
+	for _, c := range "\\)" {
 		url = strings.ReplaceAll(url, string(c), "\\"+string(c))
 	}
 	return fmt.Sprintf("[%s](%s)", tgesc(text), url)
