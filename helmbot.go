@@ -1280,8 +1280,8 @@ func ServerPackagesUpdate() (err error) {
 
 		if release.Info.Notes != "" {
 			notes := strings.TrimSpace(release.Info.Notes)
-			if len(notes) > 1200 {
-				notes = notes[:600] + NL + NL + "<<<cut>>>" + NL + NL + notes[len(notes)-600:]
+			if len(notes) > 2000 {
+				notes = notes[:1000] + NL + NL + "-✄-✄-✄-" + NL + NL + notes[len(notes)-1000:]
 			}
 			tgmsg += tgpre(notes) + NL + NL
 		}
