@@ -1183,6 +1183,9 @@ func ServerPackagesUpdate() (err error) {
 
 		values := make(map[string]interface{})
 
+		if *p.GlobalValuesDisabled {
+			delete(p.ImagesValues, p.ChartVersionKey)
+		}
 		helmchartutil.MergeTables(values, p.ImagesValues)
 
 		if len(p.LocalValues) > 0 {
