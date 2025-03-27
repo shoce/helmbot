@@ -112,6 +112,8 @@ var (
 	TgDisableNotification = false
 
 	UpdateHashIdRe *regexp.Regexp
+
+	FALSE = false
 )
 
 func init() {
@@ -1186,7 +1188,9 @@ func ServerPackagesUpdate() (err error) {
 		if len(p.LocalValues) == 0 {
 			helmchartutil.MergeTables(values, p.EnvValues)
 			helmchartutil.MergeTables(values, p.Values)
-			helmchartutil.MergeTables(values, p.GlobalValues)
+			if !*p.GlobalValuesDisabled {
+				helmchartutil.MergeTables(values, p.GlobalValues)
+			}
 		} else {
 			helmchartutil.MergeTables(values, p.LocalValues)
 		}
@@ -1387,9 +1391,12 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 			}
 		}
 
+		if s.GlobalValuesDisabled == nil {
+			s.GlobalValuesDisabled = &FALSE
+		}
+
 		if s.DryRun == nil {
-			varfalse := false
-			s.DryRun = &varfalse
+			s.DryRun = &FALSE
 		}
 
 		for _, p := range s.Packages {
@@ -1475,6 +1482,10 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 
 			if p.DryRun == nil {
 				p.DryRun = s.DryRun
+			}
+
+			if p.GlobalValuesDisabled == nil {
+				p.GlobalValuesDisabled = s.GlobalValuesDisabled
 			}
 
 			p.GlobalValues = make(map[string]interface{})
@@ -1623,6 +1634,8 @@ type PackageConfig struct {
 	TimezoneLocation *time.Location
 	AllowedHoursList []string
 
+	GlobalValuesDisabled *bool
+
 	GlobalValuesText string
 	ValuesText       string
 	EnvValuesText    string
@@ -1729,6 +1742,8 @@ type ServerConfig struct {
 
 	TimezoneLocation *time.Location
 	AllowedHoursList []string
+
+	GlobalValuesDisabled *bool
 
 	DryRun *bool `yaml:"DryRun,omitempty"`
 }

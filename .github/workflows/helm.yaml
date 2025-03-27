@@ -44,6 +44,7 @@ jobs:
           force: true
           chart-folder: helm
 
+      # https://github.com/actions/delete-package-versions
       - uses: actions/delete-package-versions@v5
         with:
           package-name: ${{ github.event.repository.name }}/${{ github.ref_name }}/${{ env.HELM_CHART_NAME }}
