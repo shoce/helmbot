@@ -1185,14 +1185,15 @@ func ServerPackagesUpdate() (err error) {
 
 		helmchartutil.MergeTables(values, p.ImagesValues)
 
-		if len(p.LocalValues) == 0 {
+		if len(p.LocalValues) > 0 {
+			helmchartutil.MergeTables(values, p.LocalValues)
+		} else {
 			helmchartutil.MergeTables(values, p.EnvValues)
 			helmchartutil.MergeTables(values, p.Values)
+			p.log("DEBUG GlobalValuesDisabled==%+v", *p.GlobalValuesDisabled)
 			if !*p.GlobalValuesDisabled {
 				helmchartutil.MergeTables(values, p.GlobalValues)
 			}
-		} else {
-			helmchartutil.MergeTables(values, p.LocalValues)
 		}
 
 		helmchartutil.MergeTables(values, chartfull.Values)
