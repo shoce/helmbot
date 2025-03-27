@@ -1635,7 +1635,7 @@ type PackageConfig struct {
 	TimezoneLocation *time.Location
 	AllowedHoursList []string
 
-	GlobalValuesDisabled *bool
+	GlobalValuesDisabled *bool `yaml:"GlobalValuesDisabled"`
 
 	GlobalValuesText string
 	ValuesText       string
@@ -1744,7 +1744,7 @@ type ServerConfig struct {
 	TimezoneLocation *time.Location
 	AllowedHoursList []string
 
-	GlobalValuesDisabled *bool
+	GlobalValuesDisabled *bool `yaml:"GlobalValuesDisabled"`
 
 	DryRun *bool `yaml:"DryRun,omitempty"`
 }
