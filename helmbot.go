@@ -661,7 +661,7 @@ func ServerPackagesUpdate() (err error) {
 	for _, p := range Packages {
 
 		var pkgpaused string
-		if err := GetValuesTextFile(path.Join(p.DeployedDir(), "paused"), &pkgpaused, false); err == nil {
+		if err := GetValuesTextFile(p.PausedFilename(), &pkgpaused, false); err == nil {
 			// paused package update - skip with no error
 			p.log("DEBUG update paused")
 			continue
@@ -1005,21 +1005,21 @@ func ServerPackagesUpdate() (err error) {
 
 		if len(p.LocalValues) == 0 {
 
-			if err := GetValuesTextFile(path.Join(p.DeployedDir(), p.GlobalValuesFilename()), &DeployedGlobalValuesText, false); err != nil {
+			if err := GetValuesTextFile(path.Join(p.FullName(), p.GlobalValuesFilename()), &DeployedGlobalValuesText, false); err != nil {
 				p.log("ERROR GetValuesTextFile: %v", err)
 			}
 
-			if err := GetValuesTextFile(path.Join(p.DeployedDir(), p.ValuesFilename()), &DeployedValuesText, false); err != nil {
+			if err := GetValuesTextFile(path.Join(p.FullName(), p.ValuesFilename()), &DeployedValuesText, false); err != nil {
 				p.log("ERROR GetValuesTextFile: %v", err)
 			}
 
-			if err := GetValuesTextFile(path.Join(p.DeployedDir(), p.EnvValuesFilename()), &DeployedEnvValuesText, false); err != nil {
+			if err := GetValuesTextFile(path.Join(p.FullName(), p.EnvValuesFilename()), &DeployedEnvValuesText, false); err != nil {
 				p.log("ERROR GetValuesTextFile: %v", err)
 			}
 
 		}
 
-		if err := GetValuesTextFile(path.Join(p.DeployedDir(), p.ImagesValuesFilename()), &DeployedImagesValuesText, false); err != nil {
+		if err := GetValuesTextFile(path.Join(p.FullName(), p.ImagesValuesFilename()), &DeployedImagesValuesText, false); err != nil {
 			p.log("ERROR GetValuesTextFile: %v", err)
 		}
 
@@ -1656,8 +1656,8 @@ type PackageConfig struct {
 	DryRun *bool `yaml:"DryRun,omitempty"`
 }
 
-func (p *PackageConfig) DeployedDir() string {
-	return p.Name
+func (p *PackageConfig) FullName() string {
+	return fmt.Sprintf("%s.%s", p.ChartName, p.EnvName)
 }
 
 func (p *PackageConfig) GlobalValuesFilename() string {
@@ -1667,24 +1667,27 @@ func (p *PackageConfig) ValuesFilename() string {
 	return fmt.Sprintf("%s.values.yaml", p.ChartName)
 }
 func (p *PackageConfig) EnvValuesFilename() string {
-	return fmt.Sprintf("%s.%s.values.yaml", p.ChartName, p.EnvName)
+	return fmt.Sprintf("%s.values.yaml", p.FullName())
 }
 func (p *PackageConfig) ImagesValuesFilename() string {
-	return fmt.Sprintf("%s.%s.images.values.yaml", p.ChartName, p.EnvName)
+	return fmt.Sprintf("%s.images.values.yaml", p.FullName())
 }
 
 func (p *PackageConfig) ValuesReportedHashFilename() string {
-	return fmt.Sprintf("%s.%s.values.reported.hash.text", p.ChartName, p.EnvName)
+	return fmt.Sprintf("%s.values.reported.hash.text", p.FullName())
 }
 func (p *PackageConfig) ValuesDeployedHashFilename() string {
-	return fmt.Sprintf("%s.%s.values.deployed.hash.text", p.ChartName, p.EnvName)
+	return fmt.Sprintf("%s.values.deployed.hash.text", p.FullName())
 }
 func (p *PackageConfig) ValuesPermitHashFilename() string {
-	return fmt.Sprintf("%s.%s.values.permit.hash.text", p.ChartName, p.EnvName)
+	return fmt.Sprintf("%s.values.permit.hash.text", p.FullName())
 }
 
+func (p *PackageConfig) PausedFilename() string {
+	return fmt.Sprintf("%s.paused", p.FullName())
+}
 func (p *PackageConfig) UpdateTimestampFilename() string {
-	return fmt.Sprintf("%s.%s.update.timestamp", p.ChartName, p.EnvName)
+	return fmt.Sprintf("%s.update.timestamp", p.FullName())
 }
 
 func (p *PackageConfig) HashId() string {
@@ -1693,28 +1696,28 @@ func (p *PackageConfig) HashId() string {
 
 func (p *PackageConfig) WriteDeployedValues() error {
 
-	if err := os.RemoveAll(path.Join(ConfigDir, p.DeployedDir())); err != nil {
+	if err := os.RemoveAll(path.Join(ConfigDir, p.FullName())); err != nil {
 		return fmt.Errorf("RemoveAll: %w", err)
 	}
-	if err := os.MkdirAll(path.Join(ConfigDir, p.DeployedDir()), 0700); err != nil {
+	if err := os.MkdirAll(path.Join(ConfigDir, p.FullName()), 0700); err != nil {
 		return fmt.Errorf("MkdirAll: %w", err)
 	}
 
 	if len(p.LocalValues) == 0 {
 
-		if err := PutValuesTextFile(path.Join(p.DeployedDir(), p.GlobalValuesFilename()), p.GlobalValuesText); err != nil {
+		if err := PutValuesTextFile(path.Join(p.FullName(), p.GlobalValuesFilename()), p.GlobalValuesText); err != nil {
 			return fmt.Errorf("PutValuesTextFile: %w", err)
 		}
-		if err := PutValuesTextFile(path.Join(p.DeployedDir(), p.ValuesFilename()), p.ValuesText); err != nil {
+		if err := PutValuesTextFile(path.Join(p.FullName(), p.ValuesFilename()), p.ValuesText); err != nil {
 			return fmt.Errorf("PutValuesTextFile: %w", err)
 		}
-		if err := PutValuesTextFile(path.Join(p.DeployedDir(), p.EnvValuesFilename()), p.EnvValuesText); err != nil {
+		if err := PutValuesTextFile(path.Join(p.FullName(), p.EnvValuesFilename()), p.EnvValuesText); err != nil {
 			return fmt.Errorf("PutValuesTextFile: %w", err)
 		}
 
 	}
 
-	if err := PutValuesTextFile(path.Join(p.DeployedDir(), p.ImagesValuesFilename()), p.ImagesValuesText); err != nil {
+	if err := PutValuesTextFile(path.Join(p.FullName(), p.ImagesValuesFilename()), p.ImagesValuesText); err != nil {
 		return fmt.Errorf("PutValuesTextFile: %w", err)
 	}
 
