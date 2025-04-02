@@ -1125,8 +1125,8 @@ func ServerPackagesUpdate() (err error) {
 					p.log("reporting pending update")
 				}
 
-				tgmsg += tgbold("NOT UPDATING NOW") + "; update will start " + tgbold("in the next allowed time window") + NL + NL
-				tgmsg += "TO FORCE START THIS UPDATE NOW REPLY TO THIS MESSAGE WITH TEXT \"" + tgcode("NOW") + "\" (UPPERCASE)" + NL + NL
+				tgmsg += tgbold("NOT UPDATING NOW") + tgesc("; update will start ") + tgbold("in the next allowed time window") + NL + NL
+				tgmsg += tgesc("TO FORCE START THIS UPDATE NOW REPLY TO THIS MESSAGE WITH TEXT \"") + tgcode("NOW") + tgesc("\" (UPPERCASE)") + NL + NL
 				if tgmsgid, tgerr = p.tglog(tgmsg, 0, 0); tgerr != nil {
 					p.log("ERROR tglog: %v", tgerr)
 				}
@@ -1770,7 +1770,9 @@ func ts() string {
 }
 
 func log(msg string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, ts()+" "+msg+NL, args...)
+	logmsg := fmt.Sprintf(ts()+" "+msg, args...) + NL
+	logmsg = strings.ReplaceAll(logmsg, TgToken, "TgToken")
+	fmt.Fprint(os.Stderr, logmsg)
 }
 
 func dirExists(path string) bool {
