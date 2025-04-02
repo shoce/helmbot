@@ -1772,8 +1772,12 @@ func ts() string {
 func log(msg string, args ...interface{}) {
 	logmsg := fmt.Sprintf(ts()+" "+msg, args...) + NL
 	if TgToken != "" {
-		logmsg = strings.ReplaceAll(logmsg, TgToken, "TgToken")
+		logmsg = strings.ReplaceAll(logmsg, TgToken, "{{TgToken}}")
 	}
+	if TgWebhookToken != "" {
+		logmsg = strings.ReplaceAll(logmsg, TgWebhookToken, "{{TgWebhookToken}}")
+	}
+
 	fmt.Fprint(os.Stderr, logmsg)
 }
 
