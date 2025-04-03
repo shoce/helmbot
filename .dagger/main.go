@@ -18,7 +18,7 @@ const (
 	// https://hub.docker.com/_/alpine/tags/
 	AlpineDockerImage = "alpine:3.21.3"
 
-	ExposedPort       = 80
+	ExposedPort = 80
 
 	NL = "\n"
 )
@@ -60,7 +60,6 @@ func (m *Helmbot) Build(
 			arch := strings.Split(string(platform), "/")[1]
 			fmt.Printf("arch==%s"+NL, arch)
 
-			// https://hub.docker.com/_/golang/tags/
 			a := dag.Container().
 				From(GolangDockerImage).
 				WithFiles("/root/helmbot/", ff).
@@ -70,7 +69,6 @@ func (m *Helmbot) Build(
 				WithExec([]string{"go", "get", "-v"}).
 				WithExec([]string{"go", "build", "-o", "helmbot", "-ldflags", "-X main.VERSION=" + os.Getenv("VERSION"), "."})
 
-			// https://hub.docker.com/_/alpine/tags/
 			b := dag.Container(dagger.ContainerOpts{Platform: platform}).
 				From(AlpineDockerImage).
 				WithExec([]string{"apk", "upgrade", "--no-cache"}).
@@ -110,7 +108,8 @@ func (m *Helmbot) Publish(
 	if username != "" {
 		d = d.WithRegistryAuth(registry, username, password)
 	}
-	p, _ := d.Publish(Ctx,
+	p, _ := d.Publish(
+		Ctx,
 		registry+"/"+image,
 		dagger.ContainerPublishOpts{
 			PlatformVariants: m.Build(srcdir),
