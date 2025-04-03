@@ -12,8 +12,12 @@ import (
 )
 
 const (
-	GolangDockerImage = "golang:1.23.6"
-	AlpineDockerImage = "alpine:3.21.2"
+	// https://hub.docker.com/_/golang/tags
+	GolangDockerImage = "golang:1.24.2"
+
+	// https://hub.docker.com/_/alpine/tags/
+	AlpineDockerImage = "alpine:3.21.3"
+
 	ExposedPort       = 80
 
 	NL = "\n"
