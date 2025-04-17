@@ -56,7 +56,7 @@ const (
 	TAB  = "\t"
 	NL   = "\n"
 
-	UpdateHashIdReString = "#([-a-z]+)#([-a-z]+)#([a-z0-9]+)$"
+	UpdateHashIdReString = "#([-a-z0-9]+)#([-a-z0-9]+)#([a-z0-9]+)$"
 
 	HashLength = 12
 
