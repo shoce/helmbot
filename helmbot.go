@@ -310,6 +310,21 @@ func init() {
 
 func main() {
 
+	go func() {
+
+		healthmux := http.NewServeMux()
+		healthmux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintln(w, "OK")
+		})
+		for {
+			if err := http.ListenAndServe(":81", healthmux); err != nil {
+				log("ERROR healthmux: %+v", err)
+				time.Sleep(time.Second)
+			}
+		}
+
+	}()
+
 	if TgWebhookUrl != "" {
 
 		if DEBUG {
