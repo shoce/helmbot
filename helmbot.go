@@ -318,8 +318,8 @@ func main() {
 		healthmux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 			health := map[string]interface{}{
 				"ok":                      true,
-				"PackagesUpgradeInterval": PackagesUpgradeInterval,
-				"ServerPackagesUpdateAgo": time.Since(ServerPackagesUpdateLastRun).Truncate(time.Second),
+				"PackagesUpgradeInterval": PackagesUpgradeInterval.String(),
+				"ServerPackagesUpdateAgo": time.Since(ServerPackagesUpdateLastRun).Truncate(time.Second).String(),
 			}
 			w.Header().Set("Content-Type", "application/json")
 			if err := json.NewEncoder(w).Encode(health); err != nil {
