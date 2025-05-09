@@ -73,6 +73,8 @@ var (
 
 	VERSION string
 
+	ServerPackagesUpdateLastRun time.Time
+
 	LogUTC          bool
 	LogTimeZone     string         = "+"
 	LogTimeLocation *time.Location = time.UTC
@@ -314,7 +316,15 @@ func main() {
 
 		healthmux := http.NewServeMux()
 		healthmux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprintln(w, "OK")
+			health := map[string]interface{}{
+				"ok":                      true,
+				"PackagesUpgradeInterval": PackagesUpgradeInterval,
+				"ServerPackagesUpdateAgo": time.Since(ServerPackagesUpdateLastRun).Truncate(time.Second),
+			}
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(health); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 		})
 		for {
 			if err := http.ListenAndServe(":81", healthmux); err != nil {
@@ -358,13 +368,13 @@ func main() {
 
 	go func() {
 		for {
-			t0 := time.Now()
+			ServerPackagesUpdateLastRun = time.Now()
 
 			if err := ServerPackagesUpdate(); err != nil {
 				log("packages ERROR update: %+v", err)
 			}
 
-			if d := time.Now().Sub(t0); d < PackagesUpgradeInterval {
+			if d := time.Now().Sub(ServerPackagesUpdateLastRun); d < PackagesUpgradeInterval {
 				sleepdur := (PackagesUpgradeInterval - d).Truncate(time.Second)
 				if DEBUG {
 					log("packages DEBUG sleeping %s", sleepdur)
