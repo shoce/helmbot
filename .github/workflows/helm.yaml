@@ -21,10 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-      - name: version
-        run: |
-          VERSION=$( date -u '+%y.%m%d.%H%M%S' | sed 's/\.0*/./g' )
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
+      - uses: shoce/action-version@v1
 
       - uses: actions/checkout@v4
 
