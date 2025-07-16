@@ -865,7 +865,13 @@ func ServerPackagesUpdate() (err error) {
 			chartaddress = strings.TrimPrefix(chartaddress, "https://")
 			chartaddress = strings.TrimPrefix(chartaddress, "oci://")
 
-			hrclient, err := helmregistry.NewClient(helmregistry.ClientOptDebug(true))
+			clientopts := []helmregistry.ClientOption{}
+			clientopts = append(clientopts, helmregistry.ClientOptDebug(true))
+			if p.ChartAuth.Username != "" {
+				clientopts = append(clientopts, helmregistry.ClientOptBasicAuth(p.ChartAuth.Username, p.ChartAuth.Password))
+			}
+
+			hrclient, err := helmregistry.NewClient(clientopts...)
 			if err != nil {
 				return fmt.Errorf("helmregistry.NewClient: %v", err)
 			}
@@ -1633,6 +1639,11 @@ type PackageConfig struct {
 	ChartLocalFilename string `yaml:"ChartLocalFilename"`
 
 	ChartAddress string `yaml:"ChartAddress"`
+
+	ChartAuth struct {
+		Username string `yaml:"Username"`
+		Password string `yaml:"Password"`
+	} `yaml:"ChartAuth"`
 
 	ChartRepo struct {
 		Address  string `yaml:"Address"`
