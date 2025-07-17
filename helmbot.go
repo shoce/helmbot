@@ -865,13 +865,7 @@ func ServerPackagesUpdate() (err error) {
 			chartaddress = strings.TrimPrefix(chartaddress, "https://")
 			chartaddress = strings.TrimPrefix(chartaddress, "oci://")
 
-			clientopts := []helmregistry.ClientOption{}
-			clientopts = append(clientopts, helmregistry.ClientOptDebug(false))
-			if p.ChartAuth.Username != "" {
-				clientopts = append(clientopts, helmregistry.ClientOptBasicAuth(p.ChartAuth.Username, p.ChartAuth.Password))
-			}
-
-			hrclient, err := helmregistry.NewClient(clientopts...)
+			hrclient, err := helmregistry.NewClient(helmregistry.ClientOptDebug(false))
 			if err != nil {
 				return fmt.Errorf("helmregistry.NewClient: %v", err)
 			}
