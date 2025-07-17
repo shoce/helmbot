@@ -871,11 +871,9 @@ func ServerPackagesUpdate() (err error) {
 			}
 
 			if p.ChartAuth.Username != "" {
-				p.log("DEBUG ChartAuth.Username: %+v", p.ChartAuth.Username)
 				if charturl, err := url.Parse(p.ChartAddress); err != nil {
 					p.log("ERROR url.Parse: %+v", err)
 				} else {
-					p.log("DEBUG charthost: %+v", charturl.Host)
 					if err := hrclient.Login(charturl.Host, helmregistry.LoginOptBasicAuth(p.ChartAuth.Username, p.ChartAuth.Password)); err != nil {
 						p.log("ERROR hrclient.Login: %+v", err)
 					}
