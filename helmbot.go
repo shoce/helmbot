@@ -866,7 +866,7 @@ func ServerPackagesUpdate() (err error) {
 			chartaddress = strings.TrimPrefix(chartaddress, "oci://")
 
 			clientopts := []helmregistry.ClientOption{}
-			clientopts = append(clientopts, helmregistry.ClientOptDebug(true))
+			clientopts = append(clientopts, helmregistry.ClientOptDebug(false))
 			if p.ChartAuth.Username != "" {
 				clientopts = append(clientopts, helmregistry.ClientOptBasicAuth(p.ChartAuth.Username, p.ChartAuth.Password))
 			}
