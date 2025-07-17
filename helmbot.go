@@ -877,14 +877,14 @@ func ServerPackagesUpdate() (err error) {
 			}
 
 			if p.ChartAuth.Username != "" {
-				var charthost string
 				if charturl, err := url.Parse(p.ChartAddress); err != nil {
 					p.log("ERROR url.Parse: %+v", err)
 				} else {
-					charthost = charturl.Host
-				}
-				if err := hrclient.Login(charthost, helmregistry.LoginOptBasicAuth(p.ChartAuth.Username, p.ChartAuth.Password)); err != nil {
-					p.log("ERROR hrclient.Login: %+v", err)
+					charthost := charturl.Host
+					p.log("DEBUG charthost: %+v", charthost)
+					if err := hrclient.Login(charthost, helmregistry.LoginOptBasicAuth(p.ChartAuth.Username, p.ChartAuth.Password)); err != nil {
+						p.log("ERROR hrclient.Login: %+v", err)
+					}
 				}
 			}
 
