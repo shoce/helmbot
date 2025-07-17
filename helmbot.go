@@ -876,6 +876,18 @@ func ServerPackagesUpdate() (err error) {
 				return fmt.Errorf("helmregistry.NewClient: %v", err)
 			}
 
+			if p.ChartAuth.Username != "" {
+				var charthost string
+				if charturl, err := url.Parse(p.ChartAddress); err != nil {
+					p.log("ERROR url.Parse: %+v", err)
+				} else {
+					charthost = charturl.Host
+				}
+				if err := hrclient.Login(charthost, helmregistry.LoginOptBasicAuth(p.ChartAuth.Username, p.ChartAuth.Password)); err != nil {
+					p.log("ERROR hrclient.Login: %+v", err)
+				}
+			}
+
 			tags, err := hrclient.Tags(chartaddress)
 			if err != nil {
 				return fmt.Errorf("hrclient.Tags: %v", err)
