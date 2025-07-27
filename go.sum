@@ -259,8 +259,8 @@ github.com/russross/blackfriday/v2 v2.1.0 h1:JIOH55/0cWyOuilr9/qlrm0BSXldqnqwMsf
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/sergi/go-diff v1.2.0 h1:XU+rvMAioB0UC3q1MFrIQy4Vo5/4VsRDQQXHsEya6xQ=
 github.com/sergi/go-diff v1.2.0/go.mod h1:STckp+ISIX8hZLjrqAeVduY0gWCT9IjLuqbuNXdaHfM=
-github.com/shoce/tg v0.250501.2239 h1:QatPBx6Zx7LCuXr2rD78sk9e895NwDwhzDLlWRbI1ZM=
-github.com/shoce/tg v0.250501.2239/go.mod h1:0DTDEtKAWA6Qmpvm0tscXVmIgu2JNyNMGXP97XxovgY=
+github.com/shoce/tg v0.250724.1714 h1:mEdP6xPQFXWDyeI+8p4qhmFYwifXjHRRCLndqLhMh1I=
+github.com/shoce/tg v0.250724.1714/go.mod h1:0DTDEtKAWA6Qmpvm0tscXVmIgu2JNyNMGXP97XxovgY=
 github.com/shopspring/decimal v1.4.0 h1:bxl37RwXBklmTi0C79JfXCEBD1cqqHt0bbgBAGFp81k=
 github.com/shopspring/decimal v1.4.0/go.mod h1:gawqmDU56v4yIKSwfBSFip1HdCCXN8/+DMd9qYNcwME=
 github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=

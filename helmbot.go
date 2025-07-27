@@ -1218,7 +1218,7 @@ func ServerPackagesUpdate() (err error) {
 
 		values := make(map[string]interface{})
 
-		if *p.GlobalValuesDisabled {
+		if !*p.GlobalValuesEnable {
 			delete(p.ImagesValues, p.ChartVersionKey)
 		}
 		helmchartutil.MergeTables(values, p.ImagesValues)
@@ -1228,8 +1228,8 @@ func ServerPackagesUpdate() (err error) {
 		} else {
 			helmchartutil.MergeTables(values, p.EnvValues)
 			helmchartutil.MergeTables(values, p.Values)
-			p.log("DEBUG GlobalValuesDisabled==%+v", *p.GlobalValuesDisabled)
-			if !*p.GlobalValuesDisabled {
+			p.log("DEBUG GlobalValuesEnable==%+v", *p.GlobalValuesEnable)
+			if *p.GlobalValuesEnable {
 				helmchartutil.MergeTables(values, p.GlobalValues)
 			}
 		}
@@ -1430,8 +1430,8 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 			}
 		}
 
-		if s.GlobalValuesDisabled == nil {
-			s.GlobalValuesDisabled = &FALSE
+		if s.GlobalValuesEnable == nil {
+			s.GlobalValuesEnable = &FALSE
 		}
 
 		if s.DryRun == nil {
@@ -1523,8 +1523,8 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 				p.DryRun = s.DryRun
 			}
 
-			if p.GlobalValuesDisabled == nil {
-				p.GlobalValuesDisabled = s.GlobalValuesDisabled
+			if p.GlobalValuesEnable == nil {
+				p.GlobalValuesEnable = s.GlobalValuesEnable
 			}
 
 			p.GlobalValues = make(map[string]interface{})
@@ -1678,7 +1678,7 @@ type PackageConfig struct {
 	TimezoneLocation *time.Location
 	AllowedHoursList []string
 
-	GlobalValuesDisabled *bool `yaml:"GlobalValuesDisabled"`
+	GlobalValuesEnable *bool `yaml:"GlobalValuesEnable"`
 
 	GlobalValuesText string
 	ValuesText       string
@@ -1790,7 +1790,7 @@ type ServerConfig struct {
 	TimezoneLocation *time.Location
 	AllowedHoursList []string
 
-	GlobalValuesDisabled *bool `yaml:"GlobalValuesDisabled"`
+	GlobalValuesEnable *bool `yaml:"GlobalValuesEnable"`
 
 	DryRun *bool `yaml:"DryRun,omitempty"`
 }
