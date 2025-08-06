@@ -706,7 +706,7 @@ func ServerPackagesUpdate() (err error) {
 			p.UpdateTimestamp = updatetimestampfilestat.ModTime()
 		}
 
-		// TODO update values but not images.values
+		// TODO check values for updates more often but not images.values
 
 		if PermitHash == "" {
 			if d := time.Now().Sub(p.UpdateTimestamp).Truncate(time.Second); d < p.UpdateIntervalDuration {
@@ -721,12 +721,12 @@ func ServerPackagesUpdate() (err error) {
 		timenowhour := fmt.Sprintf("%02d", timenow.In(p.TimezoneLocation).Hour())
 
 		if DEBUG {
-			p.log("DEBUG Namespace:%s DryRun==%v AlwaysForceNow==%v AllowedHours==%v Timezone==%v TimeNowHour==%v UpdateInterval==%v LocalValues==%#v", p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration, p.LocalValues)
+			p.log("DEBUG Namespace %s DryRun %v AlwaysForceNow %v AllowedHours %v Timezone %v TimeNowHour %v UpdateInterval %v LocalValues %#v", p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration, p.LocalValues)
 		}
 
 		if DEBUG {
-			//p.log("DEBUG config==%#v", p)
-			p.log("DEBUG repo.address==%#v chartaddress==%#v chartlocalfilename==%#v", p.ChartRepo.Address, p.ChartAddress, p.ChartLocalFilename)
+			//p.log("DEBUG config %#v", p)
+			p.log("DEBUG repo.address %#v chartaddress %#v chartlocalfilename %#v", p.ChartRepo.Address, p.ChartAddress, p.ChartLocalFilename)
 		}
 
 		//
@@ -735,18 +735,17 @@ func ServerPackagesUpdate() (err error) {
 
 		if len(p.LocalValues) == 0 {
 
-			err = GetValues(p.GlobalValuesFilename(), &p.GlobalValuesText, p.GlobalValues)
-			if err != nil {
+			if *p.GlobalValuesEnable {
+				if err := GetValues(p.GlobalValuesFilename(), &p.GlobalValuesText, p.GlobalValues); err != nil {
+					return err
+				}
+			}
+
+			if err := GetValues(p.ValuesFilename(), &p.ValuesText, p.Values); err != nil {
 				return err
 			}
 
-			err = GetValues(p.ValuesFilename(), &p.ValuesText, p.Values)
-			if err != nil {
-				return err
-			}
-
-			err = GetValues(p.EnvValuesFilename(), &p.EnvValuesText, p.EnvValues)
-			if err != nil {
+			if err := GetValues(p.EnvValuesFilename(), &p.EnvValuesText, p.EnvValues); err != nil {
 				return err
 			}
 
@@ -814,17 +813,17 @@ func ServerPackagesUpdate() (err error) {
 					for _, v := range repochartversions {
 						vv = append(vv, v.Version)
 					}
-					p.log("DEBUG repo versions==%+v", vv)
+					p.log("DEBUG repo versions %+v", vv)
 				}
 
 				if p.ChartVersion != "" {
 					if DEBUG {
-						p.log("DEBUG ChartVersion==%#v", p.ChartVersion)
+						p.log("DEBUG ChartVersion %#v", p.ChartVersion)
 					}
 					for _, v := range repochartversions {
 						if v.Version == p.ChartVersion {
 							if DEBUG {
-								p.log("DEBUG ChartVersion==%#v found in repo", p.ChartVersion)
+								p.log("DEBUG ChartVersion %#v found in repo", p.ChartVersion)
 							}
 							repochartversion = v
 						}
@@ -842,7 +841,7 @@ func ServerPackagesUpdate() (err error) {
 			chartversion = repochartversion.Version
 			chartpath = path.Join(ConfigDir, fmt.Sprintf("%s-%s.tgz", chartname, chartversion))
 			if DEBUG {
-				p.log("DEBUG local chartpath==%v exists==%v", chartpath, fileExists(chartpath))
+				p.log("DEBUG local chartpath %v exists %v", chartpath, fileExists(chartpath))
 			}
 
 			if !fileExists(chartpath) {
@@ -890,7 +889,7 @@ func ServerPackagesUpdate() (err error) {
 			}
 
 			if DEBUG {
-				p.log("DEBUG tags==%+v", tags)
+				p.log("DEBUG tags %+v", tags)
 			}
 
 			chartversion = tags[0]
@@ -901,7 +900,7 @@ func ServerPackagesUpdate() (err error) {
 				chartname = path.Base(u.Path)
 				chartpath = path.Join(ConfigDir, fmt.Sprintf("%s-%s.tgz", chartname, chartversion))
 				if DEBUG {
-					p.log("DEBUG local chartpath==%v exists==%v", chartpath, fileExists(chartpath))
+					p.log("DEBUG local chartpath %v exists %v", chartpath, fileExists(chartpath))
 				}
 			}
 
@@ -963,7 +962,7 @@ func ServerPackagesUpdate() (err error) {
 		p.ImagesValuesList, p.ImagesValuesText, err = ImagesValuesToList(p.ImagesValues)
 
 		if DEBUG {
-			p.log("DEBUG ImagesValues==%#v", p.ImagesValues)
+			p.log("DEBUG ImagesValues %#v", p.ImagesValues)
 		}
 
 		//
@@ -984,7 +983,10 @@ func ServerPackagesUpdate() (err error) {
 
 		var allvaluestext string
 		if len(p.LocalValues) == 0 {
-			allvaluestext = p.GlobalValuesText + p.ValuesText + p.EnvValuesText + p.ImagesValuesText
+			allvaluestext = p.ValuesText + p.EnvValuesText + p.ImagesValuesText
+			if *p.GlobalValuesEnable {
+				allvaluestext = p.GlobalValuesText + allvaluestext
+			}
 		} else {
 			allvaluestext = fmt.Sprintf("%#v", p.LocalValues) + p.ImagesValuesText
 		}
@@ -1026,7 +1028,7 @@ func ServerPackagesUpdate() (err error) {
 		}
 
 		if DEBUG {
-			p.log("DEBUG ValuesHash==%v ValuesReportedHash==%v ValuesDeployedHash==%v PermitHash==%v ", p.ValuesHash, ValuesReportedHash, ValuesDeployedHash, PermitHash)
+			p.log("DEBUG ValuesHash %v ValuesReportedHash %v ValuesDeployedHash %v PermitHash %v ", p.ValuesHash, ValuesReportedHash, ValuesDeployedHash, PermitHash)
 		}
 
 		//
@@ -1040,8 +1042,10 @@ func ServerPackagesUpdate() (err error) {
 
 		if len(p.LocalValues) == 0 {
 
-			if err := GetValuesTextFile(path.Join(p.FullName(), p.GlobalValuesFilename()), &DeployedGlobalValuesText, false); err != nil {
-				p.log("ERROR GetValuesTextFile: %v", err)
+			if *p.GlobalValuesEnable {
+				if err := GetValuesTextFile(path.Join(p.FullName(), p.GlobalValuesFilename()), &DeployedGlobalValuesText, false); err != nil {
+					p.log("ERROR GetValuesTextFile: %v", err)
+				}
 			}
 
 			if err := GetValuesTextFile(path.Join(p.FullName(), p.ValuesFilename()), &DeployedValuesText, false); err != nil {
@@ -1067,7 +1071,7 @@ func ServerPackagesUpdate() (err error) {
 		envvaluesdiff := false
 		imagesvaluesdiff := ""
 
-		if p.GlobalValuesText != DeployedGlobalValuesText {
+		if *p.GlobalValuesEnable && p.GlobalValuesText != DeployedGlobalValuesText {
 			globalvaluesdiff = true
 		}
 
@@ -1109,7 +1113,7 @@ func ServerPackagesUpdate() (err error) {
 			}
 
 			if DEBUG {
-				p.log("DEBUG ImagesValues diff: "+NL+"%v", imagesvaluesdiff)
+				p.log("DEBUG ImagesValues diff "+NL+"%v", imagesvaluesdiff)
 			}
 
 		}
@@ -1218,9 +1222,12 @@ func ServerPackagesUpdate() (err error) {
 
 		values := make(map[string]interface{})
 
-		if !*p.GlobalValuesEnable {
-			delete(p.ImagesValues, p.ChartVersionKey)
-		}
+		// TODO why? 25.327.185528
+		/*
+			if !*p.GlobalValuesEnable {
+				delete(p.ImagesValues, p.ChartVersionKey)
+			}
+		*/
 		helmchartutil.MergeTables(values, p.ImagesValues)
 
 		if len(p.LocalValues) > 0 {
@@ -1228,7 +1235,7 @@ func ServerPackagesUpdate() (err error) {
 		} else {
 			helmchartutil.MergeTables(values, p.EnvValues)
 			helmchartutil.MergeTables(values, p.Values)
-			p.log("DEBUG GlobalValuesEnable==%+v", *p.GlobalValuesEnable)
+			p.log("DEBUG GlobalValuesEnable %v", *p.GlobalValuesEnable)
 			if *p.GlobalValuesEnable {
 				helmchartutil.MergeTables(values, p.GlobalValues)
 			}
@@ -1238,7 +1245,7 @@ func ServerPackagesUpdate() (err error) {
 
 		// TODO make sure values are correctly merged
 		if DEBUG {
-			//p.log("DEBUG values==%+v", values)
+			//p.log("DEBUG values %+v", values)
 		}
 
 		// TODO objects get created in helmbot namespace if namespace not specified in the yaml manifest
@@ -1309,7 +1316,7 @@ func ServerPackagesUpdate() (err error) {
 		// TODO delay helmbot self-update for saving deployed values and hash
 
 		if VERBOSE {
-			p.log("installed release Name==%v Namespace==%v Info.Status==%v HashId==%v", release.Name, release.Namespace, release.Info.Status, p.HashId())
+			p.log("installed release Name %v Namespace %v Info.Status %v HashId %v", release.Name, release.Namespace, release.Info.Status, p.HashId())
 		}
 
 		tgmsg += tg.Pre(fmt.Sprintf(
@@ -1745,8 +1752,10 @@ func (p *PackageConfig) WriteDeployedValues() error {
 
 	if len(p.LocalValues) == 0 {
 
-		if err := PutValuesTextFile(path.Join(p.FullName(), p.GlobalValuesFilename()), p.GlobalValuesText); err != nil {
-			return fmt.Errorf("PutValuesTextFile: %w", err)
+		if *p.GlobalValuesEnable {
+			if err := PutValuesTextFile(path.Join(p.FullName(), p.GlobalValuesFilename()), p.GlobalValuesText); err != nil {
+				return fmt.Errorf("PutValuesTextFile: %w", err)
+			}
 		}
 		if err := PutValuesTextFile(path.Join(p.FullName(), p.ValuesFilename()), p.ValuesText); err != nil {
 			return fmt.Errorf("PutValuesTextFile: %w", err)
