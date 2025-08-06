@@ -721,12 +721,12 @@ func ServerPackagesUpdate() (err error) {
 		timenowhour := fmt.Sprintf("%02d", timenow.In(p.TimezoneLocation).Hour())
 
 		if DEBUG {
-			p.log("DEBUG Namespace %s DryRun %v AlwaysForceNow %v AllowedHours %v Timezone %v TimeNowHour %v UpdateInterval %v LocalValues %#v", p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration, p.LocalValues)
+			p.log("DEBUG Namespace %s DryRun %v AlwaysForceNow %v AllowedHours %v Timezone %v TimeNowHour %v UpdateInterval %v LocalValues %v", p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration, p.LocalValues)
 		}
 
 		if DEBUG {
-			//p.log("DEBUG config %#v", p)
-			p.log("DEBUG repo.address %#v chartaddress %#v chartlocalfilename %#v", p.ChartRepo.Address, p.ChartAddress, p.ChartLocalFilename)
+			//p.log("DEBUG config %+v", p)
+			p.log("DEBUG repo.address [%s] chartaddress [%s] chartlocalfilename [%s]", p.ChartRepo.Address, p.ChartAddress, p.ChartLocalFilename)
 		}
 
 		//
@@ -962,7 +962,7 @@ func ServerPackagesUpdate() (err error) {
 		p.ImagesValuesList, p.ImagesValuesText, err = ImagesValuesToList(p.ImagesValues)
 
 		if DEBUG {
-			p.log("DEBUG ImagesValues %+v", p.ImagesValues)
+			p.log("DEBUG ImagesValues %v", p.ImagesValues)
 		}
 
 		//
