@@ -1915,7 +1915,7 @@ func GetValuesMinio(name string, valuestext *string, values interface{}) (err er
 
 func PutValuesTextMinio(name string, valuestext string) (err error) {
 	if DEBUG {
-		log("DEBUG PutValuesTextMinio %s [len==%d]: %s", name, len(valuestext), strings.ReplaceAll((valuestext), NL, " <nl> "))
+		log("DEBUG PutValuesTextMinio len %d %s [%s]", len(valuestext), name, strings.ReplaceAll((valuestext), NL, " <nl> "))
 	}
 
 	if req, err := MinioNewRequest(http.MethodPut, name, []byte(valuestext)); err != nil {
@@ -2070,7 +2070,7 @@ func ImagesValuesToList(imagesvaluesmap map[string]interface{}) (imagesvalueslis
 
 func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error {
 	if DEBUG {
-		log("DEBUG TgSetWebhook url==%s allowedupdates==%s secrettoken==%s", url, allowedupdates, secrettoken)
+		log("DEBUG TgSetWebhook url %s allowedupdates %s secrettoken %s", url, allowedupdates, secrettoken)
 	}
 
 	swreq := TgSetWebhookRequest{
