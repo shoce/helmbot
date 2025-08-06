@@ -962,7 +962,7 @@ func ServerPackagesUpdate() (err error) {
 		p.ImagesValuesList, p.ImagesValuesText, err = ImagesValuesToList(p.ImagesValues)
 
 		if DEBUG {
-			p.log("DEBUG ImagesValues %#v", p.ImagesValues)
+			p.log("DEBUG ImagesValues %+v", p.ImagesValues)
 		}
 
 		//
@@ -1028,7 +1028,7 @@ func ServerPackagesUpdate() (err error) {
 		}
 
 		if DEBUG {
-			p.log("DEBUG ValuesHash %v ValuesReportedHash %v ValuesDeployedHash %v PermitHash %v ", p.ValuesHash, ValuesReportedHash, ValuesDeployedHash, PermitHash)
+			p.log("DEBUG ValuesHash [%s] ValuesReportedHash [%s] ValuesDeployedHash [%s] PermitHash [%s]", p.ValuesHash, ValuesReportedHash, ValuesDeployedHash, PermitHash)
 		}
 
 		//
@@ -1100,20 +1100,20 @@ func ServerPackagesUpdate() (err error) {
 			for name, v1 := range iv1 {
 				if v2, ok := iv2[name]; ok {
 					if v2 != v1 {
-						imagesvaluesdiff += fmt.Sprintf("%s: %#v=>%#v "+NL, name, v1, v2)
+						imagesvaluesdiff += fmt.Sprintf("%s: %#v=>%#v"+NL, name, v1, v2)
 					}
 				} else {
-					imagesvaluesdiff += fmt.Sprintf("-- %s: %#v "+NL, name, v1)
+					imagesvaluesdiff += fmt.Sprintf("-- %s: %#v"+NL, name, v1)
 				}
 			}
 			for name, v2 := range iv2 {
 				if _, ok := iv1[name]; !ok {
-					imagesvaluesdiff += fmt.Sprintf("++ %s: %#v "+NL, name, v2)
+					imagesvaluesdiff += fmt.Sprintf("++ %s: %#v"+NL, name, v2)
 				}
 			}
 
 			if DEBUG {
-				p.log("DEBUG ImagesValues diff "+NL+"%v", imagesvaluesdiff)
+				p.log("DEBUG ImagesValues diff ["+NL+"%s"+NL+"]", imagesvaluesdiff)
 			}
 
 		}
@@ -1222,12 +1222,8 @@ func ServerPackagesUpdate() (err error) {
 
 		values := make(map[string]interface{})
 
-		// TODO why? 25.327.185528
-		/*
-			if !*p.GlobalValuesEnable {
-				delete(p.ImagesValues, p.ChartVersionKey)
-			}
-		*/
+		// why? cert-manager: values don't meet the specifications of the schema
+		delete(p.ImagesValues, p.ChartVersionKey)
 		helmchartutil.MergeTables(values, p.ImagesValues)
 
 		if len(p.LocalValues) > 0 {
