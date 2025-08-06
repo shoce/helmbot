@@ -122,11 +122,11 @@ func init() {
 	var err error
 
 	hostname, err := os.Hostname()
-	log("helmbot version==%v hostname==%v", VERSION, hostname)
+	log("helmbot version %v hostname %v", VERSION, hostname)
 
 	if os.Getenv("LogUTC") != "" {
 		LogUTC = true
-		log("LogUTC==%v", LogUTC)
+		log("LogUTC %v", LogUTC)
 	}
 
 	if LogUTC {
@@ -146,16 +146,16 @@ func init() {
 
 	if os.Getenv("VERBOSE") != "" {
 		VERBOSE = true
-		log("VERBOSE==%v", VERBOSE)
+		log("VERBOSE %v", VERBOSE)
 	}
 
 	if os.Getenv("DEBUG") != "" {
 		DEBUG = true
-		log("DEBUG==%v", DEBUG)
+		log("DEBUG %v", DEBUG)
 		// SET VERBOSE IF DEBUG
 		if !VERBOSE {
 			VERBOSE = true
-			log("VERBOSE==%v", VERBOSE)
+			log("VERBOSE %v", VERBOSE)
 		}
 	}
 
@@ -179,21 +179,21 @@ func init() {
 		os.Exit(1)
 	}
 	if DEBUG {
-		log("DEBUG ConfigDir==%v", ConfigDir)
+		log("DEBUG ConfigDir %v", ConfigDir)
 	}
 
 	ConfigFilename = os.Getenv("ConfigFilename")
 	if DEBUG {
-		log("DEBUG ConfigFilename==%v", ConfigFilename)
+		log("DEBUG ConfigFilename %v", ConfigFilename)
 	}
 	HostConfigFilename = os.Getenv("HostConfigFilename")
 	if DEBUG {
-		log("DEBUG HostConfigFilename==%v", HostConfigFilename)
+		log("DEBUG HostConfigFilename %v", HostConfigFilename)
 	}
 
 	if v := os.Getenv("PackagesUpgradeInterval"); v != "" {
 		if d, err := time.ParseDuration(v); err != nil {
-			log("ERROR parse duration PackagesUpgradeInterval==%v: %s", v, err)
+			log("ERROR parse duration PackagesUpgradeInterval %v: %s", v, err)
 			os.Exit(1)
 		} else {
 			PackagesUpgradeInterval = d
@@ -203,21 +203,21 @@ func init() {
 		os.Exit(1)
 	}
 	if DEBUG {
-		log("DEBUG PackagesUpgradeInterval==%v", PackagesUpgradeInterval)
+		log("DEBUG PackagesUpgradeInterval %v", PackagesUpgradeInterval)
 	}
 
 	ValuesMinioUrl = os.Getenv("ValuesMinioUrl")
 	if ValuesMinioUrl == "" {
 		log("WARNING empty ValuesMinioUrl env var")
 	} else if u, err := url.Parse(ValuesMinioUrl); err != nil {
-		log("ERROR ValuesMinioUrl `%s` parse error: %s", ValuesMinioUrl, err)
+		log("ERROR ValuesMinioUrl %v parse error: %s", ValuesMinioUrl, err)
 		os.Exit(1)
 	} else {
 		ValuesMinioUrlHost = u.Host
 		ValuesMinioUrlPath = u.Path
 	}
 	if DEBUG {
-		log("DEBUG ValuesMinioUrl==%v", ValuesMinioUrl)
+		log("DEBUG ValuesMinioUrl %v", ValuesMinioUrl)
 	}
 
 	ValuesMinioUsername = os.Getenv("ValuesMinioUsername")
@@ -245,7 +245,7 @@ func init() {
 		botuserid := strings.Split(TgToken, ":")[0]
 		userid, err := strconv.Atoi(botuserid)
 		if err != nil {
-			log("ERROR invalid bot user id:`%s`", botuserid)
+			log("ERROR invalid bot user id %v", botuserid)
 			os.Exit(1)
 		}
 		TgBotUserId = int64(userid)
@@ -267,7 +267,7 @@ func init() {
 
 	TgWebhookUrl = os.Getenv("TgWebhookUrl")
 	if DEBUG {
-		log("DEBUG TgWebhookUrl==%v", TgWebhookUrl)
+		log("DEBUG TgWebhookUrl %v", TgWebhookUrl)
 	}
 
 	TgWebhookToken = os.Getenv("TgWebhookToken")
@@ -281,7 +281,7 @@ func init() {
 		}
 		chatid, err := strconv.Atoi(i)
 		if err != nil || chatid == 0 {
-			log("WARNING invalid chat id:`%s`", i)
+			log("WARNING invalid chat id %v", i)
 		}
 		TgChatIds = append(TgChatIds, int64(chatid))
 	}
@@ -296,7 +296,7 @@ func init() {
 		}
 		userid, err := strconv.Atoi(i)
 		if err != nil || userid == 0 {
-			log("WARNING invalid user id `%s`", i)
+			log("WARNING invalid user id %v", i)
 		}
 		TgBossUserIds = append(TgBossUserIds, int64(userid))
 	}
@@ -336,7 +336,7 @@ func main() {
 	if TgWebhookUrl != "" {
 
 		if DEBUG {
-			log("DEBUG TgWebhookUrl==%v so setting webhook with telegram to receive updates.", TgWebhookUrl)
+			log("DEBUG TgWebhookUrl %v so setting webhook with telegram to receive updates.", TgWebhookUrl)
 		}
 		if err := TgSetWebhook(TgWebhookUrl, []string{"message", "channel_post"}, TgWebhookToken); err != nil {
 			log("ERROR TgSetWebhook: %+v", err)
@@ -429,7 +429,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if DEBUG {
-		log("webhook DEBUG TgUpdate: %+v", rupdate)
+		log("webhook DEBUG TgUpdate %+v", rupdate)
 	}
 
 	if !slices.Contains(TgChatIds, rupdate.Message.Chat.Id) {
@@ -489,10 +489,10 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	UpdateEnvName := UpdateHashIdSubmatch[2]
 	UpdateValuesHash := UpdateHashIdSubmatch[3]
 	if VERBOSE {
-		log("webhook update hash id: %s", UpdateHashId)
-		log("webhook update helm name: %s", UpdateChartName)
-		log("webhook update env name: %s", UpdateEnvName)
-		log("webhook update values hash: %s", UpdateValuesHash)
+		log("webhook update hash id %s", UpdateHashId)
+		log("webhook update helm name %s", UpdateChartName)
+		log("webhook update env name %s", UpdateEnvName)
+		log("webhook update values hash %s", UpdateValuesHash)
 	}
 
 	p := PackageConfig{ChartName: UpdateChartName, EnvName: UpdateEnvName}
@@ -514,7 +514,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if DEBUG {
-		log("webhook DEBUG update hash id submatch: %+v", UpdateHashIdSubmatch)
+		log("webhook DEBUG update hash id submatch %+v", UpdateHashIdSubmatch)
 	}
 
 	var ValuesDeployedHash string
@@ -531,7 +531,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if DEBUG {
-		log("webhook DEBUG deployed values hash: %s", ValuesDeployedHash)
+		log("webhook DEBUG deployed values hash %s", ValuesDeployedHash)
 	}
 	if UpdateValuesHash == ValuesDeployedHash {
 		if DEBUG {
@@ -560,7 +560,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if DEBUG {
-		log("webhook DEBUG reported values hash: %s", ValuesReportedHash)
+		log("webhook DEBUG reported values hash %s", ValuesReportedHash)
 	}
 	if UpdateValuesHash != ValuesReportedHash {
 		if DEBUG {
@@ -651,7 +651,7 @@ func ServerPackagesUpdate() (err error) {
 	}
 
 	if DEBUG {
-		//log("packages DEBUG Config==%+v", Config)
+		//log("packages DEBUG Config %+v", Config)
 	}
 
 	// INSTALLED RELEASES
@@ -670,7 +670,7 @@ func ServerPackagesUpdate() (err error) {
 	/*
 		if DEBUG {
 			for _, r := range installedreleases {
-				log("packages DEBUG Name==%s Namespace==%s Status==%s Revision==%d Version==%s",
+				log("packages DEBUG Name %s Namespace %s Status %s Revision %d Version %s",
 					r.Name, r.Namespace, r.Info.Status, r.Version, r.Chart.Metadata.Version,
 				)
 			}
