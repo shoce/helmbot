@@ -1299,7 +1299,12 @@ func ServerPackagesUpdate() (err error) {
 
 			p.log("ERROR helm Run: %v", err)
 
-			tgmsg += tg.Bold("ERROR") + NL + NL + tg.Pre(fmt.Sprintf("%v", err)) + NL + NL
+			errtext := fmt.Sprintf("%v", err)
+			if len(errtext) > 2000 {
+				errtext = errtext[:1000] + NL + NL + "---cut---" + NL + NL + errtext[len(errtext)-1000:]
+			}
+
+			tgmsg += tg.Bold("ERROR") + NL + NL + tg.Pre(errtext) + NL + NL
 
 			if _, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
 				p.log("ERROR tglog: %v", tgerr)
@@ -1327,7 +1332,7 @@ func ServerPackagesUpdate() (err error) {
 		if release.Info.Notes != "" {
 			notes := strings.TrimSpace(release.Info.Notes)
 			if len(notes) > 2000 {
-				notes = notes[:1000] + NL + NL + "---cut-cut-cut---" + NL + NL + notes[len(notes)-1000:]
+				notes = notes[:1000] + NL + NL + "---cut---" + NL + NL + notes[len(notes)-1000:]
 			}
 			tgmsg += tg.Pre(notes) + NL + NL
 		}
