@@ -28,10 +28,10 @@ jobs:
 
       - uses: shoce/action-version@v1
 
-      - uses: actions/checkout@v4
+      - uses: shoce/action-checkout@v1
 
       # https://github.com/dagger/dagger-for-github
-      - uses: dagger/dagger-for-github@v7
+      - uses: dagger/dagger-for-github@v8
         with:
           version: latest
           call: publish

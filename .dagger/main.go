@@ -13,7 +13,7 @@ import (
 
 const (
 	// https://hub.docker.com/_/golang/tags
-	GolangDockerImage = "golang:1.24.5-alpine3.22"
+	GolangDockerImage = "golang:1.25.0-alpine3.22"
 
 	// https://hub.docker.com/_/alpine/tags/
 	AlpineDockerImage = "alpine:3.22"
@@ -55,10 +55,10 @@ func (m *Helmbot) Build(
 
 		eg.Go(func() (err error) {
 
-			fmt.Printf("platform==%s"+NL, platform)
+			fmt.Printf("platform %s"+NL, platform)
 
 			arch := strings.Split(string(platform), "/")[1]
-			fmt.Printf("arch==%s"+NL, arch)
+			fmt.Printf("arch %s"+NL, arch)
 
 			a := dag.Container().
 				From(GolangDockerImage).
