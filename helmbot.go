@@ -1321,9 +1321,9 @@ func ServerPackagesUpdate() (err error) {
 		}
 
 		tgmsg += tg.Pre(fmt.Sprintf(
-			"NAME: %v"+NL+
-				"NAMESPACE: %v"+NL+
-				"STATUS: %v",
+			"name [%s]"+NL+
+				"namespace [%s]"+NL+
+				"status [%s]",
 			release.Name,
 			release.Namespace,
 			release.Info.Status,
