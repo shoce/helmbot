@@ -4,8 +4,8 @@ go 1.24.2
 
 require (
 	github.com/rusenask/docker-registry-client v0.0.0-20200210164146-049272422097
-	github.com/shoce/tg v0.250724.1714
-	golang.org/x/text v0.27.0
+	github.com/shoce/tg v0.250805.528
+	golang.org/x/text v0.28.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.18.4
 )
