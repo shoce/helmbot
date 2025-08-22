@@ -1,5 +1,4 @@
-chart name is {{ .Chart.Name }}.
-release name is {{ .Release.Name }}.
-namespace is {{ .Release.Namespace }}.
-
+chart name {{ .Chart.Name }}
+release name {{ .Release.Name }}
+namespace {{ .Release.Namespace }}
 
