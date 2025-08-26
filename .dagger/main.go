@@ -55,20 +55,20 @@ func (m *Helmbot) Build(
 
 		eg.Go(func() (err error) {
 
+			GOARCH := strings.Split(string(platform), "/")[1]
+			VERSION := os.Getenv("VERSION")
 			fmt.Printf("platform %s"+NL, platform)
-
-			arch := strings.Split(string(platform), "/")[1]
-			fmt.Printf("arch %s"+NL, arch)
-			fmt.Printf("VERSION %s", os.Getenv("VERSION"))
+			fmt.Printf("GOARCH %s"+NL, GOARCH)
+			fmt.Printf("VERSION %s", VERSION)
 
 			a := dag.Container().
 				From(GolangDockerImage).
 				WithFiles("/root/helmbot/", ff).
 				WithWorkdir("/root/helmbot/").
 				WithEnvVariable("CGO_ENABLED", "0").
-				WithEnvVariable("GOARCH", arch).
+				WithEnvVariable("GOARCH", GOARCH).
 				WithExec([]string{"go", "get", "-v"}).
-				WithExec([]string{"go", "build", "-o", "helmbot", "-ldflags", "-X main.VERSION=" + os.Getenv("VERSION"), "."})
+				WithExec([]string{"go", "build", "-o", "helmbot", "-ldflags", "-X main.VERSION=" + VERSION, "."})
 
 			b := dag.Container(dagger.ContainerOpts{Platform: platform}).
 				From(AlpineDockerImage).
