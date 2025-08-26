@@ -71,6 +71,8 @@ var (
 
 	VERSION string
 
+	HOSTNAME string
+
 	ServerPackagesUpdateLastRun time.Time
 
 	LogUTC          bool
@@ -121,8 +123,10 @@ var (
 func init() {
 	var err error
 
-	hostname, err := os.Hostname()
-	log("helmbot version %v hostname %v", VERSION, hostname)
+	log("helmbot version %v", VERSION)
+
+	HOSTNAME, err = os.Hostname()
+	log("HOSTNAME %v", HOSTNAME)
 
 	if os.Getenv("LogUTC") != "" {
 		LogUTC = true
@@ -135,7 +139,10 @@ func init() {
 	} else {
 		LogTimeLocation = time.Local
 		LogTimeZone = time.Now().Local().Format("-0700")
-		LogTimeZone = strings.TrimRight(LogTimeZone, "0")
+		log("LogTimeZone %v", LogTimeZone)
+		if LogTimeZone == "+0530" {
+			LogTimeZone = "ॐ"
+		}
 	}
 
 	UpdateHashIdRe, err = regexp.Compile(UpdateHashIdReString)
