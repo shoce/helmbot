@@ -37,10 +37,11 @@ jobs:
         with:
           version: latest
           call: publish
+            --version=$VERSION
             --registry=$REGISTRY
             --username=${{ github.repository_owner }}
             --password=env:GITHUB_TOKEN
-            --image=${{ github.repository }}/${{ github.ref_name }}:${{ env.VERSION }}
+            --image=${{ github.repository }}/${{ github.ref_name }}:$VERSION
 
       - name: tag
         run: |

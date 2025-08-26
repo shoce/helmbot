@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	"dagger/helmbot/internal/dagger"
@@ -40,6 +39,8 @@ type Helmbot struct{}
 func (m *Helmbot) Build(
 	// +defaultPath="."
 	srcdir *dagger.Directory,
+	// +optional
+	version string,
 ) []*dagger.Container {
 
 	c := make([]*dagger.Container, 0, len(Platforms))
@@ -56,7 +57,7 @@ func (m *Helmbot) Build(
 		eg.Go(func() (err error) {
 
 			GOARCH := strings.Split(string(platform), "/")[1]
-			VERSION := os.Getenv("VERSION")
+			VERSION := version
 			fmt.Printf("platform %s"+NL, platform)
 			fmt.Printf("GOARCH %s"+NL, GOARCH)
 			fmt.Printf("VERSION %s"+NL, VERSION)
@@ -96,6 +97,8 @@ func (m *Helmbot) Build(
 func (m *Helmbot) Publish(
 	// +defaultPath="."
 	srcdir *dagger.Directory,
+	// +optional
+	version string,
 	// +default="ghcr.io"
 	registry string,
 	// +optional
@@ -113,7 +116,7 @@ func (m *Helmbot) Publish(
 		Ctx,
 		registry+"/"+image,
 		dagger.ContainerPublishOpts{
-			PlatformVariants: m.Build(srcdir),
+			PlatformVariants: m.Build(srcdir, version),
 		},
 	)
 
