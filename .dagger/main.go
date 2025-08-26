@@ -59,6 +59,7 @@ func (m *Helmbot) Build(
 
 			arch := strings.Split(string(platform), "/")[1]
 			fmt.Printf("arch %s"+NL, arch)
+			fmt.Printf("VERSION %s", os.Getenv("VERSION"))
 
 			a := dag.Container().
 				From(GolangDockerImage).
