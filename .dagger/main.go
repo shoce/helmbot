@@ -59,7 +59,7 @@ func (m *Helmbot) Build(
 			VERSION := os.Getenv("VERSION")
 			fmt.Printf("platform %s"+NL, platform)
 			fmt.Printf("GOARCH %s"+NL, GOARCH)
-			fmt.Printf("VERSION %s", VERSION)
+			fmt.Printf("VERSION %s"+NL, VERSION)
 
 			a := dag.Container().
 				From(GolangDockerImage).
