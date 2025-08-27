@@ -75,9 +75,8 @@ var (
 
 	ServerPackagesUpdateLastRun time.Time
 
-	LogUTC          bool
-	LogTimeZone     string         = "+"
-	LogTimeLocation *time.Location = time.UTC
+	LogTZ         string         = "UTC"
+	LogTZLocation *time.Location = time.UTC
 
 	ServerHostname string
 
@@ -128,21 +127,21 @@ func init() {
 	HOSTNAME, err = os.Hostname()
 	log("HOSTNAME %v", HOSTNAME)
 
-	if os.Getenv("LogUTC") != "" {
-		LogUTC = true
-		log("LogUTC %v", LogUTC)
+	if os.Getenv("LogTZ") != "" {
+		LogTZ = os.Getenv("LogTZ")
 	}
+	log("LogTZ %v", LogTZ)
 
-	if LogUTC {
-		LogTimeLocation = time.UTC
-		LogTimeZone = "+"
-	} else {
-		LogTimeLocation = time.Local
-		LogTimeZone = time.Now().Local().Format("-0700")
-		log("LogTimeZone %v", LogTimeZone)
-		if LogTimeZone == "+0530" {
-			LogTimeZone = "ॐ"
-		}
+	if LogTZLocation, err = time.LoadLocation(LogTZ); err != nil {
+		log("LoadLocation %s %v", LogTZ, err)
+		LogTZ = "UTC"
+		LogTZLocation = time.UTC
+	}
+	LogTZ = time.Now().In(LogTZLocation).Format("-0700")
+	log("LogTZ %v", LogTZ)
+
+	if LogTZ == "+0530" {
+		LogTZ = "ॐ"
 	}
 
 	UpdateHashIdRe, err = regexp.Compile(UpdateHashIdReString)
@@ -1818,11 +1817,11 @@ type HelmbotConfig struct {
 }
 
 func ts() string {
-	tnow := time.Now().In(LogTimeLocation)
+	tnow := time.Now().In(LogTZLocation)
 	return fmt.Sprintf(
 		"%d%02d%02d:%02d%02d%s",
 		tnow.Year()%1000, tnow.Month(), tnow.Day(),
-		tnow.Hour(), tnow.Minute(), LogTimeZone,
+		tnow.Hour(), tnow.Minute(), LogTZ,
 	)
 }
 

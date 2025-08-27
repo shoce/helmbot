@@ -33,7 +33,7 @@ LoggingUsername: ""
 LoggingPassword: ""
 LoggingTag: "helmbot"
 
-LogUTC: ""
+LogTZ: ""
 
 
 IngressRequestMaxBodySizeString: "1m"

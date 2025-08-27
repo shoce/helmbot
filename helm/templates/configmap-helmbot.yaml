@@ -40,7 +40,7 @@ data:
   LoggingPassword: "{{ $.Values.LoggingPassword }}"
   LoggingTag: "{{ $.Values.LoggingTag }}"
 
-  LogUTC: "{{ $.Values.LogUTC }}"
+  LogTZ: "{{ $.Values.LogTZ }}"
 
 
 
