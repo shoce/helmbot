@@ -2015,10 +2015,11 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 					//log("DEBUG drlatestyaml registry %s %s", RegistryUrl, RegistryRepository)
 				}
 
-				r := dregistry.NewInsecure(RegistryUrl, e.RegistryUsername, e.RegistryPassword)
-				r.Logf = dregistry.Quiet
+				dr := dregistry.NewInsecure(RegistryUrl, e.RegistryUsername, e.RegistryPassword)
+				dr.Logf = dregistry.Quiet
 
-				imagetags, err := r.Tags(RegistryRepository)
+				// TODO hangs here ?
+				imagetags, err := dr.Tags(RegistryRepository)
 				if err != nil {
 					return fmt.Errorf("registry.Tags %s %v: %w", imagename, imageurl, err)
 				}
