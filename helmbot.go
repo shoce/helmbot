@@ -371,6 +371,8 @@ func main() {
 	}
 
 	go func() {
+		ticker := time.NewTicker(PackagesUpgradeInterval)
+
 		for {
 			ServerPackagesUpdateLastRun = time.Now()
 
@@ -378,13 +380,8 @@ func main() {
 				log("packages ERROR update: %+v", err)
 			}
 
-			if d := time.Now().Sub(ServerPackagesUpdateLastRun); d < PackagesUpgradeInterval {
-				sleepdur := (PackagesUpgradeInterval - d).Truncate(time.Second)
-				if DEBUG {
-					log("packages DEBUG sleeping %s", sleepdur)
-				}
-				time.Sleep(sleepdur)
-			}
+			log("packages DEBUG sleeping")
+			<-ticker.C
 			if DEBUG {
 				log("---")
 			}
@@ -393,9 +390,7 @@ func main() {
 
 	log("start done.")
 
-	for {
-		time.Sleep(11 * time.Second)
-	}
+	select {}
 
 }
 
