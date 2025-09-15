@@ -127,10 +127,10 @@ func init() {
 	HOSTNAME, err = os.Hostname()
 	log("HOSTNAME %v", HOSTNAME)
 
-	if os.Getenv("LogTZ") != "" {
-		LogTZ = os.Getenv("LogTZ")
+	if v := os.Getenv("LogTZ"); v != "" {
+		LogTZ = v
 	}
-	log("LogTZ %v", LogTZ)
+	log("LogTZ %s", LogTZ)
 
 	if LogTZLocation, err = time.LoadLocation(LogTZ); err != nil {
 		log("LoadLocation %s %v", LogTZ, err)
@@ -138,9 +138,12 @@ func init() {
 		LogTZLocation = time.UTC
 	}
 	LogTZ = time.Now().In(LogTZLocation).Format("-0700")
-	log("LogTZ %v", LogTZ)
+	log("LogTZ %s", LogTZ)
 
-	if LogTZ == "+0530" {
+	switch LogTZ {
+	case "+0000":
+		LogTZ = "+"
+	case "+0530":
 		LogTZ = "ॐ"
 	}
 
