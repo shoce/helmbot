@@ -149,7 +149,7 @@ func init() {
 
 	UpdateHashIdRe, err = regexp.Compile(UpdateHashIdReString)
 	if err != nil {
-		log("ERROR regexp %#v compile error: %s", UpdateHashIdReString, err)
+		log("ERROR regexp %#v compile %s", UpdateHashIdReString, err)
 		os.Exit(1)
 	}
 
@@ -202,7 +202,7 @@ func init() {
 
 	if v := os.Getenv("PackagesUpgradeInterval"); v != "" {
 		if d, err := time.ParseDuration(v); err != nil {
-			log("ERROR parse duration PackagesUpgradeInterval %v: %s", v, err)
+			log("ERROR parse duration PackagesUpgradeInterval %v %s", v, err)
 			os.Exit(1)
 		} else {
 			PackagesUpgradeInterval = d
@@ -219,7 +219,7 @@ func init() {
 	if ValuesMinioUrl == "" {
 		log("WARNING empty ValuesMinioUrl env var")
 	} else if u, err := url.Parse(ValuesMinioUrl); err != nil {
-		log("ERROR ValuesMinioUrl %v parse error: %s", ValuesMinioUrl, err)
+		log("ERROR ValuesMinioUrl %v parse %s", ValuesMinioUrl, err)
 		os.Exit(1)
 	} else {
 		ValuesMinioUrlHost = u.Host
@@ -335,7 +335,7 @@ func main() {
 		})
 		for {
 			if err := http.ListenAndServe(":81", healthmux); err != nil {
-				log("ERROR healthmux: %+v", err)
+				log("ERROR healthmux %+v", err)
 				time.Sleep(time.Second)
 			}
 		}
@@ -348,7 +348,7 @@ func main() {
 			log("DEBUG TgWebhookUrl %v so setting webhook with telegram to receive updates.", TgWebhookUrl)
 		}
 		if err := TgSetWebhook(TgWebhookUrl, []string{"message", "channel_post"}, TgWebhookToken); err != nil {
-			log("ERROR TgSetWebhook: %+v", err)
+			log("ERROR TgSetWebhook %+v", err)
 			os.Exit(1)
 		}
 
@@ -359,7 +359,7 @@ func main() {
 				log("webhook serving requests on %v.", ListenAddr)
 				err := http.ListenAndServe(ListenAddr, nil)
 				if err != nil {
-					log("webhook ERROR ListenAndServe: %+v", err)
+					log("webhook ERROR ListenAndServe %+v", err)
 				}
 				retryinterval := 11 * time.Second
 				log("webhook retrying ListenAndServe in %v", retryinterval)
@@ -380,7 +380,7 @@ func main() {
 			ServerPackagesUpdateLastRun = time.Now()
 
 			if err := ServerPackagesUpdate(); err != nil {
-				log("packages ERROR update: %+v", err)
+				log("packages ERROR update %+v", err)
 			}
 
 			log("packages DEBUG sleeping")
@@ -410,7 +410,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	var rbody []byte
 	rbody, err = io.ReadAll(r.Body)
 	if err != nil {
-		log("webhook ERROR io.ReadAll r.Body: %v", err)
+		log("webhook ERROR io.ReadAll r.Body %v", err)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -424,7 +424,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	var rupdate tg.Update
 	err = json.NewDecoder(bytes.NewBuffer(rbody)).Decode(&rupdate)
 	if err != nil {
-		log("webhook ERROR json.Decoder.Decode: %v", err)
+		log("webhook ERROR json.Decoder.Decode %v", err)
 		return
 	}
 
@@ -506,10 +506,10 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 			log("webhook DEBUG message user id not valid")
 		}
 		if _, tgerr = tglog(
-			tg.Bold(tg.Esc("Your request to force update %s-%s is NOT accepted.", p.ChartName, p.EnvName))+NL+NL+tg.Esc("Check helmbot TgBossUserIds config value."),
+			tg.Bold(tg.Esc(tg.F("Your request to force update %s-%s is NOT accepted.", p.ChartName, p.EnvName)))+NL+NL+tg.Esc("Check helmbot TgBossUserIds config value."),
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
 		); tgerr != nil {
-			log("webhook ERROR tglog: %v", tgerr)
+			log("webhook ERROR tglog %v", tgerr)
 		}
 		return
 	}
@@ -523,13 +523,13 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
 	var ValuesDeployedHash string
 	if err := GetValuesText(p.ValuesDeployedHashFilename(), &ValuesDeployedHash, true); err != nil {
-		log("webhook ERROR %v could not be read: %v", p.ValuesDeployedHashFilename(), err)
+		log("webhook ERROR %v could not be read %v", p.ValuesDeployedHashFilename(), err)
 		if _, tgerr = tglog(
 			tg.Bold(tg.Esc("INTERNAL ERROR"))+NL+
 				tg.Esc(TgAdminMention),
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
 		); tgerr != nil {
-			log("webhook ERROR tglog: %v", tgerr)
+			log("webhook ERROR tglog %v", tgerr)
 		}
 		return
 	}
@@ -545,20 +545,20 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 			tg.Bold(tg.Esc("THIS UPDATE IS ALREADY DEPLOYED")),
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
 		); tgerr != nil {
-			log("webhook ERROR tglog: %v", tgerr)
+			log("webhook ERROR tglog %v", tgerr)
 		}
 		return
 	}
 
 	var ValuesReportedHash string
 	if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash, true); err != nil {
-		log("webhook ERROR %v could not be read: %v", p.ValuesReportedHashFilename(), err)
+		log("webhook ERROR %v could not be read %v", p.ValuesReportedHashFilename(), err)
 		if _, tgerr = tglog(
 			tg.Bold(tg.Esc("INTERNAL ERROR"))+NL+
 				tg.Esc(TgAdminMention),
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
 		); tgerr != nil {
-			log("webhook ERROR tglog: %v", tgerr)
+			log("webhook ERROR tglog %v", tgerr)
 		}
 		return
 	}
@@ -574,7 +574,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 			tg.Bold(tg.Esc("THIS IS NOT THE LAST AVAILABLE UPDATE"))+NL+NL+tg.Esc("Only the last available update can be forced."),
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
 		); tgerr != nil {
-			log("webhook ERROR tglog: %v", tgerr)
+			log("webhook ERROR tglog %v", tgerr)
 		}
 		return
 	}
@@ -591,13 +591,13 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := PutValuesText(p.ValuesPermitHashFilename(), UpdateValuesHash); err != nil {
-		log("webhook ERROR %v file could not be written: %v", p.ValuesPermitHashFilename(), err)
+		log("webhook ERROR %v file could not be written %v", p.ValuesPermitHashFilename(), err)
 		if _, tgerr = tglog(
 			tg.Bold(tg.Esc("INTERNAL ERROR"))+NL+
 				tg.Esc(TgAdminMention),
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
 		); tgerr != nil {
-			log("webhook ERROR tglog: %v", tgerr)
+			log("webhook ERROR tglog %v", tgerr)
 		}
 		return
 	}
@@ -614,7 +614,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 			tg.Code(UpdateHashId),
 		rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
 	); tgerr != nil {
-		log("webhook ERROR tglog: %v", tgerr)
+		log("webhook ERROR tglog %v", tgerr)
 	}
 
 	if DEBUG {
@@ -683,7 +683,7 @@ func ServerPackagesUpdate() (err error) {
 
 	Packages, err = ProcessServersPackages(Config.Servers)
 	if err != nil {
-		log("packages ERROR ProcessServersPackages: %v", err)
+		log("packages ERROR ProcessServersPackages %v", err)
 		return err
 	}
 
@@ -702,7 +702,7 @@ func ServerPackagesUpdate() (err error) {
 
 		var PermitHash string
 		if err := GetValuesText(p.ValuesPermitHashFilename(), &PermitHash, true); err != nil {
-			p.log("ERROR GetValuesText: %v", err)
+			p.log("ERROR GetValuesText %v", err)
 		}
 
 		updatetimestampfilename := path.Join(ConfigDir, p.UpdateTimestampFilename())
@@ -875,10 +875,10 @@ func ServerPackagesUpdate() (err error) {
 
 			if p.ChartAuth.Username != "" {
 				if charturl, err := url.Parse(p.ChartAddress); err != nil {
-					p.log("ERROR url.Parse: %+v", err)
+					p.log("ERROR url.Parse %+v", err)
 				} else {
 					if err := hrclient.Login(charturl.Host, helmregistry.LoginOptBasicAuth(p.ChartAuth.Username, p.ChartAuth.Password)); err != nil {
-						p.log("ERROR hrclient.Login: %+v", err)
+						p.log("ERROR hrclient.Login %+v", err)
 					}
 				}
 			}
@@ -977,7 +977,7 @@ func ServerPackagesUpdate() (err error) {
 			if f, err := os.Create(updatetimestampfilename); err == nil {
 				f.Close()
 			} else {
-				p.log("ERROR create timestamp file: %v", err)
+				p.log("ERROR create timestamp file %v", err)
 			}
 		}
 
@@ -1003,7 +1003,7 @@ func ServerPackagesUpdate() (err error) {
 		var ValuesDeployedHash string
 		if err := GetValuesText(p.ValuesDeployedHashFilename(), &ValuesDeployedHash, true); err != nil {
 
-			p.log("ERROR GetValuesText: %s", err)
+			p.log("ERROR GetValuesText %s", err)
 			continue
 
 		}
@@ -1028,7 +1028,7 @@ func ServerPackagesUpdate() (err error) {
 
 		var ValuesReportedHash string
 		if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash, true); err != nil {
-			p.log("ERROR GetValuesText: %v", err)
+			p.log("ERROR GetValuesText %v", err)
 		}
 
 		if DEBUG {
@@ -1048,22 +1048,22 @@ func ServerPackagesUpdate() (err error) {
 
 			if *p.GlobalValuesEnable {
 				if err := GetValuesTextFile(path.Join(p.FullName(), p.GlobalValuesFilename()), &DeployedGlobalValuesText, false); err != nil {
-					p.log("ERROR GetValuesTextFile: %v", err)
+					p.log("ERROR GetValuesTextFile %v", err)
 				}
 			}
 
 			if err := GetValuesTextFile(path.Join(p.FullName(), p.ValuesFilename()), &DeployedValuesText, false); err != nil {
-				p.log("ERROR GetValuesTextFile: %v", err)
+				p.log("ERROR GetValuesTextFile %v", err)
 			}
 
 			if err := GetValuesTextFile(path.Join(p.FullName(), p.EnvValuesFilename()), &DeployedEnvValuesText, false); err != nil {
-				p.log("ERROR GetValuesTextFile: %v", err)
+				p.log("ERROR GetValuesTextFile %v", err)
 			}
 
 		}
 
 		if err := GetValuesTextFile(path.Join(p.FullName(), p.ImagesValuesFilename()), &DeployedImagesValuesText, false); err != nil {
-			p.log("ERROR GetValuesTextFile: %v", err)
+			p.log("ERROR GetValuesTextFile %v", err)
 		}
 
 		//
@@ -1146,7 +1146,7 @@ func ServerPackagesUpdate() (err error) {
 		var tgmsgid int64
 		var tgerr error
 
-		tgmsg = tg.Bold(tg.Esc("%s %s UPDATE", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName))) + NL + NL
+		tgmsg = tg.Bold(tg.Esc(tg.F("%s %s UPDATE", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)))) + NL + NL
 		if globalvaluesdiff {
 			tgmsg += tg.Code(p.GlobalValuesFilename()) + " changed" + NL + NL
 		}
@@ -1171,7 +1171,7 @@ func ServerPackagesUpdate() (err error) {
 				tgmsg += tg.Bold(tg.Esc("NOT UPDATING NOW")) + tg.Esc("; update will start ") + tg.Bold(tg.Esc("in the next allowed time window")) + NL + NL
 				tgmsg += tg.Esc("TO FORCE START THIS UPDATE NOW REPLY TO THIS MESSAGE WITH TEXT \"") + tg.Code("NOW") + tg.Esc("\" (UPPERCASE)") + NL + NL
 				if tgmsgid, tgerr = p.tglog(tgmsg, 0, 0); tgerr != nil {
-					p.log("ERROR tglog: %v", tgerr)
+					p.log("ERROR tglog %v", tgerr)
 				}
 
 				//
@@ -1195,10 +1195,10 @@ func ServerPackagesUpdate() (err error) {
 
 		if p.UpdateDelayDuration > 0 {
 
-			tgmsg += tg.Bold(tg.Esc("STARTING IN %v", p.UpdateDelayDuration)) + NL + NL
+			tgmsg += tg.Bold(tg.Esc(tg.F("STARTING IN %v", p.UpdateDelayDuration))) + NL + NL
 
 			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
-				p.log("ERROR tglog: %v", tgerr)
+				p.log("ERROR tglog %v", tgerr)
 			}
 
 			if VERBOSE {
@@ -1219,7 +1219,7 @@ func ServerPackagesUpdate() (err error) {
 		tgmsg += tg.Bold(tg.Esc("STARTED")) + NL + NL
 
 		if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
-			p.log("ERROR tglog: %v", tgerr)
+			p.log("ERROR tglog %v", tgerr)
 		}
 
 		// PREPARE VALUES
@@ -1256,7 +1256,7 @@ func ServerPackagesUpdate() (err error) {
 		if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), p.Namespace, "", p.log); err != nil {
 			tgmsg += tg.Bold(tg.Esc("INTERNAL ERROR")) + NL + NL
 			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
-				p.log("ERROR tglog: %v", tgerr)
+				p.log("ERROR tglog %v", tgerr)
 			}
 			return err
 		}
@@ -1301,7 +1301,7 @@ func ServerPackagesUpdate() (err error) {
 
 		if err != nil {
 
-			p.log("ERROR helm Run: %v", err)
+			p.log("ERROR helm Run %v", err)
 
 			errtext := fmt.Sprintf("%v", err)
 			if len(errtext) > 2000 {
@@ -1311,7 +1311,7 @@ func ServerPackagesUpdate() (err error) {
 			tgmsg += tg.Bold(tg.Esc("ERROR")) + NL + NL + tg.Pre(errtext) + NL + NL
 
 			if _, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
-				p.log("ERROR tglog: %v", tgerr)
+				p.log("ERROR tglog %v", tgerr)
 			}
 
 			return err
@@ -1343,7 +1343,7 @@ func ServerPackagesUpdate() (err error) {
 
 		// TODO TgBossUserIds
 		if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
-			p.log("ERROR tglog: %v", tgerr)
+			p.log("ERROR tglog %v", tgerr)
 		}
 
 		//
@@ -1353,7 +1353,7 @@ func ServerPackagesUpdate() (err error) {
 		if err := PutValuesText(p.ValuesDeployedHashFilename(), p.ValuesHash); err != nil {
 			tgmsg += tg.Bold(tg.Esc("INTERNAL ERROR")) + NL + NL
 			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
-				p.log("ERROR tglog: %v", tgerr)
+				p.log("ERROR tglog %v", tgerr)
 			}
 			return fmt.Errorf("PutValuesText: %w", err)
 		}
@@ -1378,18 +1378,18 @@ func ServerPackagesUpdate() (err error) {
 		//
 
 		if err := p.WriteDeployedValues(); err != nil {
-			p.log("ERROR WriteDeployedValues: %v", err)
+			p.log("ERROR WriteDeployedValues %v", err)
 			tgmsg += tg.Bold(tg.Esc("INTERNAL ERROR")) + NL + NL
 			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
-				p.log("ERROR tglog: %v", tgerr)
+				p.log("ERROR tglog %v", tgerr)
 			}
 			return err
 		}
 
-		tgmsg += tg.Bold(tg.Esc("%s %s UPDATE FINISHED", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName))) + NL + NL
+		tgmsg += tg.Bold(tg.Esc(tg.F("%s %s UPDATE FINISHED", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)))) + NL + NL
 
 		if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
-			p.log("ERROR tglog: %v", tgerr)
+			p.log("ERROR tglog %v", tgerr)
 		}
 
 		//
