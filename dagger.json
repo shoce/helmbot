@@ -1,6 +1,6 @@
 {
   "name": "helmbot",
-  "engineVersion": "v0.19.2",
+  "engineVersion": "v0.19.6",
   "sdk": {
     "source": "go"
   },
@@ -11,5 +11,6 @@
       "pin": "c9905b9550021591e15b5346574dd0114e412194"
     }
   ],
-  "source": ".dagger"
+  "source": ".dagger",
+  "disableDefaultFunctionCaching": true
 }

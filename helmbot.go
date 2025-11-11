@@ -383,7 +383,9 @@ func main() {
 				log("packages ERROR update %+v", err)
 			}
 
-			log("packages DEBUG sleeping")
+			if DEBUG {
+				log("packages DEBUG sleeping")
+			}
 			<-ticker.C
 			if DEBUG {
 				log("---")
