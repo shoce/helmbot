@@ -52,6 +52,7 @@ import (
 )
 
 const (
+	SP   = " "
 	SPAC = "    "
 	TAB  = "\t"
 	NL   = "\n"
@@ -284,7 +285,7 @@ func init() {
 		log("WARNING empty TgWebhookToken env var")
 	}
 
-	for _, i := range strings.Split(strings.TrimSpace(os.Getenv("TgChatIds")), " ") {
+	for _, i := range strings.Fields(os.Getenv("TgChatIds")) {
 		if i == "" {
 			continue
 		}
@@ -299,7 +300,7 @@ func init() {
 		os.Exit(1)
 	}
 
-	for _, i := range strings.Split(strings.TrimSpace(os.Getenv("TgBossUserIds")), " ") {
+	for _, i := range strings.Fields(os.Getenv("TgBossUserIds")) {
 		if i == "" {
 			continue
 		}
@@ -819,19 +820,33 @@ func ServerPackagesUpdate() (err error) {
 					for _, v := range repochartversions {
 						vv = append(vv, v.Version)
 					}
-					p.log("DEBUG repo versions %+v", vv)
+					p.log("DEBUG repo versions ( %s )", strings.Join(vv, SP))
 				}
 
 				if p.ChartVersion != "" {
 					if DEBUG {
-						p.log("DEBUG ChartVersion %#v", p.ChartVersion)
+						p.log("DEBUG ChartVersion %s", p.ChartVersion)
 					}
 					for _, v := range repochartversions {
 						if v.Version == p.ChartVersion {
 							if DEBUG {
-								p.log("DEBUG ChartVersion %#v found in repo", p.ChartVersion)
+								p.log("DEBUG ChartVersion %s found in repo", p.ChartVersion)
 							}
 							repochartversion = v
+							break
+						}
+					}
+				} else if p.ChartVersionPrefix != "" {
+					if DEBUG {
+						p.log("DEBUG ChartVersionPrefix %#v", p.ChartVersionPrefix)
+					}
+					for _, v := range repochartversions {
+						if strings.HasPrefix(v.Version, p.ChartVersionPrefix) {
+							if DEBUG {
+								p.log("DEBUG chart version %s found in repo", v.Version)
+							}
+							repochartversion = v
+							break
 						}
 					}
 				} else {
@@ -1416,7 +1431,7 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 		}
 
 		if s.AllowedHours != nil {
-			s.AllowedHoursList = strings.Split(*s.AllowedHours, " ")
+			s.AllowedHoursList = strings.Fields(*s.AllowedHours)
 		}
 
 		if s.Timezone == nil || *s.Timezone == "" {
@@ -1481,7 +1496,7 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 				p.AllowedHours = s.AllowedHours
 				p.AllowedHoursList = s.AllowedHoursList
 			} else {
-				p.AllowedHoursList = strings.Split(*p.AllowedHours, " ")
+				p.AllowedHoursList = strings.Fields(*p.AllowedHours)
 			}
 
 			if p.Timezone == nil {
@@ -1516,6 +1531,10 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 				if err != nil {
 					return nil, err
 				}
+			}
+
+			if p.ChartVersion != "" && p.ChartVersionPrefix != "" && !strings.HasPrefix(p.ChartVersion, p.ChartVersionPrefix) {
+				return nil, fmt.Errorf("package ChartVersion does not match ChartVersionPrefix")
 			}
 
 			if p.ChartVersionKey == "" {
@@ -1651,8 +1670,9 @@ type PackageConfig struct {
 
 	Namespace string `yaml:"Namespace,omitempty"`
 
-	ChartVersion    string `yaml:"ChartVersion"`
-	ChartVersionKey string `yaml:"ChartVersionKey"`
+	ChartVersion       string `yaml:"ChartVersion"`
+	ChartVersionPrefix string `yaml:"ChartVersionPrefix"`
+	ChartVersionKey    string `yaml:"ChartVersionKey"`
 
 	ChartLocalFilename string `yaml:"ChartLocalFilename"`
 
@@ -1826,7 +1846,7 @@ func ts() string {
 }
 
 func log(msg string, args ...interface{}) {
-	logmsg := fmt.Sprintf(ts()+" "+msg, args...) + NL
+	logmsg := fmt.Sprintf(ts()+SP+msg, args...) + NL
 	if TgToken != "" {
 		logmsg = strings.ReplaceAll(logmsg, TgToken, "{{TgToken}}")
 	}
@@ -2135,7 +2155,7 @@ type TgSetWebhookResponse struct {
 }
 
 func (p *PackageConfig) log(msg string, args ...interface{}) {
-	log(SPAC+p.Name+" "+msg, args...)
+	log(SPAC+p.Name+SP+msg, args...)
 }
 
 func (p *PackageConfig) tglog(msg string, replyid, editid int64) (msgid int64, err error) {
