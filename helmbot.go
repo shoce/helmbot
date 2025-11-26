@@ -1339,6 +1339,9 @@ func ServerPackagesUpdate() (err error) {
 
 		if VERBOSE {
 			p.log("installed release Name %v Namespace %v Info.Status %v HashId %v", release.Name, release.Namespace, release.Info.Status, p.HashId())
+			if strings.TrimSpace(release.Info.Notes) != "" {
+				p.log("release Notes [-"+NL+"%s"+NL+"-]", release.Info.Notes)
+			}
 		}
 
 		tgmsg += tg.Pre(fmt.Sprintf(
