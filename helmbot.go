@@ -1339,19 +1339,19 @@ func ServerPackagesUpdate() (err error) {
 
 		if VERBOSE {
 			p.log(
-				"installed release Name %v Namespace %v Chart.Version %v Chart.AppVersion %v Info.Status %v HashId %v",
+				"installed release Name %v Namespace %v Version %v AppVersion %v Status %v HashId %v",
 				release.Name, release.Namespace, release.Chart.Metadata.Version, release.Chart.Metadata.AppVersion, release.Info.Status, p.HashId(),
 			)
 			if strings.TrimSpace(release.Info.Notes) != "" {
-				p.log("release Notes [-"+NL+"%s"+NL+"-]", release.Info.Notes)
+				p.log("installed release Notes [-"+NL+"%s"+NL+"-]", release.Info.Notes)
 			}
 		}
 
 		tgmsg += tg.Pre(fmt.Sprintf(
 			"name %s"+NL+
 				"namespace %s"+NL+
-				"chart version %s"+NL+
-				"chart appversion %s"+NL+
+				"version %s"+NL+
+				"appversion %s"+NL+
 				"status %s",
 			release.Name,
 			release.Namespace,
