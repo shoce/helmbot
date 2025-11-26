@@ -1338,7 +1338,10 @@ func ServerPackagesUpdate() (err error) {
 		// TODO delay helmbot self-update for saving deployed values and hash
 
 		if VERBOSE {
-			p.log("installed release Name %v Namespace %v Info.Status %v HashId %v", release.Name, release.Namespace, release.Info.Status, p.HashId())
+			p.log(
+				"installed release Name %v Namespace %v Chart.Version %v Chart.AppVersion %v Info.Status %v HashId %v",
+				release.Name, release.Namespace, release.Chart.Metadata.Version, release.Chart.Metadata.AppVersion, release.Info.Status, p.HashId(),
+			)
 			if strings.TrimSpace(release.Info.Notes) != "" {
 				p.log("release Notes [-"+NL+"%s"+NL+"-]", release.Info.Notes)
 			}
@@ -1347,9 +1350,13 @@ func ServerPackagesUpdate() (err error) {
 		tgmsg += tg.Pre(fmt.Sprintf(
 			"name %s"+NL+
 				"namespace %s"+NL+
+				"chart version %s"+NL+
+				"chart appversion %s"+NL+
 				"status %s",
 			release.Name,
 			release.Namespace,
+			release.Chart.Metadata.Version,
+			release.Chart.Metadata.AppVersion,
 			release.Info.Status,
 		)) + NL + NL
 
