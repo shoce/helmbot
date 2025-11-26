@@ -902,21 +902,21 @@ func ServerPackagesUpdate() (err error) {
 
 			tags, err := hrclient.Tags(chartaddress)
 			if err != nil {
-				return fmt.Errorf("hrclient.Tags: %v", err)
+				return fmt.Errorf("hrclient.Tags %v", err)
 			}
 
 			if len(tags) == 0 {
-				return fmt.Errorf("ChartAddress==%v empty tags list", p.ChartAddress, err)
+				return fmt.Errorf("ChartAddress %v empty tags list", p.ChartAddress, err)
 			}
 
 			if DEBUG {
-				p.log("DEBUG tags %+v", tags)
+				p.log("DEBUG tags ( %s )", strings.Join(tags, SP))
 			}
 
 			chartversion = tags[0]
 
 			if u, err := url.Parse(p.ChartAddress); err != nil {
-				return fmt.Errorf("parse ChartAddress==%v: %v", p.ChartAddress, err)
+				return fmt.Errorf("parse ChartAddress %v %v", p.ChartAddress, err)
 			} else {
 				chartname = path.Base(u.Path)
 				chartpath = path.Join(ConfigDir, fmt.Sprintf("%s-%s.tgz", chartname, chartversion))
@@ -934,13 +934,13 @@ func ServerPackagesUpdate() (err error) {
 		} else if p.ChartLocalFilename != "" {
 
 			if !strings.HasSuffix(p.ChartLocalFilename, ".tgz") {
-				return fmt.Errorf("ChartLocalFilename==%v is not a .tgz file", p.ChartLocalFilename)
+				return fmt.Errorf("ChartLocalFilename %v is not a .tgz file", p.ChartLocalFilename)
 			}
 
 			if mm, err := filepath.Glob(path.Join(ConfigDir, p.ChartLocalFilename)); err != nil {
-				return fmt.Errorf("Glob ConfigDir==%v ChartLocalFilename==%v: %s", ConfigDir, p.ChartLocalFilename, err)
+				return fmt.Errorf("Glob ConfigDir %v ChartLocalFilename %v %v", ConfigDir, p.ChartLocalFilename, err)
 			} else if len(mm) == 0 {
-				return fmt.Errorf("Glob ConfigDir==%v ChartLocalFilename==%v files not found", ConfigDir, p.ChartLocalFilename)
+				return fmt.Errorf("Glob ConfigDir %v ChartLocalFilename %v files not found", ConfigDir, p.ChartLocalFilename)
 			} else {
 				sort.Sort(sort.Reverse(sort.StringSlice(mm)))
 				chartpath = mm[0]
@@ -955,9 +955,9 @@ func ServerPackagesUpdate() (err error) {
 		// https://pkg.go.dev/helm.sh/helm/v3/pkg/chart/loader#Load
 		chartfull, err = helmloader.Load(chartpath)
 		if err != nil {
-			return fmt.Errorf("helmloader.Load %v: %w", chartpath, err)
+			return fmt.Errorf("helmloader.Load %v %w", chartpath, err)
 		} else if chartfull == nil {
-			return fmt.Errorf("loaded chart is nil")
+			return fmt.Errorf("loaded chart is <nil>")
 		}
 
 		// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/chart#Metadata
@@ -977,7 +977,7 @@ func ServerPackagesUpdate() (err error) {
 		}
 		err = drlatestyaml(drlatestyamlhelmvalues, Config.DrLatestYaml, &p.ImagesValues)
 		if err != nil {
-			return fmt.Errorf("drlatestyaml %s: %w", p.Name, err)
+			return fmt.Errorf("drlatestyaml %s %w", p.Name, err)
 		}
 
 		p.ImagesValuesList, p.ImagesValuesText, err = ImagesValuesToList(p.ImagesValues)
