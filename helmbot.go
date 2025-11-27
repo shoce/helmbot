@@ -1339,22 +1339,40 @@ func ServerPackagesUpdate() (err error) {
 
 		if VERBOSE {
 			p.log(
-				"installed release Name [%v] Namespace [%v] Version [%v] AppVersion [%v] Status [%v] HashId [%v]",
-				release.Name, release.Namespace, release.Chart.Metadata.Version, release.Chart.Metadata.AppVersion, release.Info.Status, p.HashId(),
+				"installed "+
+					"status [%v] "+
+					"release [%v] "+
+					"namespace [%v] "+
+					"version [%v] "+
+					"appversion [%v] "+
+					"hashid [%v] ",
+				release.Info.Status,
+				release.Name,
+				release.Namespace,
+				release.Chart.Metadata.Version,
+				release.Chart.Metadata.AppVersion,
+				p.HashId(),
 			)
 			if strings.TrimSpace(release.Info.Notes) != "" {
-				p.log("installed release Notes [-"+NL+"%s"+NL+"-]", release.Info.Notes)
+				p.log(
+					"installed "+
+						"notes [-"+NL+
+						"%s"+NL+
+						"-]",
+					release.Info.Notes,
+				)
 			}
 		}
 
 		var installstatus string
-		installstatus += tg.F("name %s", release.Name) + NL
+		installstatus += tg.F("status %s", release.Info.Status) + NL
+		installstatus += tg.F("release %s", release.Name) + NL
 		installstatus += tg.F("namespace %s", release.Namespace) + NL
+		installstatus += tg.F("chart %s", release.Chart.Metadata.Name) + NL
 		installstatus += tg.F("version %s", release.Chart.Metadata.Version) + NL
 		if release.Chart.Metadata.AppVersion != "" {
 			installstatus += tg.F("appversion %s", release.Chart.Metadata.AppVersion) + NL
 		}
-		installstatus += tg.F("status %s", release.Info.Status) + NL
 		tgmsg += tg.Pre(installstatus) + NL + NL
 
 		if release.Info.Notes != "" {
