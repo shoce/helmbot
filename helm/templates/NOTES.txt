@@ -1,4 +1,0 @@
-chart name {{ .Chart.Name }}
-release name {{ .Release.Name }}
-namespace {{ .Release.Namespace }}
-
