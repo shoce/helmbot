@@ -1339,7 +1339,7 @@ func ServerPackagesUpdate() (err error) {
 
 		if VERBOSE {
 			p.log(
-				"installed release Name %v Namespace %v Version %v AppVersion %v Status %v HashId %v",
+				"installed release Name [%v] Namespace [%v] Version [%v] AppVersion [%v] Status [%v] HashId [%v]",
 				release.Name, release.Namespace, release.Chart.Metadata.Version, release.Chart.Metadata.AppVersion, release.Info.Status, p.HashId(),
 			)
 			if strings.TrimSpace(release.Info.Notes) != "" {
@@ -1347,18 +1347,15 @@ func ServerPackagesUpdate() (err error) {
 			}
 		}
 
-		tgmsg += tg.Pre(fmt.Sprintf(
-			"name %s"+NL+
-				"namespace %s"+NL+
-				"version %s"+NL+
-				"appversion %s"+NL+
-				"status %s",
-			release.Name,
-			release.Namespace,
-			release.Chart.Metadata.Version,
-			release.Chart.Metadata.AppVersion,
-			release.Info.Status,
-		)) + NL + NL
+		var installstatus string
+		installstatus += tg.F("name %s", release.Name) + NL
+		installstatus += tg.F("namespace %s", release.Namespace) + NL
+		installstatus += tg.F("version %s", release.Chart.Metadata.Version) + NL
+		if release.Chart.Metadata.AppVersion != "" {
+			installstatus += tg.F("appversion %s", release.Chart.Metadata.AppVersion) + NL
+		}
+		installstatus += tg.F("status %s", release.Info.Status) + NL
+		tgmsg += tg.Pre(installstatus) + NL + NL
 
 		if release.Info.Notes != "" {
 			notes := strings.TrimSpace(release.Info.Notes)
