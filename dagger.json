@@ -1,6 +1,6 @@
 {
   "name": "helmbot",
-  "engineVersion": "v0.19.6",
+  "engineVersion": "v0.19.10",
   "sdk": {
     "source": "go"
   },
