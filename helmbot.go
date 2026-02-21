@@ -1,4 +1,5 @@
 // GoGet GoFmt GoBuildNull
+// GoFixDiff
 
 package main
 

@@ -1,6 +1,6 @@
 
 # https://hub.docker.com/_/golang/tags
-FROM golang:1.25-alpine AS build
+FROM golang:1.26-alpine AS build
 ENV CGO_ENABLED=0
 RUN mkdir -p /root/helmbot/
 COPY *.go go.mod go.sum /root/helmbot/
