@@ -1,12 +1,12 @@
 {{ if $.Values.TgWebhookHost -}}
 ---
 
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+apiVersion: "networking.k8s.io/v1"
+kind: "Ingress"
 
 metadata:
-  name: helmbot
-  namespace: {{ $.Release.Namespace }}
+  name: "helmbot"
+  namespace: "{{ $.Release.Namespace }}"
   annotations:
     kubernetes.io/ingress.allow-http: "false"
     nginx.ingress.kubernetes.io/proxy-body-size: "{{ $.Values.IngressRequestMaxBodySizeString }}"
@@ -15,21 +15,21 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-send-timeout: "30"
 
 spec:
-  ingressClassName: nginx
+  ingressClassName: "nginx"
 
   tls:
   - hosts:
-    - {{ $.Values.TgWebhookHost }}
+    - "{{ $.Values.TgWebhookHost }}"
 
   rules:
-  - host: {{ $.Values.TgWebhookHost }}
+  - host: "{{ $.Values.TgWebhookHost }}"
     http:
       paths:
-      - path: /
-        pathType: Prefix
+      - path: "/"
+        pathType: "Prefix"
         backend:
           service:
-            name: helmbot
+            name: "helmbot"
             port:
               number: 80
 

@@ -9,11 +9,11 @@ DEBUG: ""
 
 ServerHostname: ""
 
-ConfigDir: /opt/helmbot/
-ConfigFilename: helmbot.config.yaml
+ConfigDir: "/opt/helmbot/"
+ConfigFilename: "helmbot.config.yaml"
 HostConfigFilename: "" # helmbot.config.hostname.yaml
 
-PackagesUpgradeInterval: 333s
+PackagesUpgradeInterval: "333s"
 
 ValuesMinioUrl: ""
 ValuesMinioUsername: ""
