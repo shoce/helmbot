@@ -4,8 +4,9 @@
 name: helm
 
 permissions:
+  contents: write
   packages: write
-  contents: read
+  id-token: write
 
 on:
   push:
@@ -23,7 +24,7 @@ jobs:
 
       - uses: shoce/action-version@v1
 
-      - uses: actions/checkout@v4
+      - uses: shoce/action-checkout@v1
 
       - name: chart version
         run: |
@@ -40,6 +41,10 @@ jobs:
           access-token: ${{ secrets.GITHUB_TOKEN }}
           force: true
           chart-folder: helm
+
+      - uses: shoce/action-git-tag@v1
+        env:
+          VERSION: helm-${{ env.VERSION }}
 
       # https://github.com/actions/delete-package-versions
       - uses: actions/delete-package-versions@v5
