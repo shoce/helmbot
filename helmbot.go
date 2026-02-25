@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -968,9 +969,8 @@ func ServerPackagesUpdate() (err error) {
 
 		drlatestyamlhelmvalues := make(map[string]interface{})
 		for _, m := range []map[string]interface{}{chartfull.Values, p.Values, p.EnvValues} {
-			for k, v := range m {
-				drlatestyamlhelmvalues[k] = v
-			}
+			// https://pkg.go.dev/maps#Copy
+			maps.Copy(drlatestyamlhelmvalues, m)
 		}
 		err = drlatestyaml(drlatestyamlhelmvalues, Config.DrLatestYaml, &p.ImagesValues)
 		if err != nil {
@@ -2016,7 +2016,7 @@ func (vv DrVersions) Less(i, j int) bool {
 	} else if len(v1s) > len(v2s) {
 		return false
 	}
-	for e := 0; e < len(v1s); e++ {
+	for e := range v1s {
 		d1, _ := strconv.Atoi(v1s[e])
 		d2, _ := strconv.Atoi(v2s[e])
 		if d1 < d2 {
