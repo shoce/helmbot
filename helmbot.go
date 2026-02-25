@@ -55,6 +55,9 @@ const (
 	TAB  = "\t"
 	NL   = "\n"
 
+	ListenAddrDefault       = ":80"
+	HealthListenAddrDefault = ":81"
+
 	UpdateHashIdReString = "#([-a-z0-9]+)#([-a-z0-9]+)#([a-z0-9]+)$"
 
 	HashLength = 12
@@ -121,23 +124,23 @@ var (
 func init() {
 	var err error
 
-	perr("helmbot version %v", VERSION)
+	perr("helmbot version [%s]", VERSION)
 
 	HOSTNAME, err = os.Hostname()
-	perr("HOSTNAME %v", HOSTNAME)
+	perr("HOSTNAME [%s]", HOSTNAME)
 
 	if v := os.Getenv("LogTZ"); v != "" {
 		LogTZ = v
 	}
-	perr("LogTZ %s", LogTZ)
+	perr("LogTZ [%s]", LogTZ)
 
 	if LogTZLocation, err = time.LoadLocation(LogTZ); err != nil {
-		perr("LoadLocation %s %v", LogTZ, err)
+		perr("LoadLocation [%s] %v", LogTZ, err)
 		LogTZ = "UTC"
 		LogTZLocation = time.UTC
 	}
 	LogTZ = time.Now().In(LogTZLocation).Format("-0700")
-	perr("LogTZ %s", LogTZ)
+	perr("LogTZ [%s]", LogTZ)
 
 	switch LogTZ {
 	case "+0000":
@@ -145,25 +148,26 @@ func init() {
 	case "+0530":
 		LogTZ = "ॐ"
 	}
+	perr("LogTZ [%s]", LogTZ)
 
 	UpdateHashIdRe, err = regexp.Compile(UpdateHashIdReString)
 	if err != nil {
-		perr("ERROR regexp %#v compile %s", UpdateHashIdReString, err)
+		perr("ERROR regexp [%s] compile %v", UpdateHashIdReString, err)
 		os.Exit(1)
 	}
 
 	if os.Getenv("VERBOSE") != "" {
 		VERBOSE = true
-		perr("VERBOSE %v", VERBOSE)
+		perr("VERBOSE <%t>", VERBOSE)
 	}
 
 	if os.Getenv("DEBUG") != "" {
 		DEBUG = true
-		perr("DEBUG %v", DEBUG)
+		perr("DEBUG <%t>", DEBUG)
 		// SET VERBOSE IF DEBUG
 		if !VERBOSE {
 			VERBOSE = true
-			perr("VERBOSE %v", VERBOSE)
+			perr("VERBOSE <%t>", VERBOSE)
 		}
 	}
 
@@ -174,24 +178,24 @@ func init() {
 	}
 
 	ConfigDir = os.Getenv("ConfigDir")
+	perr("DEBUG ConfigDir [%s]", ConfigDir)
 	if ConfigDir == "" {
 		perr("ERROR empty ConfigDir env var")
 		os.Exit(1)
 	}
 	if !path.IsAbs(ConfigDir) {
-		perr("ERROR ConfigDir %v must be an absolute path", ConfigDir)
+		perr("ERROR ConfigDir [%s] must be an absolute path", ConfigDir)
 		os.Exit(1)
 	}
 	if !dirExists(ConfigDir) {
-		perr("ERROR ConfigDir %v does not exist", ConfigDir)
+		perr("ERROR ConfigDir [%s] does not exist", ConfigDir)
 		os.Exit(1)
 	}
-	perr("DEBUG ConfigDir %v", ConfigDir)
 
 	ConfigFilename = os.Getenv("ConfigFilename")
-	perr("DEBUG ConfigFilename %v", ConfigFilename)
+	perr("DEBUG ConfigFilename [%s]", ConfigFilename)
 	HostConfigFilename = os.Getenv("HostConfigFilename")
-	perr("DEBUG HostConfigFilename %v", HostConfigFilename)
+	perr("DEBUG HostConfigFilename [%s]", HostConfigFilename)
 
 	if v := os.Getenv("PackagesUpgradeInterval"); v != "" {
 		if d, err := time.ParseDuration(v); err != nil {
@@ -204,7 +208,7 @@ func init() {
 		perr("ERROR empty PackagesUpgradeInterval env var")
 		os.Exit(1)
 	}
-	perr("DEBUG PackagesUpgradeInterval %v", PackagesUpgradeInterval)
+	perr("DEBUG PackagesUpgradeInterval <%s>", PackagesUpgradeInterval)
 
 	ValuesMinioUrl = os.Getenv("ValuesMinioUrl")
 	if ValuesMinioUrl == "" {
@@ -216,7 +220,7 @@ func init() {
 		ValuesMinioUrlHost = u.Host
 		ValuesMinioUrlPath = u.Path
 	}
-	perr("DEBUG ValuesMinioUrl %v", ValuesMinioUrl)
+	perr("DEBUG ValuesMinioUrl [%s]", ValuesMinioUrl)
 
 	ValuesMinioUsername = os.Getenv("ValuesMinioUsername")
 	if ValuesMinioUsername == "" && ValuesMinioUrlHost != "" {
@@ -230,7 +234,7 @@ func init() {
 
 	ListenAddr = os.Getenv("ListenAddr")
 	if ListenAddr == "" {
-		ListenAddr = ":80"
+		ListenAddr = ListenAddrDefault
 	}
 
 	TgToken = os.Getenv("TgToken")
@@ -243,7 +247,7 @@ func init() {
 		botuserid := strings.Split(TgToken, ":")[0]
 		userid, err := strconv.Atoi(botuserid)
 		if err != nil {
-			perr("ERROR invalid bot user id %v", botuserid)
+			perr("ERROR invalid bot user id [%s]", botuserid)
 			os.Exit(1)
 		}
 		TgBotUserId = int64(userid)
@@ -264,7 +268,7 @@ func init() {
 	}
 
 	TgWebhookUrl = os.Getenv("TgWebhookUrl")
-	perr("DEBUG TgWebhookUrl %v", TgWebhookUrl)
+	perr("DEBUG TgWebhookUrl [%s]", TgWebhookUrl)
 
 	TgWebhookToken = os.Getenv("TgWebhookToken")
 	if TgWebhookToken == "" {
@@ -277,7 +281,7 @@ func init() {
 		}
 		chatid, err := strconv.Atoi(i)
 		if err != nil || chatid == 0 {
-			perr("WARNING invalid chat id %v", i)
+			perr("WARNING invalid chat id [%s]", i)
 		}
 		TgChatIds = append(TgChatIds, int64(chatid))
 	}
@@ -292,7 +296,7 @@ func init() {
 		}
 		userid, err := strconv.Atoi(i)
 		if err != nil || userid == 0 {
-			perr("WARNING invalid user id %v", i)
+			perr("WARNING invalid user id [%s]", i)
 		}
 		TgBossUserIds = append(TgBossUserIds, int64(userid))
 	}
@@ -321,7 +325,7 @@ func main() {
 			}
 		})
 		for {
-			if err := http.ListenAndServe(":81", healthmux); err != nil {
+			if err := http.ListenAndServe(HealthListenAddrDefault, healthmux); err != nil {
 				perr("ERROR healthmux %+v", err)
 				time.Sleep(time.Second)
 			}
@@ -341,13 +345,13 @@ func main() {
 
 		go func() {
 			for {
-				perr("webhook serving requests on %v.", ListenAddr)
+				perr("webhook serving requests on [%s]", ListenAddr)
 				err := http.ListenAndServe(ListenAddr, nil)
 				if err != nil {
-					perr("webhook ERROR ListenAndServe %+v", err)
+					perr("ERROR webhook ListenAndServe %+v", err)
 				}
 				retryinterval := 11 * time.Second
-				perr("webhook retrying ListenAndServe in %v", retryinterval)
+				perr("webhook retrying ListenAndServe in <%s>", retryinterval)
 				time.Sleep(retryinterval)
 			}
 		}()
@@ -365,7 +369,7 @@ func main() {
 			ServerPackagesUpdateLastRun = time.Now()
 
 			if err := ServerPackagesUpdate(); err != nil {
-				perr("packages ERROR update %+v", err)
+				perr("ERROR packages update %+v", err)
 			}
 
 			perr("DEBUG packages sleeping")
@@ -374,7 +378,7 @@ func main() {
 		}
 	}()
 
-	perr("start done.")
+	perr("start done")
 
 	select {}
 
@@ -398,7 +402,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	perr("DEBUG webhook %s %s %s: %s", r.Method, r.URL, r.Header.Get("Content-Type"), strings.ReplaceAll(string(rbody), NL, " <nl> "))
+	perr("DEBUG webhook request [%s] [%s] [%s] [%s]", r.Method, r.URL, r.Header.Get("Content-Type"), strings.ReplaceAll(string(rbody), NL, " <NL> "))
 
 	w.WriteHeader(http.StatusOK)
 
@@ -451,12 +455,10 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	UpdateChartName := UpdateHashIdSubmatch[1]
 	UpdateEnvName := UpdateHashIdSubmatch[2]
 	UpdateValuesHash := UpdateHashIdSubmatch[3]
-	if VERBOSE {
-		perr("webhook update hash id %s", UpdateHashId)
-		perr("webhook update helm name %s", UpdateChartName)
-		perr("webhook update env name %s", UpdateEnvName)
-		perr("webhook update values hash %s", UpdateValuesHash)
-	}
+	perr("VERBOSE webhook update hash id [%s]", UpdateHashId)
+	perr("VERBOSE webhook update helm name [%s]", UpdateChartName)
+	perr("VERBOSE webhook update env name [%s]", UpdateEnvName)
+	perr("VERBOSE webhook update values hash [%s]", UpdateValuesHash)
 
 	p := PackageConfig{ChartName: UpdateChartName, EnvName: UpdateEnvName}
 
@@ -501,7 +503,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
 	var ValuesReportedHash string
 	if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash, true); err != nil {
-		perr("ERROR webhook %v could not be read %v", p.ValuesReportedHashFilename(), err)
+		perr("ERROR webhook [%s] could not be read %v", p.ValuesReportedHashFilename(), err)
 		if _, tgerr = tglog(
 			tg.Bold(tg.Esc("INTERNAL ERROR"))+NL+
 				tg.Esc(TgAdminMention),
@@ -512,7 +514,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	perr("DEBUG webhook reported values hash %s", ValuesReportedHash)
+	perr("DEBUG webhook reported values hash [%s]", ValuesReportedHash)
 	if UpdateValuesHash != ValuesReportedHash {
 		perr("DEBUG webhook latest and reported values hashes mismatch")
 		if _, tgerr = tglog(
@@ -527,10 +529,10 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
 	perr("DEBUG webhook all checks passed")
 
-	perr("DEBUG webhook creating %v file", p.ValuesPermitHashFilename())
+	perr("DEBUG webhook creating [%s] file", p.ValuesPermitHashFilename())
 
 	if err := PutValuesText(p.ValuesPermitHashFilename(), UpdateValuesHash); err != nil {
-		perr("ERROR webhook %v file could not be written %v", p.ValuesPermitHashFilename(), err)
+		perr("ERROR webhook [%s] file could not be written %v", p.ValuesPermitHashFilename(), err)
 		if _, tgerr = tglog(
 			tg.Bold(tg.Esc("INTERNAL ERROR"))+NL+
 				tg.Esc(TgAdminMention),
@@ -541,7 +543,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	perr("DEBUG webhook created %v file", p.ValuesPermitHashFilename())
+	perr("DEBUG webhook created [%s] file", p.ValuesPermitHashFilename())
 
 	if _, tgerr = tglog(
 		tg.Bold(tg.Esc("FORCE UPDATE NOW IS ACCEPTED"))+
@@ -554,7 +556,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		perr("ERROR webhook tglog %v", tgerr)
 	}
 
-	perr("DEBUG webhook finished %s", UpdateHashId)
+	perr("DEBUG webhook finished [%s]", UpdateHashId)
 }
 
 func ServerPackagesUpdate() (err error) {
@@ -562,9 +564,7 @@ func ServerPackagesUpdate() (err error) {
 	var paused string
 	if err := GetValuesTextFile("paused", &paused, false); err == nil {
 		// paused packages update - return with no error
-		if VERBOSE {
-			perr("packages update paused")
-		}
+		perr("VERBOSE packages update paused")
 		return nil
 	}
 
@@ -1076,9 +1076,7 @@ func ServerPackagesUpdate() (err error) {
 
 			if p.ValuesHash != ValuesReportedHash {
 
-				if VERBOSE {
-					p.perr("reporting pending update")
-				}
+				p.perr("VERBOSE reporting pending update")
 
 				tgmsg += tg.Bold(tg.Esc("NOT UPDATING NOW")) + tg.Esc("; update will start ") + tg.Bold(tg.Esc("in the next allowed time window")) + NL + NL
 				tgmsg += tg.Esc("TO FORCE START THIS UPDATE NOW REPLY TO THIS MESSAGE WITH TEXT \"") + tg.Code("NOW") + tg.Esc("\" (UPPERCASE)") + NL + NL
@@ -1101,9 +1099,7 @@ func ServerPackagesUpdate() (err error) {
 
 		}
 
-		if VERBOSE {
-			p.perr("installing update")
-		}
+		p.perr("VERBOSE installing update")
 
 		if p.UpdateDelayDuration > 0 {
 
@@ -1113,9 +1109,7 @@ func ServerPackagesUpdate() (err error) {
 				p.perr("ERROR tglog %v", tgerr)
 			}
 
-			if VERBOSE {
-				p.perr("sleeping %v", p.UpdateDelayDuration)
-			}
+			p.perr("VERBOSE sleeping %v", p.UpdateDelayDuration)
 			time.Sleep(p.UpdateDelayDuration)
 
 		}
@@ -1124,9 +1118,7 @@ func ServerPackagesUpdate() (err error) {
 		// DEPLOY
 		//
 
-		if VERBOSE {
-			p.perr("starting update")
-		}
+		p.perr("VERBOSE starting update")
 
 		tgmsg += tg.Bold(tg.Esc("STARTED")) + NL + NL
 
@@ -1230,31 +1222,29 @@ func ServerPackagesUpdate() (err error) {
 
 		// TODO delay helmbot self-update for saving deployed values and hash
 
-		if VERBOSE {
+		p.perr(
+			"VERBOSE installed "+
+				"status [%v] "+
+				"release [%v] "+
+				"namespace [%v] "+
+				"version [%v] "+
+				"appversion [%v] "+
+				"hashid [%v] ",
+			release.Info.Status,
+			release.Name,
+			release.Namespace,
+			release.Chart.Metadata.Version,
+			release.Chart.Metadata.AppVersion,
+			p.HashId(),
+		)
+		if strings.TrimSpace(release.Info.Notes) != "" {
 			p.perr(
 				"installed "+
-					"status [%v] "+
-					"release [%v] "+
-					"namespace [%v] "+
-					"version [%v] "+
-					"appversion [%v] "+
-					"hashid [%v] ",
-				release.Info.Status,
-				release.Name,
-				release.Namespace,
-				release.Chart.Metadata.Version,
-				release.Chart.Metadata.AppVersion,
-				p.HashId(),
+					"notes [-"+NL+
+					"%s"+NL+
+					"-]",
+				release.Info.Notes,
 			)
-			if strings.TrimSpace(release.Info.Notes) != "" {
-				p.perr(
-					"installed "+
-						"notes [-"+NL+
-						"%s"+NL+
-						"-]",
-					release.Info.Notes,
-				)
-			}
 		}
 
 		var installstatus string
@@ -1298,14 +1288,10 @@ func ServerPackagesUpdate() (err error) {
 		//
 
 		if err := DeleteValues(p.ValuesPermitHashFilename()); err != nil {
-			if VERBOSE {
-				p.perr("WARNING DeleteValues: %v", err)
-			}
+			p.perr("VERBOSE WARNING DeleteValues %v", err)
 		}
 		if err := DeleteValues(p.ValuesReportedHashFilename()); err != nil {
-			if VERBOSE {
-				p.perr("WARNING DeleteValues: %v", err)
-			}
+			p.perr("VERBOSE WARNING DeleteValues %v", err)
 		}
 
 		//
