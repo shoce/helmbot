@@ -1765,6 +1765,9 @@ func perr(msg string, args ...interface{}) {
 	if strings.HasPrefix(msg, "DEBUG ") && !DEBUG {
 		return
 	}
+	if strings.HasPrefix(msg, "VERBOSE ") && !VERBOSE {
+		return
+	}
 	msgtext := msg
 	if len(args) > 0 {
 		msgtext = fmt.Sprintf(msgtext, args...)
@@ -2068,6 +2071,12 @@ type TgSetWebhookResponse struct {
 }
 
 func (p *PackageConfig) perr(msg string, args ...interface{}) {
+	if strings.HasPrefix(msg, "DEBUG ") && !DEBUG {
+		return
+	}
+	if strings.HasPrefix(msg, "VERBOSE ") && !VERBOSE {
+		return
+	}
 	perr(SPAC+p.Name+SP+msg, args...)
 }
 
