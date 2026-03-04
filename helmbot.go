@@ -2071,7 +2071,7 @@ func (p *PackageConfig) tglog(msg string, replyid, editid int64) (msgid int64, e
 	if p.TgChatId != nil {
 		chatid = *p.TgChatId
 	}
-	msg += tg.Code(p.HashId())
+	msg += tg.Code(p.HashId() + tg.F("#%s", ServerHostname))
 	return tglog(msg, chatid, replyid, editid)
 }
 
