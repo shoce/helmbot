@@ -1058,7 +1058,8 @@ func ServerPackagesUpdate() (err error) {
 		var tgmsgid int64
 		var tgerr error
 
-		tgmsg = tg.Bold(tg.Esc(tg.F("%s %s UPDATE", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)))) + NL + NL
+		tgmsg = tg.Bold(tg.Esc(tg.F("%s %s UPDATE", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)))) + NL
+		tgmsg += tg.Code(ServerHostname) + NL + NL
 		if globalvaluesdiff {
 			tgmsg += tg.Code(p.GlobalValuesFilename()) + " changed" + NL + NL
 		}
@@ -2066,13 +2067,13 @@ func (p *PackageConfig) perr(msg string, args ...interface{}) {
 	perr(SPAC+p.Name+SP+msg, args...)
 }
 
-func (p *PackageConfig) tglog(msg string, replyid, editid int64) (msgid int64, err error) {
-	chatid := TgBossUserIds[0]
+func (p *PackageConfig) tglog(tgmsg string, tgreplyid, tgeditid int64) (msgid int64, err error) {
+	tgchatid := TgBossUserIds[0]
 	if p.TgChatId != nil {
-		chatid = *p.TgChatId
+		tgchatid = *p.TgChatId
 	}
-	msg += tg.Code(p.HashId() + tg.F("#%s", ServerHostname))
-	return tglog(msg, chatid, replyid, editid)
+	tgmsg += tg.Code(p.HashId())
+	return tglog(tgmsg, tgchatid, tgreplyid, tgeditid)
 }
 
 func tglog(msg string, chatid, replyid, editid int64) (msgid int64, err error) {
