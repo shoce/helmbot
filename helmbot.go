@@ -1059,7 +1059,7 @@ func ServerPackagesUpdate() (err error) {
 		var tgerr error
 
 		tgmsg = tg.Bold(tg.Esc(tg.F("%s %s UPDATE", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)))) + NL
-		tgmsg += tg.Code("#"+ServerHostname) + NL + NL
+		tgmsg += tg.Code("["+ServerHostname+"]") + NL + NL
 		if globalvaluesdiff {
 			tgmsg += tg.Code(p.GlobalValuesFilename()) + " changed" + NL + NL
 		}
