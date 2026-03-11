@@ -23,6 +23,7 @@ env:
 
 jobs:
   build-publish:
+    if: false
     runs-on: ubuntu-24.04
     steps:
 
@@ -43,12 +44,7 @@ jobs:
             --password=env:GITHUB_TOKEN
             --image=${{ github.repository }}/${{ github.ref_name }}:$VERSION
 
-      - name: tag
-        run: |
-          git config user.name github-actions
-          git config user.email "github-actions@users.noreply.github.com"
-          git tag $VERSION
-          git push origin $VERSION
+      - uses: shoce/action-git-tag@v1
 
       # https://github.com/actions/delete-package-versions
       - uses: actions/delete-package-versions@v5
