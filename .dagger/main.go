@@ -64,8 +64,8 @@ func (m *Helmbot) Build(
 
 			a := dag.Container().
 				From(GolangDockerImage).
-				WithFiles("/root/helmbot/", ff).
-				WithWorkdir("/root/helmbot/").
+				WithFiles("/helmbot/", ff).
+				WithWorkdir("/helmbot/").
 				WithEnvVariable("CGO_ENABLED", "0").
 				WithEnvVariable("GOARCH", GOARCH).
 				WithExec([]string{"go", "get", "-v"}).
@@ -76,7 +76,7 @@ func (m *Helmbot) Build(
 				WithExec([]string{"apk", "upgrade", "--no-cache"}).
 				WithExec([]string{"apk", "add", "--no-cache", "gcompat"}).
 				WithExec([]string{"ln", "-s", "-f", "-v", "ld-linux-x86-64.so.2", "/lib/libresolv.so.2"}).
-				WithFile("/bin/helmbot", a.File("/root/helmbot/helmbot")).
+				WithFile("/bin/helmbot", a.File("/helmbot/helmbot")).
 				WithWorkdir("/root/").
 				WithEntrypoint([]string{"/bin/helmbot"}).
 				WithExposedPort(ExposedPort)
