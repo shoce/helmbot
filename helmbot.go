@@ -89,9 +89,9 @@ var (
 
 	PackagesUpgradeInterval time.Duration
 
-	ValuesS3Url      string
-	ValuesS3Username string
-	ValuesS3Password string
+	ValuesS3Url  string
+	ValuesS3User string
+	ValuesS3Pass string
 
 	ValuesS3UrlHost string
 	ValuesS3UrlPath string
@@ -222,14 +222,14 @@ func init() {
 	}
 	perr("DEBUG ValuesS3Url [%s]", ValuesS3Url)
 
-	ValuesS3Username = os.Getenv("ValuesS3Username")
-	if ValuesS3Username == "" && ValuesS3UrlHost != "" {
-		perr("WARNING empty ValuesS3Username env var")
+	ValuesS3User = os.Getenv("ValuesS3User")
+	if ValuesS3User == "" && ValuesS3UrlHost != "" {
+		perr("WARNING empty ValuesS3User env var")
 	}
 
-	ValuesS3Password = os.Getenv("ValuesS3Password")
-	if ValuesS3Password == "" && ValuesS3UrlHost != "" {
-		perr("WARNING empty ValuesS3Password env var")
+	ValuesS3Pass = os.Getenv("ValuesS3Pass")
+	if ValuesS3Pass == "" && ValuesS3UrlHost != "" {
+		perr("WARNING empty ValuesS3Pass env var")
 	}
 
 	ListenAddr = os.Getenv("ListenAddr")
@@ -1799,10 +1799,10 @@ func S3NewRequest(method, name string, payload []byte) (req *http.Request, err e
 	req.Header.Set("Date", time.Now().UTC().Format(time.RFC1123Z))
 
 	hdrauthsig := method + NL + NL + req.Header.Get("Content-Type") + NL + req.Header.Get("Date") + NL + ValuesS3UrlPath + name
-	hdrauthsighmac := hmac.New(sha1.New, []byte(ValuesS3Password))
+	hdrauthsighmac := hmac.New(sha1.New, []byte(ValuesS3Pass))
 	hdrauthsighmac.Write([]byte(hdrauthsig))
 	hdrauthsig = base64.StdEncoding.EncodeToString(hdrauthsighmac.Sum(nil))
-	req.Header.Set("Authorization", fmt.Sprintf("AWS %s:%s", ValuesS3Username, hdrauthsig))
+	req.Header.Set("Authorization", fmt.Sprintf("AWS %s:%s", ValuesS3User, hdrauthsig))
 
 	return req, nil
 }

@@ -22,9 +22,9 @@ data:
 
   PackagesUpgradeInterval: "{{ $.Values.PackagesUpgradeInterval }}"
 
-  ValuesMinioUrl: "{{ $.Values.ValuesMinioUrl }}"
-  ValuesMinioUsername: "{{ $.Values.ValuesMinioUsername }}"
-  ValuesMinioPassword: "{{ $.Values.ValuesMinioPassword }}"
+  ValuesS3Url: "{{ $.Values.ValuesS3Url }}"
+  ValuesS3User: "{{ $.Values.ValuesS3User }}"
+  ValuesS3Pass: "{{ $.Values.ValuesS3Pass }}"
 
   TgToken: "{{ $.Values.TgToken }}"
   TgWebhookHost: "{{ $.Values.TgWebhookHost }}"

@@ -15,9 +15,9 @@ HostConfigFilename: "" # helmbot.config.hostname.yaml
 
 PackagesUpgradeInterval: "333s"
 
-ValuesMinioUrl: ""
-ValuesMinioUsername: ""
-ValuesMinioPassword: ""
+ValuesS3Url: ""
+ValuesS3User: ""
+ValuesS3Pass: ""
 
 TgToken: ""
 TgWebhookHost: ""
