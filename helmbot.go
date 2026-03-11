@@ -89,12 +89,12 @@ var (
 
 	PackagesUpgradeInterval time.Duration
 
-	ValuesMinioUrl      string
-	ValuesMinioUsername string
-	ValuesMinioPassword string
+	ValuesS3Url      string
+	ValuesS3Username string
+	ValuesS3Password string
 
-	ValuesMinioUrlHost string
-	ValuesMinioUrlPath string
+	ValuesS3UrlHost string
+	ValuesS3UrlPath string
 
 	ConfigLocal HelmbotConfig
 
@@ -210,26 +210,26 @@ func init() {
 	}
 	perr("DEBUG PackagesUpgradeInterval <%s>", PackagesUpgradeInterval)
 
-	ValuesMinioUrl = os.Getenv("ValuesMinioUrl")
-	if ValuesMinioUrl == "" {
-		perr("WARNING empty ValuesMinioUrl env var")
-	} else if u, err := url.Parse(ValuesMinioUrl); err != nil {
-		perr("ERROR ValuesMinioUrl %v parse %s", ValuesMinioUrl, err)
+	ValuesS3Url = os.Getenv("ValuesS3Url")
+	if ValuesS3Url == "" {
+		perr("WARNING empty ValuesS3Url env var")
+	} else if u, err := url.Parse(ValuesS3Url); err != nil {
+		perr("ERROR ValuesS3Url %v parse %s", ValuesS3Url, err)
 		os.Exit(1)
 	} else {
-		ValuesMinioUrlHost = u.Host
-		ValuesMinioUrlPath = u.Path
+		ValuesS3UrlHost = u.Host
+		ValuesS3UrlPath = u.Path
 	}
-	perr("DEBUG ValuesMinioUrl [%s]", ValuesMinioUrl)
+	perr("DEBUG ValuesS3Url [%s]", ValuesS3Url)
 
-	ValuesMinioUsername = os.Getenv("ValuesMinioUsername")
-	if ValuesMinioUsername == "" && ValuesMinioUrlHost != "" {
-		perr("WARNING empty ValuesMinioUsername env var")
+	ValuesS3Username = os.Getenv("ValuesS3Username")
+	if ValuesS3Username == "" && ValuesS3UrlHost != "" {
+		perr("WARNING empty ValuesS3Username env var")
 	}
 
-	ValuesMinioPassword = os.Getenv("ValuesMinioPassword")
-	if ValuesMinioPassword == "" && ValuesMinioUrlHost != "" {
-		perr("WARNING empty ValuesMinioPassword env var")
+	ValuesS3Password = os.Getenv("ValuesS3Password")
+	if ValuesS3Password == "" && ValuesS3UrlHost != "" {
+		perr("WARNING empty ValuesS3Password env var")
 	}
 
 	ListenAddr = os.Getenv("ListenAddr")
@@ -1480,29 +1480,29 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 }
 
 func GetValuesText(name string, valuestext *string, notexistok bool) (err error) {
-	if ValuesMinioUrlHost != "" {
-		return GetValuesTextMinio(name, valuestext, notexistok)
+	if ValuesS3UrlHost != "" {
+		return GetValuesTextS3(name, valuestext, notexistok)
 	}
 	return GetValuesTextFile(name, valuestext, notexistok)
 }
 
 func GetValues(name string, valuestext *string, values interface{}) (err error) {
-	if ValuesMinioUrlHost != "" {
-		return GetValuesMinio(name, valuestext, values)
+	if ValuesS3UrlHost != "" {
+		return GetValuesS3(name, valuestext, values)
 	}
 	return GetValuesFile(name, valuestext, values)
 }
 
 func PutValuesText(name string, valuestext string) (err error) {
-	if ValuesMinioUrlHost != "" {
-		return PutValuesTextMinio(name, valuestext)
+	if ValuesS3UrlHost != "" {
+		return PutValuesTextS3(name, valuestext)
 	}
 	return PutValuesTextFile(name, valuestext)
 }
 
 func DeleteValues(name string) (err error) {
-	if ValuesMinioUrlHost != "" {
-		return DeleteValuesMinio(name)
+	if ValuesS3UrlHost != "" {
+		return DeleteValuesS3(name)
 	}
 	return DeleteValuesFile(name)
 }
@@ -1784,44 +1784,44 @@ func fileExists(path string) bool {
 	return err == nil && s.Mode().IsRegular()
 }
 
-// get/put values file from/to a minio storage
+// get/put values file from/to a s3 storage
 // https://gist.github.com/gabo89/5e3e316bd4be0fb99369eac512a66537
-// https://stackoverflow.com/questions/72047783/how-do-i-download-files-from-a-minio-s3-bucket-using-curl
-func MinioNewRequest(method, name string, payload []byte) (req *http.Request, err error) {
-	req, err = http.NewRequest(method, ValuesMinioUrl+name, bytes.NewBuffer(payload))
+// https://stackoverflow.com/questions/72047783/how-do-i-download-files-from-a-s3-s3-bucket-using-curl
+func S3NewRequest(method, name string, payload []byte) (req *http.Request, err error) {
+	req, err = http.NewRequest(method, ValuesS3Url+name, bytes.NewBuffer(payload))
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("User-Agent", "helmbot")
 	req.Header.Set("Content-Type", "application/octet-stream")
-	req.Header.Set("Host", ValuesMinioUrl)
+	req.Header.Set("Host", ValuesS3Url)
 	req.Header.Set("Date", time.Now().UTC().Format(time.RFC1123Z))
 
-	hdrauthsig := method + NL + NL + req.Header.Get("Content-Type") + NL + req.Header.Get("Date") + NL + ValuesMinioUrlPath + name
-	hdrauthsighmac := hmac.New(sha1.New, []byte(ValuesMinioPassword))
+	hdrauthsig := method + NL + NL + req.Header.Get("Content-Type") + NL + req.Header.Get("Date") + NL + ValuesS3UrlPath + name
+	hdrauthsighmac := hmac.New(sha1.New, []byte(ValuesS3Password))
 	hdrauthsighmac.Write([]byte(hdrauthsig))
 	hdrauthsig = base64.StdEncoding.EncodeToString(hdrauthsighmac.Sum(nil))
-	req.Header.Set("Authorization", fmt.Sprintf("AWS %s:%s", ValuesMinioUsername, hdrauthsig))
+	req.Header.Set("Authorization", fmt.Sprintf("AWS %s:%s", ValuesS3Username, hdrauthsig))
 
 	return req, nil
 }
 
-func GetValuesTextMinio(name string, valuestext *string, notexistok bool) (err error) {
+func GetValuesTextS3(name string, valuestext *string, notexistok bool) (err error) {
 	var respbody string
 
-	if req, err := MinioNewRequest(http.MethodGet, name, nil); err != nil {
-		return fmt.Errorf("GetValuesTextMinio %s: %w", name, err)
+	if req, err := S3NewRequest(http.MethodGet, name, nil); err != nil {
+		return fmt.Errorf("GetValuesTextS3 %s: %w", name, err)
 	} else if resp, err := http.DefaultClient.Do(req); err != nil {
-		return fmt.Errorf("GetValuesTextMinio %s: %w", name, err)
+		return fmt.Errorf("GetValuesTextS3 %s: %w", name, err)
 	} else if resp.StatusCode == 404 && !notexistok {
-		return fmt.Errorf("GetValuesTextMinio %s: minio server response status %s", name, resp.Status)
+		return fmt.Errorf("GetValuesTextS3 %s: s3 server response status %s", name, resp.Status)
 	} else if resp.StatusCode == 404 && notexistok {
 		respbody = ""
 	} else if resp.StatusCode != 200 {
-		return fmt.Errorf("GetValuesTextMinio %s: minio server response status %s", name, resp.Status)
+		return fmt.Errorf("GetValuesTextS3 %s: s3 server response status %s", name, resp.Status)
 	} else if bb, err := ioutil.ReadAll(resp.Body); err != nil {
-		return fmt.Errorf("GetValuesTextMinio %s: %w", name, err)
+		return fmt.Errorf("GetValuesTextS3 %s: %w", name, err)
 	} else {
 		respbody = string(bb)
 	}
@@ -1831,49 +1831,49 @@ func GetValuesTextMinio(name string, valuestext *string, notexistok bool) (err e
 	return nil
 }
 
-func GetValuesMinio(name string, valuestext *string, values interface{}) (err error) {
+func GetValuesS3(name string, valuestext *string, values interface{}) (err error) {
 	if valuestext == nil {
 		var valuestext1 string
 		valuestext = &valuestext1
 	}
 
-	err = GetValuesTextMinio(name, valuestext, false)
+	err = GetValuesTextS3(name, valuestext, false)
 	if err != nil {
-		return fmt.Errorf("GetValuesMinio %s: %w", name, err)
+		return fmt.Errorf("GetValuesS3 %s: %w", name, err)
 	}
 
 	d := yaml.NewDecoder(strings.NewReader(*valuestext))
 	err = d.Decode(values)
 	if err != nil {
-		return fmt.Errorf("GetValuesMinio %s: %w", name, err)
+		return fmt.Errorf("GetValuesS3 %s: %w", name, err)
 	}
 
 	return nil
 }
 
-func PutValuesTextMinio(name string, valuestext string) (err error) {
-	perr("DEBUG PutValuesTextMinio len %d %s [%s]", len(valuestext), name, strings.ReplaceAll((valuestext), NL, " <nl> "))
+func PutValuesTextS3(name string, valuestext string) (err error) {
+	perr("DEBUG PutValuesTextS3 len %d %s [%s]", len(valuestext), name, strings.ReplaceAll((valuestext), NL, " <nl> "))
 
-	if req, err := MinioNewRequest(http.MethodPut, name, []byte(valuestext)); err != nil {
-		return fmt.Errorf("PutValuesTextMinio %s: %w", name, err)
+	if req, err := S3NewRequest(http.MethodPut, name, []byte(valuestext)); err != nil {
+		return fmt.Errorf("PutValuesTextS3 %s: %w", name, err)
 	} else if resp, err := http.DefaultClient.Do(req); err != nil {
-		return fmt.Errorf("PutValuesTextMinio %s: %w", name, err)
+		return fmt.Errorf("PutValuesTextS3 %s: %w", name, err)
 	} else if resp.StatusCode != 200 {
-		return fmt.Errorf("PutValuesTextMinio %s: minio server response status %s", name, resp.Status)
+		return fmt.Errorf("PutValuesTextS3 %s: s3 server response status %s", name, resp.Status)
 	}
 
 	return nil
 }
 
-func DeleteValuesMinio(name string) (err error) {
-	perr("DEBUG DeleteValuesMinio %v", name)
+func DeleteValuesS3(name string) (err error) {
+	perr("DEBUG DeleteValuesS3 %v", name)
 
-	if req, err := MinioNewRequest(http.MethodDelete, name, nil); err != nil {
-		return fmt.Errorf("DeleteValuesMinio %v: %w", name, err)
+	if req, err := S3NewRequest(http.MethodDelete, name, nil); err != nil {
+		return fmt.Errorf("DeleteValuesS3 %v: %w", name, err)
 	} else if resp, err := http.DefaultClient.Do(req); err != nil {
-		return fmt.Errorf("DeleteValuesMinio %v: %w", name, err)
+		return fmt.Errorf("DeleteValuesS3 %v: %w", name, err)
 	} else if resp.StatusCode != 200 {
-		return fmt.Errorf("DeleteValuesMinio %v: minio server response status %s", name, resp.Status)
+		return fmt.Errorf("DeleteValuesS3 %v: s3 server response status %s", name, resp.Status)
 	}
 
 	return nil
