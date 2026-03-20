@@ -19,6 +19,7 @@ ValuesS3Url: ""
 ValuesS3User: ""
 ValuesS3Pass: ""
 
+TgApiUrl: ""
 TgToken: ""
 TgWebhookHost: ""
 TgWebhookUrl: ""

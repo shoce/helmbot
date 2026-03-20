@@ -26,6 +26,7 @@ data:
   ValuesS3User: "{{ $.Values.ValuesS3User }}"
   ValuesS3Pass: "{{ $.Values.ValuesS3Pass }}"
 
+  TgApiUrl: "{{ $.Values.TgApiUrl }}"
   TgToken: "{{ $.Values.TgToken }}"
   TgWebhookHost: "{{ $.Values.TgWebhookHost }}"
   TgWebhookUrl: "{{ $.Values.TgWebhookUrl }}"

@@ -46,7 +46,7 @@ import (
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	helmrepo "helm.sh/helm/v3/pkg/repo"
 
-	"github.com/shoce/tg"
+	tg "github.com/shoce/tg"
 )
 
 const (
@@ -104,6 +104,7 @@ var (
 
 	ListenAddr string
 
+	TgApiUrl                string
 	TgToken                 string
 	TgBotUserId             int64
 	TgWebhookHost           string
@@ -237,6 +238,12 @@ func init() {
 	if ListenAddr == "" {
 		ListenAddr = ListenAddrDefault
 	}
+
+	if v := os.Getenv("TgApiUrl"); v != "" {
+		TgApiUrl = v
+		tg.ApiUrl = TgApiUrl
+	}
+	perr("TgApiUrl [%s]", TgApiUrl)
 
 	TgToken = os.Getenv("TgToken")
 	if TgToken == "" {
@@ -1031,7 +1038,7 @@ func ServerPackagesUpdate() (err error) {
 				}
 			}
 
-			p.perr("DEBUG ImagesValues diff ["+NL+"%s"+NL+"]", imagesvaluesdiff)
+			p.perr("DEBUG ImagesValues diff [-"+NL+"%s"+NL+"-]", imagesvaluesdiff)
 
 		}
 
