@@ -54,6 +54,7 @@ const (
 	SPAC = "    "
 	TAB  = "\t"
 	NL   = "\n"
+	CR   = "\r"
 
 	ListenAddrDefault       = ":80"
 	HealthListenAddrDefault = ":81"
@@ -1739,13 +1740,11 @@ type HelmbotConfig struct {
 	Servers      []ServerConfig     `yaml:"Servers"`
 }
 
-func ts() string {
-	tnow := time.Now().In(LogTZLocation)
-	return fmt.Sprintf(
-		"%d%02d%02d:%02d%02d%s",
-		tnow.Year()%1000, tnow.Month(), tnow.Day(),
-		tnow.Hour(), tnow.Minute(), LogTZ,
-	)
+func atonString(text string) string {
+	text = strings.ReplaceAll(text, CR, "<CR>")
+	text = strings.ReplaceAll(text, NL, "<NL>")
+	text = strings.ReplaceAll(text, "]", "\\]")
+	return text
 }
 
 func perr(msg string, args ...interface{}) {
@@ -1755,6 +1754,12 @@ func perr(msg string, args ...interface{}) {
 	if strings.HasPrefix(msg, "VERBOSE ") && !VERBOSE {
 		return
 	}
+	tnow := time.Now().In(LogTZLocation)
+	ts := fmt.Sprintf(
+		"<%03d:%02d%02d:%02d%02d%s>",
+		tnow.Year()%1000, tnow.Month(), tnow.Day(),
+		tnow.Hour(), tnow.Minute(), LogTZ,
+	)
 	msgtext := msg
 	if len(args) > 0 {
 		msgtext = fmt.Sprintf(msgtext, args...)
@@ -1765,7 +1770,7 @@ func perr(msg string, args ...interface{}) {
 	if TgWebhookToken != "" {
 		msgtext = strings.ReplaceAll(msgtext, TgWebhookToken, "[TgWebhookToken]")
 	}
-	fmt.Fprint(os.Stderr, ts()+SP+msgtext+NL)
+	fmt.Fprint(os.Stderr, ts+SP+msgtext+NL)
 }
 
 func dirExists(path string) bool {
@@ -2024,7 +2029,7 @@ func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error
 		swreqjsBuffer,
 	)
 	if err != nil {
-		return fmt.Errorf("url==%v data==%v error: %v", tgapiurl, string(swreqjs), err)
+		return fmt.Errorf("url [%s] data [%s] error %v", atonString(tgapiurl), atonString(string(swreqjs)), err)
 	}
 
 	var swresp TgSetWebhookResponse
@@ -2038,7 +2043,7 @@ func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error
 		return fmt.Errorf("json.Decoder.Decode: %w", err)
 	}
 	if !swresp.OK || !swresp.Result {
-		return fmt.Errorf("url==%v data==%v api response not ok: %+v", tgapiurl, string(swreqjs), swresp)
+		return fmt.Errorf("url [%s] data [%s] api response not ok %+v", atonString(tgapiurl), atonString(string(swreqjs)), swresp)
 	}
 
 	return nil
@@ -2058,12 +2063,6 @@ type TgSetWebhookResponse struct {
 }
 
 func (p *PackageConfig) perr(msg string, args ...interface{}) {
-	if strings.HasPrefix(msg, "DEBUG ") && !DEBUG {
-		return
-	}
-	if strings.HasPrefix(msg, "VERBOSE ") && !VERBOSE {
-		return
-	}
 	perr(SPAC+p.Name+SP+msg, args...)
 }
 
@@ -2107,7 +2106,7 @@ func tglog(msg string, chatid, replyid, editid int64) (msgid int64, err error) {
 		reqjsBuffer,
 	)
 	if err != nil {
-		return 0, fmt.Errorf("url==%v data==%v error: %v", tgurl, string(reqjs), err)
+		return 0, fmt.Errorf("url [%s] data [%s] error %v", atonString(tgurl), atonString(string(reqjs)), err)
 	}
 
 	var tgresp tg.MessageResponse
@@ -2116,7 +2115,7 @@ func tglog(msg string, chatid, replyid, editid int64) (msgid int64, err error) {
 		return 0, fmt.Errorf("%v", err)
 	}
 	if !tgresp.Ok {
-		return 0, fmt.Errorf("url==%v data==%v api response not ok: %+v", tgurl, string(reqjs), tgresp)
+		return 0, fmt.Errorf("url [%s] data [%s] api response not ok %+v", atonString(tgurl), atonString(string(reqjs)), tgresp)
 	}
 
 	return tgresp.Result.MessageId, nil
