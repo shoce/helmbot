@@ -745,7 +745,7 @@ func ServerPackagesUpdate() (err error) {
 
 				var vv []string
 				for _, v := range repochartversions {
-					vv = append(vv, v.Version)
+					vv = append(vv, "["+v.Version+"]")
 				}
 				p.perr("DEBUG repo versions ( %s )", strings.Join(vv, SP))
 
