@@ -1112,7 +1112,7 @@ func ServerPackagesUpdate() (err error) {
 
 		}
 
-		p.perr("VERBOSE installing update")
+		p.perr("VERBOSE INSTALLING UPDATE")
 
 		if p.UpdateDelayDuration > 0 {
 
