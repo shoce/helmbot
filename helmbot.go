@@ -653,7 +653,7 @@ func ServerPackagesUpdate() (err error) {
 
 		if PermitHash == "" {
 			if d := time.Now().Sub(p.UpdateTimestamp).Truncate(time.Second); d < p.UpdateIntervalDuration {
-				p.perr("DEBUG %v until next update", p.UpdateIntervalDuration-d)
+				p.perr("DEBUG <%s> until next update", p.UpdateIntervalDuration-d)
 				continue
 			}
 		}
@@ -661,7 +661,7 @@ func ServerPackagesUpdate() (err error) {
 		timenow := time.Now()
 		timenowhour := fmt.Sprintf("%02d", timenow.In(p.TimezoneLocation).Hour())
 
-		p.perr("DEBUG Namespace %s DryRun %v AlwaysForceNow %v AllowedHours %v Timezone %v TimeNowHour %v UpdateInterval %v LocalValues %v", p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration, p.LocalValues)
+		p.perr("DEBUG Namespace [%s] DryRun <%t> AlwaysForceNow <%t> AllowedHours [%s] Timezone [%s] TimeNowHour <%d> UpdateInterval <%s> LocalValues %v", p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration, p.LocalValues)
 
 		//p.perr("DEBUG config %+v", p)
 		p.perr("DEBUG repo.address [%s] chartaddress [%s] chartlocalfilename [%s]", p.ChartRepo.Address, p.ChartAddress, p.ChartLocalFilename)
@@ -738,7 +738,7 @@ func ServerPackagesUpdate() (err error) {
 				}
 
 				if len(repochartversions) == 0 {
-					return fmt.Errorf("chart repo index %v: no chart versions", indexfilepath)
+					return fmt.Errorf("chart repo index [%s] no chart versions", indexfilepath)
 				}
 
 				sort.Sort(sort.Reverse(repochartversions))
@@ -762,7 +762,7 @@ func ServerPackagesUpdate() (err error) {
 					p.perr("DEBUG ChartVersionPrefix %#v", p.ChartVersionPrefix)
 					for _, v := range repochartversions {
 						if strings.HasPrefix(v.Version, p.ChartVersionPrefix) {
-							p.perr("DEBUG chart version %s found in repo", v.Version)
+							p.perr("DEBUG chart version [%s] found in repo", v.Version)
 							repochartversion = v
 							break
 						}
@@ -773,13 +773,13 @@ func ServerPackagesUpdate() (err error) {
 			}
 
 			if repochartversion == nil {
-				return fmt.Errorf("packages chart %s repo index: no chart version found", p.ChartName)
+				return fmt.Errorf("packages chart [%s] repo index no chart version found", p.ChartName)
 			}
 
 			chartname = repochartversion.Name
 			chartversion = repochartversion.Version
 			chartpath = path.Join(ConfigDir, fmt.Sprintf("%s-%s.tgz", chartname, chartversion))
-			p.perr("DEBUG local chartpath %v exists %v", chartpath, fileExists(chartpath))
+			p.perr("DEBUG local chartpath [%s] exists <%t>", chartpath, fileExists(chartpath))
 
 			if !fileExists(chartpath) {
 				if len(repochartversion.URLs) == 0 {
@@ -825,7 +825,11 @@ func ServerPackagesUpdate() (err error) {
 				return fmt.Errorf("ChartAddress %v empty tags list", p.ChartAddress, err)
 			}
 
-			p.perr("DEBUG tags ( %s )", strings.Join(tags, SP))
+			var tagss []string
+			for _, t := range tags {
+				tagss = append(tagss, "["+t+"]")
+			}
+			p.perr("DEBUG tags ( %s )", strings.Join(tagss, SP))
 
 			chartversion = tags[0]
 
@@ -834,7 +838,7 @@ func ServerPackagesUpdate() (err error) {
 			} else {
 				chartname = path.Base(u.Path)
 				chartpath = path.Join(ConfigDir, fmt.Sprintf("%s-%s.tgz", chartname, chartversion))
-				p.perr("DEBUG local chartpath %v exists %v", chartpath, fileExists(chartpath))
+				p.perr("DEBUG local chartpath [%s] exists <%t>", chartpath, fileExists(chartpath))
 			}
 
 			if !fileExists(chartpath) {
