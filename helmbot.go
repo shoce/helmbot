@@ -403,7 +403,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	perr("DEBUG webhook request [%s] [%s] [%s] [%s]", r.Method, r.URL, r.Header.Get("Content-Type"), strings.ReplaceAll(string(rbody), NL, " <NL> "))
+	perr("DEBUG webhook request method [%s] url [%s] contenttype [%s] data [%s]", atonString(r.Method), atonString(r.URL.String()), atonString(r.Header.Get("Content-Type")), atonString(string(rbody)))
 
 	w.WriteHeader(http.StatusOK)
 
@@ -426,7 +426,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	}
 	perr("DEBUG webhook reply to message chat id valid")
 
-	if rupdate.Message.ReplyToMessage.From.Id != TgBotUserId && !slices.Contains(TgChatIds, rupdate.Message.ReplyToMessage.SenderChat.Id) {
+	if rupdate.Message.ReplyToMessage == nil || (rupdate.Message.ReplyToMessage.From.Id != TgBotUserId && !slices.Contains(TgChatIds, rupdate.Message.ReplyToMessage.SenderChat.Id)) {
 		perr("DEBUG webhook reply to message user id not valid")
 		return
 	}
