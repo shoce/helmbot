@@ -343,7 +343,7 @@ func main() {
 
 	if TgWebhookUrl != "" {
 
-		perr("DEBUG TgWebhookUrl %v so setting webhook with telegram to receive updates.", TgWebhookUrl)
+		perr("DEBUG TgWebhookUrl [%s] is not empty so setting webhook with telegram to receive updates", TgWebhookUrl)
 		if err := TgSetWebhook(TgWebhookUrl, []string{"message", "channel_post"}, TgWebhookToken); err != nil {
 			perr("ERROR TgSetWebhook %+v", err)
 			os.Exit(1)
@@ -366,7 +366,7 @@ func main() {
 
 	} else {
 
-		perr("TgWebhookUrl is not set so this instance will not register telegram webhook.")
+		perr("TgWebhookUrl is empty so this instance will not register telegram webhook")
 
 	}
 
@@ -670,7 +670,7 @@ func ServerPackagesUpdate() (err error) {
 		// READ LATEST VALUES
 		//
 
-		if len(p.LocalValues) == 0 {
+		if p.LocalValues == nil {
 
 			if *p.GlobalValuesEnable {
 				if err := GetValues(p.GlobalValuesFilename(), &p.GlobalValuesText, p.GlobalValues); err != nil {
@@ -916,7 +916,7 @@ func ServerPackagesUpdate() (err error) {
 		//
 
 		var allvaluestext string
-		if len(p.LocalValues) == 0 {
+		if p.LocalValues == nil {
 			allvaluestext = p.ValuesText + p.EnvValuesText + p.ImagesValuesText
 			if *p.GlobalValuesEnable {
 				allvaluestext = p.GlobalValuesText + allvaluestext
@@ -970,7 +970,7 @@ func ServerPackagesUpdate() (err error) {
 		var DeployedEnvValuesText string
 		var DeployedImagesValuesText string
 
-		if len(p.LocalValues) == 0 {
+		if p.LocalValues == nil {
 
 			if *p.GlobalValuesEnable {
 				if err := GetValuesTextFile(path.Join(p.FullName(), p.GlobalValuesFilename()), &DeployedGlobalValuesText, false); err != nil {
@@ -1147,15 +1147,15 @@ func ServerPackagesUpdate() (err error) {
 		delete(p.ImagesValues, p.ChartVersionKey)
 		helmchartutil.MergeTables(values, p.ImagesValues)
 
-		if len(p.LocalValues) > 0 {
-			helmchartutil.MergeTables(values, p.LocalValues)
-		} else {
+		if p.LocalValues == nil {
 			helmchartutil.MergeTables(values, p.EnvValues)
 			helmchartutil.MergeTables(values, p.Values)
 			p.perr("DEBUG GlobalValuesEnable %v", *p.GlobalValuesEnable)
 			if *p.GlobalValuesEnable {
 				helmchartutil.MergeTables(values, p.GlobalValues)
 			}
+		} else {
+			helmchartutil.MergeTables(values, p.LocalValues)
 		}
 
 		helmchartutil.MergeTables(values, chartfull.Values)
@@ -1692,7 +1692,7 @@ func (p *PackageConfig) WriteDeployedValues() error {
 		return fmt.Errorf("MkdirAll: %w", err)
 	}
 
-	if len(p.LocalValues) == 0 {
+	if p.LocalValues == nil {
 
 		if *p.GlobalValuesEnable {
 			if err := PutValuesTextFile(path.Join(p.FullName(), p.GlobalValuesFilename()), p.GlobalValuesText); err != nil {
@@ -2018,7 +2018,7 @@ func ImagesValuesToList(imagesvaluesmap map[string]interface{}) (imagesvalueslis
 }
 
 func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error {
-	perr("DEBUG TgSetWebhook url %s allowedupdates %s secrettoken %s", url, allowedupdates, secrettoken)
+	perr("DEBUG TgSetWebhook url [%s] allowedupdates (%s) secrettoken [%s]", url, allowedupdates, secrettoken)
 
 	swreq := TgSetWebhookRequest{
 		Url:            url,
