@@ -66,6 +66,8 @@ const (
 	PackagesSleepDuration = 2 * time.Second
 
 	ConfigLocalFilename = "helmbot.config.local.yaml"
+
+	TgApiUrlDef = "https://api.telegram.org"
 )
 
 var (
@@ -104,7 +106,7 @@ var (
 
 	ListenAddr string
 
-	TgApiUrl                string
+	TgApiUrl                string = TgApiUrlDef
 	TgToken                 string
 	TgBotUserId             int64
 	TgWebhookHost           string
@@ -2035,7 +2037,8 @@ func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error
 	swreqjsBuffer := bytes.NewBuffer(swreqjs)
 
 	var resp *http.Response
-	tgapiurl := fmt.Sprintf("https://api.telegram.org/bot%s/setWebhook", TgToken)
+	// TODO TgApiUrl
+	tgapiurl := fmt.Sprintf("%s/bot%s/setWebhook", TgApiUrl, TgToken)
 	resp, err = http.Post(
 		tgapiurl,
 		"application/json",
@@ -2107,9 +2110,10 @@ func tglog(msg string, chatid, replyid, editid int64) (msgid int64, err error) {
 	}
 	reqjsBuffer := bytes.NewBuffer(reqjs)
 
-	tgurl := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", TgToken)
+	// TODO TgApiUrl
+	tgurl := fmt.Sprintf("%s/bot%s/sendMessage", TgApiUrl, TgToken)
 	if req.MessageId != 0 {
-		tgurl = fmt.Sprintf("https://api.telegram.org/bot%s/editMessageText", TgToken)
+		tgurl = fmt.Sprintf("%s/bot%s/editMessageText", TgApiUrl, TgToken)
 	}
 
 	var resp *http.Response
