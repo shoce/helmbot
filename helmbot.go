@@ -245,6 +245,7 @@ func init() {
 		tg.ApiUrl = TgApiUrl
 	}
 	perr("TgApiUrl [%s]", TgApiUrl)
+	perr("tg.ApiUrl [%s]", tg.ApiUrl)
 
 	TgToken = os.Getenv("TgToken")
 	if TgToken == "" {
