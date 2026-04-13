@@ -166,6 +166,7 @@ func init() {
 	if os.Getenv("DEBUG") != "" {
 		DEBUG = true
 		perr("DEBUG <%t>", DEBUG)
+		tg.DEBUG = DEBUG
 		// SET VERBOSE IF DEBUG
 		if !VERBOSE {
 			VERBOSE = true
