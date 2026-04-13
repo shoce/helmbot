@@ -661,7 +661,7 @@ func ServerPackagesUpdate() (err error) {
 		timenow := time.Now()
 		timenowhour := fmt.Sprintf("%02d", timenow.In(p.TimezoneLocation).Hour())
 
-		p.perr("DEBUG Namespace [%s] DryRun <%t> AlwaysForceNow <%t> AllowedHours [%s] Timezone [%s] TimeNowHour <%d> UpdateInterval <%s> LocalValues %v", p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration, p.LocalValues)
+		p.perr("DEBUG Namespace [%s] DryRun <%t> AlwaysForceNow <%t> AllowedHours (%s) Timezone [%s] TimeNowHour <%s> UpdateInterval <%s> LocalValues %v", p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration, p.LocalValues)
 
 		//p.perr("DEBUG config %+v", p)
 		p.perr("DEBUG repo.address [%s] chartaddress [%s] chartlocalfilename [%s]", p.ChartRepo.Address, p.ChartAddress, p.ChartLocalFilename)
