@@ -677,16 +677,16 @@ func ServerPackagesUpdate() (err error) {
 		if p.LocalValues == nil {
 
 			if *p.GlobalValuesEnable {
-				if err := GetValues(p.GlobalValuesFilename(), &p.GlobalValuesText, p.GlobalValues); err != nil {
+				if err := GetValues(p.GlobalValuesFilename(), &p.GlobalValuesText, &p.GlobalValues); err != nil {
 					return err
 				}
 			}
 
-			if err := GetValues(p.ValuesFilename(), &p.ValuesText, p.Values); err != nil {
+			if err := GetValues(p.ValuesFilename(), &p.ValuesText, &p.Values); err != nil {
 				return err
 			}
 
-			if err := GetValues(p.EnvValuesFilename(), &p.EnvValuesText, p.EnvValues); err != nil {
+			if err := GetValues(p.EnvValuesFilename(), &p.EnvValuesText, &p.EnvValues); err != nil {
 				return err
 			}
 
@@ -1859,13 +1859,13 @@ func GetValuesS3(name string, valuestext *string, values interface{}) (err error
 
 	err = GetValuesTextS3(name, valuestext, false)
 	if err != nil {
-		return fmt.Errorf("GetValuesS3 %s: %w", name, err)
+		return fmt.Errorf("GetValuesS3 [%s] GetValuesTextS3 %w", name, err)
 	}
 
 	d := yaml.NewDecoder(strings.NewReader(*valuestext))
 	err = d.Decode(values)
 	if err != nil {
-		return fmt.Errorf("GetValuesS3 %s: %w", name, err)
+		return fmt.Errorf("GetValuesS3 [%s] Decode %w", name, err)
 	}
 
 	return nil
@@ -1875,11 +1875,11 @@ func PutValuesTextS3(name string, valuestext string) (err error) {
 	perr("DEBUG PutValuesTextS3 len %d %s [%s]", len(valuestext), name, strings.ReplaceAll((valuestext), NL, " <nl> "))
 
 	if req, err := S3NewRequest(http.MethodPut, name, []byte(valuestext)); err != nil {
-		return fmt.Errorf("PutValuesTextS3 %s: %w", name, err)
+		return fmt.Errorf("PutValuesTextS3 [%s] %w", name, err)
 	} else if resp, err := http.DefaultClient.Do(req); err != nil {
-		return fmt.Errorf("PutValuesTextS3 %s: %w", name, err)
+		return fmt.Errorf("PutValuesTextS3 [%s] %w", name, err)
 	} else if resp.StatusCode != 200 {
-		return fmt.Errorf("PutValuesTextS3 %s: s3 server response status %s", name, resp.Status)
+		return fmt.Errorf("PutValuesTextS3 [%s] s3 server response status %s", name, resp.Status)
 	}
 
 	return nil
@@ -1889,11 +1889,11 @@ func DeleteValuesS3(name string) (err error) {
 	perr("DEBUG DeleteValuesS3 %v", name)
 
 	if req, err := S3NewRequest(http.MethodDelete, name, nil); err != nil {
-		return fmt.Errorf("DeleteValuesS3 %v: %w", name, err)
+		return fmt.Errorf("DeleteValuesS3 [%s] %w", name, err)
 	} else if resp, err := http.DefaultClient.Do(req); err != nil {
-		return fmt.Errorf("DeleteValuesS3 %v: %w", name, err)
+		return fmt.Errorf("DeleteValuesS3 [%s] %w", name, err)
 	} else if resp.StatusCode != 200 {
-		return fmt.Errorf("DeleteValuesS3 %v: s3 server response status %s", name, resp.Status)
+		return fmt.Errorf("DeleteValuesS3 [%s] s3 server response status %s", name, resp.Status)
 	}
 
 	return nil
