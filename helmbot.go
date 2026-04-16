@@ -28,7 +28,7 @@ import (
 
 	_ "time/tzdata"
 
-	yaml "gopkg.in/yaml.v3"
+	yaml "github.com/goccy/go-yaml"
 
 	textcases "golang.org/x/text/cases"
 	textlanguage "golang.org/x/text/language"
@@ -2012,7 +2012,7 @@ func ImagesValuesToList(imagesvaluesmap map[string]interface{}) (imagesvalueslis
 
 	for _, iv := range imagesvalueslist {
 		if bb, err := yaml.Marshal(iv); err != nil {
-			return nil, "", fmt.Errorf("yaml.Encoder: %w", err)
+			return nil, "", fmt.Errorf("yaml.Marshal %w", err)
 		} else {
 			imagesvaluestext += string(bb)
 		}
