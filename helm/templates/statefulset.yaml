@@ -24,7 +24,7 @@ spec:
         app: "helmbot"
 
       annotations:
-        checksum/configmap-helmbot: {{ include ( print $.Template.BasePath "/" "configmap-helmbot.yaml" ) . | sha256sum }}
+        checksum/configmap: {{ include ( print $.Template.BasePath "/" "configmap.yaml" ) . | sha256sum }}
 
     spec:
 
