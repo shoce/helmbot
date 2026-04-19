@@ -1552,13 +1552,13 @@ func GetValuesFile(name string, valuestext *string, values interface{}) (err err
 
 	err = GetValuesTextFile(name, valuestext, false)
 	if err != nil {
-		return fmt.Errorf("GetValuesFile %s: %w", name, err)
+		return fmt.Errorf("GetValuesFile [%s] GetValuesTextFile %w", name, err)
 	}
 
 	d := yaml.NewDecoder(strings.NewReader(*valuestext))
 	err = d.Decode(values)
 	if err != nil {
-		return fmt.Errorf("GetValuesFile %s: %w", name, err)
+		return fmt.Errorf("GetValuesFile [%s] Decode %w", name, err)
 	}
 
 	return nil
@@ -1569,7 +1569,7 @@ func PutValuesTextFile(name string, valuestext string) (err error) {
 
 	err = os.WriteFile(filepath, []byte(valuestext), 0644)
 	if err != nil {
-		return fmt.Errorf("PutValuesTextFile %s: %w", name, err)
+		return fmt.Errorf("PutValuesTextFile [%s] %w", name, err)
 	}
 	return nil
 }

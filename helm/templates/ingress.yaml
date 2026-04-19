@@ -1,4 +1,5 @@
-{{ if $.Values.TgWebhookHost -}}
+{{ if and $.Values.TgWebhookHost ( not $.Values.TgWebhookIngressRoute ) -}}
+
 ---
 
 apiVersion: "networking.k8s.io/v1"

@@ -1,4 +1,3 @@
----
 
 ImageNameGithubHelmbot: "ghcr.io/shoce/helmbot/dev"
 ImageTagGithubHelmbot: ""
@@ -21,12 +20,15 @@ ValuesS3Pass: ""
 
 TgApiUrl: ""
 TgToken: ""
-TgWebhookHost: ""
-TgWebhookUrl: ""
-TgWebhookToken: ""
 TgChatIds: ""
 TgBossUserIds: ""
 TgAdminMention: ""
+
+TgWebhookHost: ""
+TgWebhookUrl: ""
+TgWebhookToken: ""
+
+TgWebhookIngressRoute: false
 
 LoggingHost: ""
 LoggingPort: ""

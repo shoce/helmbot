@@ -28,12 +28,13 @@ data:
 
   TgApiUrl: "{{ $.Values.TgApiUrl }}"
   TgToken: "{{ $.Values.TgToken }}"
-  TgWebhookHost: "{{ $.Values.TgWebhookHost }}"
-  TgWebhookUrl: "{{ $.Values.TgWebhookUrl }}"
-  TgWebhookToken: "{{ $.Values.TgWebhookToken }}"
   TgChatIds: "{{ $.Values.TgChatIds }}"
   TgBossUserIds: "{{ $.Values.TgBossUserIds }}"
   TgAdminMention: "{{ $.Values.TgAdminMention }}"
+
+  TgWebhookHost: "{{ $.Values.TgWebhookHost }}"
+  TgWebhookUrl: "{{ $.Values.TgWebhookUrl }}"
+  TgWebhookToken: "{{ $.Values.TgWebhookToken }}"
 
   LoggingHost: "{{ $.Values.LoggingHost }}"
   LoggingPort: "{{ $.Values.LoggingPort }}"

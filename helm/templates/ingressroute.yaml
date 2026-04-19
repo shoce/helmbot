@@ -1,0 +1,25 @@
+{{ if and $.Values.TgWebhookHost $.Values.TgWebhookIngressRoute -}}
+
+---
+
+apiVersion: "traefik.io/v1alpha1"
+kind: "IngressRoute"
+
+metadata:
+  name: "helmbot"
+  namespace: "{{ $.Release.Namespace }}"
+
+spec:
+
+  entryPoints:
+    - "websecure"
+
+  routes:
+    - match: "Host(`{{ $.Values.TgWebhookHost }}`)"
+      kind: "Rule"
+      services:
+        - name: "helmbot"
+          port: 80
+
+{{ end }}
+
