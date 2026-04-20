@@ -1,4 +1,4 @@
-{{ if and $.Values.TgWebhookHost ( not $.Values.TgWebhookIngressRoute ) -}}
+{{ if and $.Values.TgWebhookHost $.Values.TgWebhookIngress -}}
 
 ---
 

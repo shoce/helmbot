@@ -28,7 +28,8 @@ TgWebhookHost: ""
 TgWebhookUrl: ""
 TgWebhookToken: ""
 
-TgWebhookIngressRoute: false
+TgWebhookIngress: false
+TgWebhookIngressRoute: true
 
 LoggingHost: ""
 LoggingPort: ""
