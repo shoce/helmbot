@@ -1,5 +1,4 @@
 {{ if $.Values.TgWebhookHost -}}
----
 
 apiVersion: "v1"
 kind: "Service"
@@ -14,6 +13,10 @@ spec:
   selector:
     app: "helmbot"
 
+  # https://kubernetes.io/docs/tasks/access-application-cluster/create-external-load-balancer/#preserving-the-client-source-ip
+  # https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
+  # https://kubernetes.io/docs/concepts/services-networking/service-traffic-policy/#using-service-internal-traffic-policy
+  # type="NodePort" and externalTrafficPolicy="Local" preserves the client source IP
   type: "NodePort"
   externalTrafficPolicy: "Local"
   ports:

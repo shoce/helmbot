@@ -123,6 +123,8 @@ var (
 	UpdateHashIdRe *regexp.Regexp
 
 	FALSE = false
+
+	F = fmt.Sprintf
 )
 
 func init() {
@@ -415,6 +417,14 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	perr("DEBUG webhook request method [%s] url [%s] contenttype [%s] data [%s]", atonString(r.Method), atonString(r.URL.String()), atonString(r.Header.Get("Content-Type")), atonString(string(rbody)))
+	var reqheaders []string
+	// https://pkg.go.dev/http#Request.Header
+	for hk, hvv := range r.Header {
+		for _, hv := range hvv {
+			reqheaders = append(reqheaders, F("%s[%s]", hk, hv))
+		}
+	}
+	perr("DEBUG webhook request headers { %s }", strings.Join(reqheaders, SP))
 
 	w.WriteHeader(http.StatusOK)
 
@@ -663,7 +673,7 @@ func ServerPackagesUpdate() (err error) {
 		}
 
 		timenow := time.Now()
-		timenowhour := fmt.Sprintf("%02d", timenow.In(p.TimezoneLocation).Hour())
+		timenowhour := F("%02d", timenow.In(p.TimezoneLocation).Hour())
 
 		p.perr("DEBUG Namespace [%s] DryRun <%t> AlwaysForceNow <%t> AllowedHours (%s) Timezone [%s] TimeNowHour [%s] UpdateInterval <%s> LocalValues %v", p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration, p.LocalValues)
 
@@ -710,7 +720,7 @@ func ServerPackagesUpdate() (err error) {
 
 			chartrepo, err := helmrepo.NewChartRepository(
 				&helmrepo.Entry{
-					Name:                  fmt.Sprintf("helm.%s.%s", p.ChartName, p.EnvName),
+					Name:                  F("helm.%s.%s", p.ChartName, p.EnvName),
 					URL:                   p.ChartRepo.Address,
 					Username:              p.ChartRepo.Username,
 					Password:              p.ChartRepo.Password,
@@ -782,7 +792,7 @@ func ServerPackagesUpdate() (err error) {
 
 			chartname = repochartversion.Name
 			chartversion = repochartversion.Version
-			chartpath = path.Join(ConfigDir, fmt.Sprintf("%s-%s.tgz", chartname, chartversion))
+			chartpath = path.Join(ConfigDir, F("%s-%s.tgz", chartname, chartversion))
 			p.perr("DEBUG local chartpath [%s] exists <%t>", chartpath, fileExists(chartpath))
 
 			if !fileExists(chartpath) {
@@ -841,7 +851,7 @@ func ServerPackagesUpdate() (err error) {
 				return fmt.Errorf("parse ChartAddress %v %v", p.ChartAddress, err)
 			} else {
 				chartname = path.Base(u.Path)
-				chartpath = path.Join(ConfigDir, fmt.Sprintf("%s-%s.tgz", chartname, chartversion))
+				chartpath = path.Join(ConfigDir, F("%s-%s.tgz", chartname, chartversion))
 				p.perr("DEBUG local chartpath [%s] exists <%t>", chartpath, fileExists(chartpath))
 			}
 
@@ -926,9 +936,9 @@ func ServerPackagesUpdate() (err error) {
 				allvaluestext = p.GlobalValuesText + allvaluestext
 			}
 		} else {
-			allvaluestext = fmt.Sprintf("%#v", p.LocalValues) + p.ImagesValuesText
+			allvaluestext = F("%#v", p.LocalValues) + p.ImagesValuesText
 		}
-		p.ValuesHash = fmt.Sprintf("%x", sha256.Sum256([]byte(allvaluestext)))[:HashLength]
+		p.ValuesHash = F("%x", sha256.Sum256([]byte(allvaluestext)))[:HashLength]
 
 		//
 		// READ DEPLOYED HASH
@@ -1034,15 +1044,15 @@ func ServerPackagesUpdate() (err error) {
 			for name, v1 := range iv1 {
 				if v2, ok := iv2[name]; ok {
 					if v2 != v1 {
-						imagesvaluesdiff += fmt.Sprintf("%s: %#v=>%#v"+NL, name, v1, v2)
+						imagesvaluesdiff += F("%s: %#v=>%#v"+NL, name, v1, v2)
 					}
 				} else {
-					imagesvaluesdiff += fmt.Sprintf("-- %s: %#v"+NL, name, v1)
+					imagesvaluesdiff += F("-- %s: %#v"+NL, name, v1)
 				}
 			}
 			for name, v2 := range iv2 {
 				if _, ok := iv1[name]; !ok {
-					imagesvaluesdiff += fmt.Sprintf("++ %s: %#v"+NL, name, v2)
+					imagesvaluesdiff += F("++ %s: %#v"+NL, name, v2)
 				}
 			}
 
@@ -1222,7 +1232,7 @@ func ServerPackagesUpdate() (err error) {
 
 			p.perr("ERROR helm Run %v", err)
 
-			errtext := fmt.Sprintf("%v", err)
+			errtext := F("%v", err)
 			if len(errtext) > 2000 {
 				errtext = errtext[:1000] + NL + NL + "---cut---" + NL + NL + errtext[len(errtext)-1000:]
 			}
@@ -1401,13 +1411,13 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 				return nil, fmt.Errorf("package EnvName is empty")
 			}
 
-			p.Name = fmt.Sprintf("%s-%s", p.ChartName, p.EnvName)
+			p.Name = F("%s-%s", p.ChartName, p.EnvName)
 
 			if p.Namespace == "" {
 				if s.Namespace != "" {
 					p.Namespace = s.Namespace
 				} else {
-					p.Namespace = fmt.Sprintf("%s-%s", p.ChartName, p.EnvName)
+					p.Namespace = F("%s-%s", p.ChartName, p.EnvName)
 				}
 			}
 
@@ -1650,41 +1660,41 @@ type PackageConfig struct {
 }
 
 func (p *PackageConfig) FullName() string {
-	return fmt.Sprintf("%s.%s", p.ChartName, p.EnvName)
+	return F("%s.%s", p.ChartName, p.EnvName)
 }
 
 func (p *PackageConfig) GlobalValuesFilename() string {
 	return "global.values.yaml"
 }
 func (p *PackageConfig) ValuesFilename() string {
-	return fmt.Sprintf("%s.values.yaml", p.ChartName)
+	return F("%s.values.yaml", p.ChartName)
 }
 func (p *PackageConfig) EnvValuesFilename() string {
-	return fmt.Sprintf("%s.values.yaml", p.FullName())
+	return F("%s.values.yaml", p.FullName())
 }
 func (p *PackageConfig) ImagesValuesFilename() string {
-	return fmt.Sprintf("%s.images.values.yaml", p.FullName())
+	return F("%s.images.values.yaml", p.FullName())
 }
 
 func (p *PackageConfig) ValuesReportedHashFilename() string {
-	return fmt.Sprintf("%s.values.reported.hash.text", p.FullName())
+	return F("%s.values.reported.hash.text", p.FullName())
 }
 func (p *PackageConfig) ValuesDeployedHashFilename() string {
-	return fmt.Sprintf("%s.values.deployed.hash.text", p.FullName())
+	return F("%s.values.deployed.hash.text", p.FullName())
 }
 func (p *PackageConfig) ValuesPermitHashFilename() string {
-	return fmt.Sprintf("%s.values.permit.hash.text", p.FullName())
+	return F("%s.values.permit.hash.text", p.FullName())
 }
 
 func (p *PackageConfig) PausedFilename() string {
-	return fmt.Sprintf("%s.paused", p.FullName())
+	return F("%s.paused", p.FullName())
 }
 func (p *PackageConfig) UpdateTimestampFilename() string {
-	return fmt.Sprintf("%s.update.timestamp", p.FullName())
+	return F("%s.update.timestamp", p.FullName())
 }
 
 func (p *PackageConfig) HashId() string {
-	return fmt.Sprintf("#%s#%s#%s", p.ChartName, p.EnvName, p.ValuesHash)
+	return F("#%s#%s#%s", p.ChartName, p.EnvName, p.ValuesHash)
 }
 
 func (p *PackageConfig) WriteDeployedValues() error {
@@ -1770,14 +1780,14 @@ func perr(msg string, args ...interface{}) {
 		return
 	}
 	tnow := time.Now().In(LogTZLocation)
-	ts := fmt.Sprintf(
+	ts := F(
 		"<%03d:%02d%02d:%02d%02d%s>",
 		tnow.Year()%1000, tnow.Month(), tnow.Day(),
 		tnow.Hour(), tnow.Minute(), LogTZ,
 	)
 	msgtext := msg
 	if len(args) > 0 {
-		msgtext = fmt.Sprintf(msgtext, args...)
+		msgtext = F(msgtext, args...)
 	}
 	if TgToken != "" {
 		msgtext = strings.ReplaceAll(msgtext, TgToken, "[TgToken]")
@@ -1822,7 +1832,7 @@ func S3NewRequest(method, name string, payload []byte) (req *http.Request, err e
 	hdrauthsighmac := hmac.New(sha1.New, []byte(ValuesS3Pass))
 	hdrauthsighmac.Write([]byte(hdrauthsig))
 	hdrauthsig = base64.StdEncoding.EncodeToString(hdrauthsighmac.Sum(nil))
-	req.Header.Set("Authorization", fmt.Sprintf("AWS %s:%s", ValuesS3User, hdrauthsig))
+	req.Header.Set("Authorization", F("AWS %s:%s", ValuesS3User, hdrauthsig))
 
 	return req, nil
 }
@@ -1952,7 +1962,7 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 				imageurl := helmvaluesvalue.(string)
 
 				if !strings.HasPrefix(imageurl, "https://") && !strings.HasPrefix(imageurl, "http://") {
-					imageurl = fmt.Sprintf("https://%s", imageurl)
+					imageurl = F("https://%s", imageurl)
 				}
 
 				var u *url.URL
@@ -1960,7 +1970,7 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 					return fmt.Errorf("url.Parse %s %v: %w", imagename, imageurl, err)
 				}
 
-				RegistryUrl := fmt.Sprintf("%s://%s", u.Scheme, u.Host)
+				RegistryUrl := F("%s://%s", u.Scheme, u.Host)
 				RegistryRepository := u.Path
 
 				//perr("DEBUG drlatestyaml registry %s %s", RegistryUrl, RegistryRepository)
@@ -2038,7 +2048,7 @@ func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error
 
 	var resp *http.Response
 	// TODO TgApiUrl
-	tgapiurl := fmt.Sprintf("%s/bot%s/setWebhook", TgApiUrl, TgToken)
+	tgapiurl := F("%s/bot%s/setWebhook", TgApiUrl, TgToken)
 	resp, err = http.Post(
 		tgapiurl,
 		"application/json",
@@ -2095,7 +2105,7 @@ func tglog(msg string, chatid, replyid, editid int64) (msgid int64, err error) {
 	// TODO proper formatting escaping
 
 	req := tg.SendMessageRequest{
-		ChatId:              fmt.Sprintf("%d", chatid),
+		ChatId:              F("%d", chatid),
 		MessageId:           editid,
 		ReplyToMessageId:    replyid,
 		Text:                msg,
@@ -2111,9 +2121,9 @@ func tglog(msg string, chatid, replyid, editid int64) (msgid int64, err error) {
 	reqjsBuffer := bytes.NewBuffer(reqjs)
 
 	// TODO TgApiUrl
-	tgurl := fmt.Sprintf("%s/bot%s/sendMessage", TgApiUrl, TgToken)
+	tgurl := F("%s/bot%s/sendMessage", TgApiUrl, TgToken)
 	if req.MessageId != 0 {
-		tgurl = fmt.Sprintf("%s/bot%s/editMessageText", TgApiUrl, TgToken)
+		tgurl = F("%s/bot%s/editMessageText", TgApiUrl, TgToken)
 	}
 
 	var resp *http.Response
