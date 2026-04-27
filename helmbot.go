@@ -424,6 +424,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 			reqheaders = append(reqheaders, F("%s[%s]", hk, hv))
 		}
 	}
+	slices.SortFunc(reqheaders, strings.Compare)
 	perr("DEBUG webhook request headers { %s }", strings.Join(reqheaders, SP))
 
 	w.WriteHeader(http.StatusOK)
