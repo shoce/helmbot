@@ -1014,7 +1014,8 @@ func ServerPackagesUpdate() (err error) {
 		globalvaluesdiff := false
 		valuesdiff := false
 		envvaluesdiff := false
-		imagesvaluesdiff := ""
+		var imagesvaluesdiffss []string
+		var imagesvaluesdiff string
 
 		if *p.GlobalValuesEnable && p.GlobalValuesText != DeployedGlobalValuesText {
 			globalvaluesdiff = true
@@ -1045,17 +1046,19 @@ func ServerPackagesUpdate() (err error) {
 			for name, v1 := range iv1 {
 				if v2, ok := iv2[name]; ok {
 					if v2 != v1 {
-						imagesvaluesdiff += F("%s: %#v=>%#v"+NL, name, v1, v2)
+						imagesvaluesdiffss = append(imagesvaluesdiffss, F("%s: %#v=>%#v", name, v1, v2))
 					}
 				} else {
-					imagesvaluesdiff += F("-- %s: %#v"+NL, name, v1)
+					imagesvaluesdiffss = append(imagesvaluesdiffss, F("-- %s: %#v", name, v1))
 				}
 			}
 			for name, v2 := range iv2 {
 				if _, ok := iv1[name]; !ok {
-					imagesvaluesdiff += F("++ %s: %#v"+NL, name, v2)
+					imagesvaluesdiffss = append(imagesvaluesdiffss, F("++ %s: %#v", name, v2))
 				}
 			}
+			slices.SortFunc(imagesvaluesdiffss, strings.Compare)
+			imagesvaluesdiff = strings.Join(imagesvaluesdiffss, NL)
 
 			p.perr("DEBUG ImagesValues diff [-"+NL+"%s"+NL+"-]", imagesvaluesdiff)
 
