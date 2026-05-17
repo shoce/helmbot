@@ -80,9 +80,6 @@ var (
 
 	ServerPackagesUpdateLastRun time.Time
 
-	LogTZ         string         = "UTC"
-	LogTZLocation *time.Location = time.UTC
-
 	ServerHostname string
 
 	ConfigDir string
@@ -124,7 +121,8 @@ var (
 
 	FALSE = false
 
-	F = fmt.Sprintf
+	F    = fmt.Sprintf
+	pout = fmt.Print
 )
 
 func init() {
@@ -134,27 +132,6 @@ func init() {
 
 	HOSTNAME, err = os.Hostname()
 	perr("HOSTNAME [%s]", HOSTNAME)
-
-	if v := os.Getenv("LogTZ"); v != "" {
-		LogTZ = v
-	}
-	perr("LogTZ [%s]", LogTZ)
-
-	if LogTZLocation, err = time.LoadLocation(LogTZ); err != nil {
-		perr("LoadLocation [%s] %v", LogTZ, err)
-		LogTZ = "UTC"
-		LogTZLocation = time.UTC
-	}
-	LogTZ = time.Now().In(LogTZLocation).Format("-0700")
-	perr("LogTZ [%s]", LogTZ)
-
-	switch LogTZ {
-	case "+0000":
-		LogTZ = "+"
-	case "+0530":
-		LogTZ = "ॐ"
-	}
-	perr("LogTZ [%s]", LogTZ)
 
 	UpdateHashIdRe, err = regexp.Compile(UpdateHashIdReString)
 	if err != nil {
@@ -1776,6 +1753,20 @@ func atonString(text string) string {
 	return text
 }
 
+func fmttime(t time.Time) string {
+	ts := F(
+		"%d:%02d%02d:%02d%02d",
+		t.Year()%1000, t.Month(), t.Day(), t.Hour(), t.Minute(),
+	)
+	// https://pkg.go.dev/time#Time.Zone
+	if _, tzoffset := t.Zone(); tzoffset == 0 {
+		ts += "+"
+	} else {
+		ts += "-"
+	}
+	return ts
+}
+
 func perr(msg string, args ...interface{}) {
 	if strings.HasPrefix(msg, "DEBUG ") && !DEBUG {
 		return
@@ -1783,12 +1774,7 @@ func perr(msg string, args ...interface{}) {
 	if strings.HasPrefix(msg, "VERBOSE ") && !VERBOSE {
 		return
 	}
-	tnow := time.Now().In(LogTZLocation)
-	ts := F(
-		"<%03d:%02d%02d:%02d%02d%s>",
-		tnow.Year()%1000, tnow.Month(), tnow.Day(),
-		tnow.Hour(), tnow.Minute(), LogTZ,
-	)
+	tnow := time.Now()
 	msgtext := msg
 	if len(args) > 0 {
 		msgtext = F(msgtext, args...)
@@ -1799,7 +1785,7 @@ func perr(msg string, args ...interface{}) {
 	if TgWebhookToken != "" {
 		msgtext = strings.ReplaceAll(msgtext, TgWebhookToken, "[TgWebhookToken]")
 	}
-	fmt.Fprint(os.Stderr, ts+SP+msgtext+NL)
+	fmt.Fprint(os.Stderr, "<"+fmttime(tnow)+">"+SP+msgtext+NL)
 }
 
 func dirExists(path string) bool {
