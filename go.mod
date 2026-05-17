@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/goccy/go-yaml v1.19.2
 	github.com/rusenask/docker-registry-client v0.0.0-20200210164146-049272422097
-	github.com/shoce/tg v0.260414.131
+	github.com/shoce/tg v0.260517.627
 	golang.org/x/text v0.37.0
 	helm.sh/helm/v3 v3.21.0
 )
