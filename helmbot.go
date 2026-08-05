@@ -1,5 +1,10 @@
-// GoGet GoFmt GoBuildNull
-// GoFixDiff
+// fmt.EF Write
+/*
+GoGet
+GoFmt
+GoBuildNull
+GoFixDiff
+*/
 
 package main
 
@@ -60,19 +65,15 @@ const (
 	HealthListenAddrDefault = ":81"
 
 	UpdateHashIdReString = "#([-a-z0-9]+)#([-a-z0-9]+)#([a-z0-9]+)$"
-
 	HashLength = 12
-
 	PackagesSleepDuration = 2 * time.Second
-
 	ConfigLocalFilename = "helmbot.config.local.yaml"
-
 	TgApiUrlDef = "https://api.telegram.org"
 )
 
 var (
 	VERBOSE bool
-	DEBUG   bool
+	DEBUG bool
 
 	VERSION string
 
@@ -84,12 +85,12 @@ var (
 
 	ConfigDir string
 
-	ConfigFilename     string
+	ConfigFilename string
 	HostConfigFilename string
 
 	PackagesUpgradeInterval time.Duration
 
-	ValuesS3Url  string
+	ValuesS3Url string
 	ValuesS3User string
 	ValuesS3Pass string
 
@@ -98,30 +99,32 @@ var (
 
 	ConfigLocal HelmbotConfig
 
-	Config   HelmbotConfig
+	Config HelmbotConfig
 	Packages []PackageConfig
 
 	ListenAddr string
 
-	TgApiUrl                string = TgApiUrlDef
-	TgToken                 string
-	TgBotUserId             int64
-	TgWebhookHost           string
-	TgWebhookUrl            string
-	TgWebhookToken          string
+	TgApiUrl string = TgApiUrlDef
+	TgToken string
+	TgBotUserId int64
+	TgWebhookHost string
+	TgWebhookUrl string
+	TgWebhookToken string
 	TgWebhookMaxConnections int64 = 1
-	TgAdminMention          string
+	TgAdminMention string
 
-	TgChatIds             []int64
-	TgBossUserIds         []int64
-	TgParseMode           = "MarkdownV2"
+	TgChatIds []int64
+	TgBossUserIds []int64
+	TgParseMode = "MarkdownV2"
 	TgDisableNotification = false
 
 	UpdateHashIdRe *regexp.Regexp
 
 	FALSE = false
 
-	F    = fmt.Sprintf
+	F = fmt.Sprintf
+	FI = strconv.FormatInt
+	EF = fmt.Errorf
 	pout = fmt.Print
 )
 
@@ -561,8 +564,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
 func ServerPackagesUpdate() (err error) {
 
-	var paused string
-	if err := GetValuesTextFile("paused", &paused, false); err == nil {
+	if err := GetValuesTextFile("paused", nil, false); err == nil {
 		// paused packages update - return with no error
 		perr("VERBOSE packages update paused")
 		return nil
@@ -620,8 +622,7 @@ func ServerPackagesUpdate() (err error) {
 
 	for _, p := range Packages {
 
-		var pkgpaused string
-		if err := GetValuesTextFile(p.PausedFilename(), &pkgpaused, false); err == nil {
+		if err := GetValuesTextFile(p.PausedFilename(), nil, false); err == nil {
 			// paused package update - skip with no error
 			p.perr("DEBUG update paused")
 			continue
@@ -965,22 +966,22 @@ func ServerPackagesUpdate() (err error) {
 		if p.LocalValues == nil {
 
 			if *p.GlobalValuesEnable {
-				if err := GetValuesTextFile(path.Join(p.FullName(), p.GlobalValuesFilename()), &DeployedGlobalValuesText, false); err != nil {
+				if err := GetValuesTextFile(filepath.Join(p.FullName(), p.GlobalValuesFilename()), &DeployedGlobalValuesText, false); err != nil {
 					p.perr("ERROR GetValuesTextFile %v", err)
 				}
 			}
 
-			if err := GetValuesTextFile(path.Join(p.FullName(), p.ValuesFilename()), &DeployedValuesText, false); err != nil {
+			if err := GetValuesTextFile(filepath.Join(p.FullName(), p.ValuesFilename()), &DeployedValuesText, false); err != nil {
 				p.perr("ERROR GetValuesTextFile %v", err)
 			}
 
-			if err := GetValuesTextFile(path.Join(p.FullName(), p.EnvValuesFilename()), &DeployedEnvValuesText, false); err != nil {
+			if err := GetValuesTextFile(filepath.Join(p.FullName(), p.EnvValuesFilename()), &DeployedEnvValuesText, false); err != nil {
 				p.perr("ERROR GetValuesTextFile %v", err)
 			}
 
 		}
 
-		if err := GetValuesTextFile(path.Join(p.FullName(), p.ImagesValuesFilename()), &DeployedImagesValuesText, false); err != nil {
+		if err := GetValuesTextFile(filepath.Join(p.FullName(), p.ImagesValuesFilename()), &DeployedImagesValuesText, false); err != nil {
 			p.perr("ERROR GetValuesTextFile %v", err)
 		}
 
@@ -1097,7 +1098,7 @@ func ServerPackagesUpdate() (err error) {
 				//
 
 				if err := PutValuesText(p.ValuesReportedHashFilename(), p.ValuesHash); err != nil {
-					return fmt.Errorf("PutValuesText: %w", err)
+					return EF("PutValuesText %w", err)
 				}
 
 			}
@@ -1110,13 +1111,10 @@ func ServerPackagesUpdate() (err error) {
 		p.perr("VERBOSE INSTALLING UPDATE")
 
 		if p.UpdateDelayDuration > 0 {
-
 			tgmsg += tg.Bold(tg.Esc(tg.F("STARTING IN %v", p.UpdateDelayDuration))) + NL + NL
-
 			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
 				p.perr("ERROR tglog %v", tgerr)
 			}
-
 			p.perr("VERBOSE sleeping %v", p.UpdateDelayDuration)
 			time.Sleep(p.UpdateDelayDuration)
 
@@ -1288,7 +1286,7 @@ func ServerPackagesUpdate() (err error) {
 			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
 				p.perr("ERROR tglog %v", tgerr)
 			}
-			return fmt.Errorf("PutValuesText: %w", err)
+			return EF("PutValuesText: %w", err)
 		}
 
 		//
@@ -1352,23 +1350,17 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 			s.TimezoneLocation = time.UTC
 		} else {
 			s.TimezoneLocation, err = time.LoadLocation(*s.Timezone)
-			if err != nil {
-				return nil, err
-			}
+			if err != nil { return nil, err }
 		}
 
 		if s.UpdateInterval != nil && *s.UpdateInterval != "" {
 			s.UpdateIntervalDuration, err = time.ParseDuration(*s.UpdateInterval)
-			if err != nil {
-				return nil, err
-			}
+			if err != nil { return nil, err }
 		}
 
 		if s.UpdateDelay != nil && *s.UpdateDelay != "" {
 			s.UpdateDelayDuration, err = time.ParseDuration(*s.UpdateDelay)
-			if err != nil {
-				return nil, err
-			}
+			if err != nil { return nil, err }
 		}
 
 		if s.GlobalValuesEnable == nil {
@@ -1382,14 +1374,14 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 		for _, p := range s.Packages {
 
 			if p.ChartName == "" {
-				return nil, fmt.Errorf("package ChartName is empty")
+				return nil, EF("package ChartName is empty")
 			}
 
 			if p.EnvName == "" {
 				p.EnvName = s.EnvName
 			}
 			if p.EnvName == "" {
-				return nil, fmt.Errorf("package EnvName is empty")
+				return nil, EF("package EnvName is empty")
 			}
 
 			p.Name = F("%s-%s", p.ChartName, p.EnvName)
@@ -1430,9 +1422,7 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 				p.UpdateIntervalDuration = s.UpdateIntervalDuration
 			} else {
 				p.UpdateIntervalDuration, err = time.ParseDuration(*p.UpdateInterval)
-				if err != nil {
-					return nil, err
-				}
+				if err != nil { return nil, err }
 			}
 
 			if p.UpdateDelay == nil {
@@ -1440,13 +1430,11 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 				p.UpdateDelayDuration = s.UpdateDelayDuration
 			} else {
 				p.UpdateDelayDuration, err = time.ParseDuration(*p.UpdateDelay)
-				if err != nil {
-					return nil, err
-				}
+				if err != nil { return nil, err }
 			}
 
 			if p.ChartVersion != "" && p.ChartVersionPrefix != "" && !strings.HasPrefix(p.ChartVersion, p.ChartVersionPrefix) {
-				return nil, fmt.Errorf("package ChartVersion does not match ChartVersionPrefix")
+				return nil, EF("package ChartVersion does not match ChartVersionPrefix")
 			}
 
 			if p.ChartVersionKey == "" {
@@ -1486,88 +1474,78 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 	return packages, nil
 }
 
-func GetValuesText(name string, valuestext *string, notexistok bool) (err error) {
+func GetValuesText(fname string, valuestext *string, notexistok bool) (err error) {
 	if ValuesS3UrlHost != "" {
-		return GetValuesTextS3(name, valuestext, notexistok)
+		return GetValuesTextS3(fname, valuestext, notexistok)
 	}
-	return GetValuesTextFile(name, valuestext, notexistok)
+	return GetValuesTextFile(fname, valuestext, notexistok)
 }
 
-func GetValues(name string, valuestext *string, values interface{}) (err error) {
+func GetValues(fname string, valuestext *string, values interface{}) (err error) {
 	if ValuesS3UrlHost != "" {
-		return GetValuesS3(name, valuestext, values)
+		return GetValuesS3(fname, valuestext, values)
 	}
-	return GetValuesFile(name, valuestext, values)
+	return GetValuesFile(fname, valuestext, values)
 }
 
-func PutValuesText(name string, valuestext string) (err error) {
+func PutValuesText(fname string, valuestext string) (err error) {
 	if ValuesS3UrlHost != "" {
-		return PutValuesTextS3(name, valuestext)
+		return PutValuesTextS3(fname, valuestext)
 	}
-	return PutValuesTextFile(name, valuestext)
+	return PutValuesTextFile(fname, valuestext)
 }
 
-func DeleteValues(name string) (err error) {
+func DeleteValues(fname string) (err error) {
 	if ValuesS3UrlHost != "" {
-		return DeleteValuesS3(name)
+		return DeleteValuesS3(fname)
 	}
-	return DeleteValuesFile(name)
+	return DeleteValuesFile(fname)
 }
 
-func GetValuesTextFile(name string, valuestext *string, notexistok bool) (err error) {
-	filepath := path.Join(ConfigDir, name)
-
-	bb, err := os.ReadFile(filepath)
+func GetValuesTextFile(fname string, valuestext *string, notexistok bool) (err error) {
+	fpath := filepath.Join(ConfigDir, fname)
+	bb, err := os.ReadFile(fpath)
 	if os.IsNotExist(err) && !notexistok {
-		return fmt.Errorf("GetValuesTextFile %s: does not exist", name)
+		return EF("GetValuesTextFile [%s] does not exist", fname)
 	} else if os.IsNotExist(err) && notexistok {
 	} else if err != nil {
-		return fmt.Errorf("GetValuesTextFile %s: %w", name, err)
+		return EF("GetValuesTextFile [%s] %w", fname, err)
 	}
-
-	if valuestext == nil {
-		tempvaluestext := string(bb)
-		valuestext = &tempvaluestext
-	} else {
+	if valuestext != nil {
 		*valuestext = string(bb)
 	}
-
 	return nil
 }
 
-func GetValuesFile(name string, valuestext *string, values interface{}) (err error) {
+func GetValuesFile(fname string, valuestext *string, values interface{}) (err error) {
 	if valuestext == nil {
 		var valuestext1 string
 		valuestext = &valuestext1
 	}
-
-	err = GetValuesTextFile(name, valuestext, false)
+	err = GetValuesTextFile(fname, valuestext, false)
 	if err != nil {
-		return fmt.Errorf("GetValuesFile [%s] GetValuesTextFile %w", name, err)
+		return EF("GetValuesFile [%s] GetValuesTextFile %w", fname, err)
 	}
-
 	d := yaml.NewDecoder(strings.NewReader(*valuestext))
 	err = d.Decode(values)
 	if err != nil {
-		return fmt.Errorf("GetValuesFile [%s] Decode %w", name, err)
+		return EF("GetValuesFile [%s] Decode %w", fname, err)
 	}
-
 	return nil
 }
 
-func PutValuesTextFile(name string, valuestext string) (err error) {
-	filepath := path.Join(ConfigDir, name)
-
-	err = os.WriteFile(filepath, []byte(valuestext), 0644)
+func PutValuesTextFile(fname string, valuestext string) (err error) {
+	fpath := filepath.Join(ConfigDir, fname)
+	err = os.WriteFile(fpath, []byte(valuestext), 0644)
 	if err != nil {
-		return fmt.Errorf("PutValuesTextFile [%s] %w", name, err)
+		return EF("PutValuesTextFile [%s] %w", fname, err)
 	}
 	return nil
 }
 
-func DeleteValuesFile(name string) (err error) {
-	perr("DEBUG DeleteValuesFile %v", name)
-	//filepath := path.Join(ConfigDir, name)
+func DeleteValuesFile(fname string) (err error) {
+	perr("DEBUG DeleteValuesFile [%s]", fname)
+	//fpath := filepath.Join(ConfigDir, fname)
 	// TODO delete filepath
 	return nil
 }
@@ -1679,65 +1657,49 @@ func (p *PackageConfig) HashId() string {
 }
 
 func (p *PackageConfig) WriteDeployedValues() error {
-
 	if err := os.RemoveAll(path.Join(ConfigDir, p.FullName())); err != nil {
-		return fmt.Errorf("RemoveAll: %w", err)
+		return EF("RemoveAll %w", err)
 	}
 	if err := os.MkdirAll(path.Join(ConfigDir, p.FullName()), 0700); err != nil {
-		return fmt.Errorf("MkdirAll: %w", err)
+		return EF("MkdirAll %w", err)
 	}
-
 	if p.LocalValues == nil {
-
 		if *p.GlobalValuesEnable {
 			if err := PutValuesTextFile(path.Join(p.FullName(), p.GlobalValuesFilename()), p.GlobalValuesText); err != nil {
-				return fmt.Errorf("PutValuesTextFile: %w", err)
+				return EF("PutValuesTextFile %w", err)
 			}
 		}
 		if err := PutValuesTextFile(path.Join(p.FullName(), p.ValuesFilename()), p.ValuesText); err != nil {
-			return fmt.Errorf("PutValuesTextFile: %w", err)
+			return EF("PutValuesTextFile %w", err)
 		}
 		if err := PutValuesTextFile(path.Join(p.FullName(), p.EnvValuesFilename()), p.EnvValuesText); err != nil {
-			return fmt.Errorf("PutValuesTextFile: %w", err)
+			return EF("PutValuesTextFile %w", err)
 		}
-
 	}
-
 	if err := PutValuesTextFile(path.Join(p.FullName(), p.ImagesValuesFilename()), p.ImagesValuesText); err != nil {
-		return fmt.Errorf("PutValuesTextFile: %w", err)
+		return EF("PutValuesTextFile %w", err)
 	}
-
 	return nil
 }
 
 type ServerConfig struct {
 	ServerHostname string `yaml:"ServerHostname"`
-
 	EnvName string `yaml:"EnvName"`
-
 	Namespace string `yaml:"Namespace,omitempty"`
-
 	AlwaysForceNow *bool `yaml:"AlwaysForceNow,omitempty"`
-
 	UpdateInterval *string `yaml:"UpdateInterval,omitempty"`
 	UpdateDelay    *string `yaml:"UpdateDelay,omitempty"`
-
 	UpdateIntervalDuration time.Duration
 	UpdateDelayDuration    time.Duration
-
 	TgChatId   *int64  `yaml:"TgChatId,omitempty"`
 	TgMentions *string `yaml:"TgMentions,omitempty"`
-
 	Packages []PackageConfig `yaml:"Packages"`
-
+	
 	Timezone     *string `yaml:"Timezone,omitempty"`
 	AllowedHours *string `yaml:"AllowedHours,omitempty"`
-
 	TimezoneLocation *time.Location
 	AllowedHoursList []string
-
 	GlobalValuesEnable *bool `yaml:"GlobalValuesEnable"`
-
 	DryRun *bool `yaml:"DryRun,omitempty"`
 }
 
@@ -1768,12 +1730,8 @@ func fmttime(t time.Time) string {
 }
 
 func perr(msg string, args ...interface{}) {
-	if strings.HasPrefix(msg, "DEBUG ") && !DEBUG {
-		return
-	}
-	if strings.HasPrefix(msg, "VERBOSE ") && !VERBOSE {
-		return
-	}
+	if strings.HasPrefix(msg, "DEBUG ") && !DEBUG { return }
+	if strings.HasPrefix(msg, "VERBOSE ") && !VERBOSE { return }
 	tnow := time.Now()
 	msgtext := msg
 	if len(args) > 0 {
@@ -1790,17 +1748,13 @@ func perr(msg string, args ...interface{}) {
 
 func dirExists(path string) bool {
 	s, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		return false
-	}
+	if os.IsNotExist(err) { return false }
 	return err == nil && s.IsDir()
 }
 
 func fileExists(path string) bool {
 	s, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		return false
-	}
+	if os.IsNotExist(err) { return false }
 	return err == nil && s.Mode().IsRegular()
 }
 
@@ -1829,7 +1783,6 @@ func S3NewRequest(method, name string, payload []byte) (req *http.Request, err e
 
 func GetValuesTextS3(name string, valuestext *string, notexistok bool) (err error) {
 	var respbody string
-
 	if req, err := S3NewRequest(http.MethodGet, name, nil); err != nil {
 		return fmt.Errorf("GetValuesTextS3 %s: %w", name, err)
 	} else if resp, err := http.DefaultClient.Do(req); err != nil {
@@ -1845,9 +1798,7 @@ func GetValuesTextS3(name string, valuestext *string, notexistok bool) (err erro
 	} else {
 		respbody = string(bb)
 	}
-
 	*valuestext = respbody
-
 	return nil
 }
 
@@ -1856,46 +1807,39 @@ func GetValuesS3(name string, valuestext *string, values interface{}) (err error
 		var valuestext1 string
 		valuestext = &valuestext1
 	}
-
 	err = GetValuesTextS3(name, valuestext, false)
 	if err != nil {
-		return fmt.Errorf("GetValuesS3 [%s] GetValuesTextS3 %w", name, err)
+		return EF("GetValuesS3 [%s] GetValuesTextS3 %w", name, err)
 	}
-
 	d := yaml.NewDecoder(strings.NewReader(*valuestext))
 	err = d.Decode(values)
 	if err != nil {
-		return fmt.Errorf("GetValuesS3 [%s] Decode %w", name, err)
+		return EF("GetValuesS3 [%s] Decode %w", name, err)
 	}
-
 	return nil
 }
 
 func PutValuesTextS3(name string, valuestext string) (err error) {
 	perr("DEBUG PutValuesTextS3 len %d %s [%s]", len(valuestext), name, strings.ReplaceAll((valuestext), NL, " <nl> "))
-
 	if req, err := S3NewRequest(http.MethodPut, name, []byte(valuestext)); err != nil {
-		return fmt.Errorf("PutValuesTextS3 [%s] %w", name, err)
+		return EF("PutValuesTextS3 [%s] %w", name, err)
 	} else if resp, err := http.DefaultClient.Do(req); err != nil {
-		return fmt.Errorf("PutValuesTextS3 [%s] %w", name, err)
+		return EF("PutValuesTextS3 [%s] %w", name, err)
 	} else if resp.StatusCode != 200 {
-		return fmt.Errorf("PutValuesTextS3 [%s] s3 server response status %s", name, resp.Status)
+		return EF("PutValuesTextS3 [%s] s3 server response status %s", name, resp.Status)
 	}
-
 	return nil
 }
 
 func DeleteValuesS3(name string) (err error) {
 	perr("DEBUG DeleteValuesS3 %v", name)
-
 	if req, err := S3NewRequest(http.MethodDelete, name, nil); err != nil {
-		return fmt.Errorf("DeleteValuesS3 [%s] %w", name, err)
+		return EF("DeleteValuesS3 [%s] %w", name, err)
 	} else if resp, err := http.DefaultClient.Do(req); err != nil {
-		return fmt.Errorf("DeleteValuesS3 [%s] %w", name, err)
+		return EF("DeleteValuesS3 [%s] %w", name, err)
 	} else if resp.StatusCode != 200 {
-		return fmt.Errorf("DeleteValuesS3 [%s] s3 server response status %s", name, resp.Status)
+		return EF("DeleteValuesS3 [%s] s3 server response status %s", name, resp.Status)
 	}
-
 	return nil
 }
 
@@ -1941,51 +1885,38 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 	for helmvalueskey, helmvaluesvalue := range helmvalues {
 		for _, e := range drlatestyamlitems {
 			if strings.HasPrefix(helmvalueskey, e.KeyPrefix) {
-
 				imagename := helmvalueskey
 				imagenamereplace := e.KeyPrefixReplace + strings.TrimPrefix(imagename, e.KeyPrefix)
-
 				if v, ok := helmvalues[imagenamereplace]; ok && v != "" {
 					continue
 				}
-
 				imageurl := helmvaluesvalue.(string)
-
 				if !strings.HasPrefix(imageurl, "https://") && !strings.HasPrefix(imageurl, "http://") {
 					imageurl = F("https://%s", imageurl)
 				}
-
 				var u *url.URL
 				if u, err = url.Parse(imageurl); err != nil {
-					return fmt.Errorf("url.Parse %s %v: %w", imagename, imageurl, err)
+					return EF("url.Parse %s %v: %w", imagename, imageurl, err)
 				}
-
 				RegistryUrl := F("%s://%s", u.Scheme, u.Host)
 				RegistryRepository := u.Path
-
 				//perr("DEBUG drlatestyaml registry %s %s", RegistryUrl, RegistryRepository)
-
 				dr := dregistry.NewInsecure(RegistryUrl, e.RegistryUsername, e.RegistryPassword)
 				dr.Logf = dregistry.Quiet
 
 				// TODO hangs here ?
 				imagetags, err := dr.Tags(RegistryRepository)
 				if err != nil {
-					return fmt.Errorf("registry.Tags %s %v: %w", imagename, imageurl, err)
+					return EF("registry.Tags %s %v: %w", imagename, imageurl, err)
 				}
-
 				sort.Sort(sort.Reverse(DrVersions(imagetags)))
-
 				imagetag := ""
-
 				if len(imagetags) > 0 {
 					imagetag = imagetags[0]
 				} else {
 					imagetag = "latest"
 				}
-
 				(*imagesvalues)[imagenamereplace] = imagetag
-
 			}
 		}
 	}
@@ -2009,7 +1940,6 @@ func ImagesValuesToList(imagesvaluesmap map[string]interface{}) (imagesvalueslis
 			return false
 		},
 	)
-
 	for _, iv := range imagesvalueslist {
 		if bb, err := yaml.Marshal(iv); err != nil {
 			return nil, "", fmt.Errorf("yaml.Marshal %w", err)
@@ -2017,7 +1947,6 @@ func ImagesValuesToList(imagesvaluesmap map[string]interface{}) (imagesvalueslis
 			imagesvaluestext += string(bb)
 		}
 	}
-
 	return imagesvalueslist, imagesvaluestext, nil
 }
 
@@ -2031,9 +1960,7 @@ func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error
 		SecretToken:    secrettoken,
 	}
 	swreqjs, err := json.Marshal(swreq)
-	if err != nil {
-		return err
-	}
+	if err != nil { return err }
 	swreqjsBuffer := bytes.NewBuffer(swreqjs)
 
 	var resp *http.Response
@@ -2109,13 +2036,11 @@ func tglog(msg string, chatid, replyid, editid int64) (msgid int64, err error) {
 		return 0, err
 	}
 	reqjsBuffer := bytes.NewBuffer(reqjs)
-
 	// TODO TgApiUrl
 	tgurl := F("%s/bot%s/sendMessage", TgApiUrl, TgToken)
 	if req.MessageId != 0 {
 		tgurl = F("%s/bot%s/editMessageText", TgApiUrl, TgToken)
 	}
-
 	var resp *http.Response
 	resp, err = http.Post(
 		tgurl,
@@ -2137,3 +2062,6 @@ func tglog(msg string, chatid, replyid, editid int64) (msgid int64, err error) {
 
 	return tgresp.Result.MessageId, nil
 }
+
+
+
