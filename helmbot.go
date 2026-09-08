@@ -565,38 +565,38 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 }
 
 func ServerPackagesUpdate() (err error) {
-
+	
 	if err := GetValuesTextFile("paused", nil, false); err == nil {
 		// paused packages update - return with no error
 		perr(F("VERBOSE packages update paused"))
 		return nil
 	}
-
+	
 	if ConfigFilename != "" {
 		if err := GetValues(ConfigFilename, nil, &Config); err != nil {
 			return err
 		}
 	}
-
+	
 	if HostConfigFilename != "" {
 		if err := GetValues(HostConfigFilename, nil, &Config); err != nil {
 			return err
 		}
 	}
-
+	
 	GetValuesFile(ConfigLocalFilename, nil, &ConfigLocal)
-
+	
 	for _, d := range ConfigLocal.DrLatestYaml {
 		Config.DrLatestYaml = append(Config.DrLatestYaml, d)
 	}
 	for _, s := range ConfigLocal.Servers {
 		Config.Servers = append(Config.Servers, s)
 	}
-
+	
 	//log("DEBUG packages Config %+v", Config)
-
+	
 	// INSTALLED RELEASES
-
+	
 	// https://pkg.go.dev/helm.sh/helm/v3/pkg/cli
 	helmenvsettings := helmcli.New()
 	helmactioncfg := new(helmaction.Configuration)
@@ -607,7 +607,7 @@ func ServerPackagesUpdate() (err error) {
 	if err != nil {
 		return err
 	}
-
+	
 	/*
 		for _, r := range installedreleases {
 			log("DEBUG packages Name %s Namespace %s Status %s Revision %d Version %s",
@@ -615,90 +615,81 @@ func ServerPackagesUpdate() (err error) {
 			)
 		}
 	*/
-
+	
 	Packages, err = ProcessServersPackages(Config.Servers)
 	if err != nil {
 		perr(F("packages ERROR ProcessServersPackages %v", err))
 		return err
 	}
-
+	
 	for _, p := range Packages {
-
+		
 		if err := GetValuesTextFile(p.PausedFilename(), nil, false); err == nil {
 			// paused package update - skip with no error
 			p.perr(F("DEBUG update paused"))
 			continue
 		}
-
+		
 		//
 		// READ PERMIT HASH
 		//
-
+		
 		var PermitHash string
 		if err := GetValuesText(p.ValuesPermitHashFilename(), &PermitHash, true); err != nil {
 			p.perr(F("ERROR GetValuesText %v", err))
 		}
-
+		
 		updatetimestampfilename := path.Join(ConfigDir, p.UpdateTimestampFilename())
 		if updatetimestampfilestat, err := os.Stat(updatetimestampfilename); err == nil {
 			p.UpdateTimestamp = updatetimestampfilestat.ModTime()
 		}
-
+		
 		// TODO check values for updates more often but not images.values
-
+		
 		if PermitHash == "" {
 			if d := time.Now().Sub(p.UpdateTimestamp).Truncate(time.Second); d < p.UpdateIntervalDuration {
 				p.perr(F("DEBUG <%s> until next update", p.UpdateIntervalDuration-d))
 				continue
 			}
 		}
-
+		
 		timenow := time.Now()
 		timenowhour := F("%02d", timenow.In(p.TimezoneLocation).Hour())
-
+		
 		p.perr(F("DEBUG Namespace [%s] DryRun <%t> AlwaysForceNow <%t> AllowedHours (%s)) Timezone [%s] TimeNowHour [%s] UpdateInterval <%s> LocalValues %v", p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration, p.LocalValues))
-
+		
 		//p.perr(F("DEBUG config %+v", p))
 		p.perr(F("DEBUG repo.address [%s] chartaddress [%s] chartlocalfilename [%s]", p.ChartRepo.Address, p.ChartAddress, p.ChartLocalFilename))
-
+		
 		//
 		// READ LATEST VALUES
 		//
-
+		
 		if p.LocalValues == nil {
-
+			
 			if *p.GlobalValuesEnable {
-				if err := GetValues(p.GlobalValuesFilename(), &p.GlobalValuesText, &p.GlobalValues); err != nil {
-					return err
-				}
+				if err := GetValues(p.GlobalValuesFilename(), &p.GlobalValuesText, &p.GlobalValues); err != nil { return err }
 			}
-
-			if err := GetValues(p.ValuesFilename(), &p.ValuesText, &p.Values); err != nil {
-				return err
-			}
-
-			if err := GetValues(p.EnvValuesFilename(), &p.EnvValuesText, &p.EnvValues); err != nil {
-				return err
-			}
-
+			if err := GetValues(p.ValuesFilename(), &p.ValuesText, &p.Values); err != nil { return err }
+			if err := GetValues(p.EnvValuesFilename(), &p.EnvValuesText, &p.EnvValues); err != nil { return err }
 		}
-
+		
 		//
 		// FETCH CHART INFO
 		//
-
+		
 		var chartname, chartversion string
 		var chartpath string
 		var chartfull *helmchart.Chart
-
+		
 		chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetter.All(helmenvsettings)}
 		chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
 		if p.ChartRepo.Address != "" && p.ChartRepo.Username != "" {
 			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithBasicAuth(p.ChartRepo.Username, p.ChartRepo.Password))
 		}
-
+		
 		if p.ChartRepo.Address != "" {
-
+			
 			chartrepo, err := helmrepo.NewChartRepository(
 				&helmrepo.Entry{
 					Name:                  F("helm.%s.%s", p.ChartName, p.EnvName),
@@ -713,37 +704,31 @@ func ServerPackagesUpdate() (err error) {
 			if err != nil {
 				return EF("NewChartRepository %w", err)
 			}
-
+			
 			indexfilepath, err := chartrepo.DownloadIndexFile()
 			if err != nil {
 				return EF("DownloadIndexFile %w", err)
 			}
 			//p.perr(F("DEBUG chart repo index file path %s", indexfilepath))
 			// TODO store chart repo indexes in /opt/helmbot/, not at /root/.cache/helm/
-
+			
 			idx, err := helmrepo.LoadIndexFile(indexfilepath)
 			if err != nil {
 				return EF("LoadIndexFile %w", err)
 			}
-
+			
 			var repochartversion *helmrepo.ChartVersion
 			for repochartname, repochartversions := range idx.Entries {
-				if repochartname != p.ChartName {
-					continue
-				}
-
+				if repochartname != p.ChartName { continue }
 				if len(repochartversions) == 0 {
 					return EF("chart repo index [%s] no chart versions", indexfilepath)
 				}
-
 				sort.Sort(sort.Reverse(repochartversions))
-
 				var vv []string
 				for _, v := range repochartversions {
 					vv = append(vv, "["+v.Version+"]")
 				}
 				p.perr(F("DEBUG repo versions ( %s ))", strings.Join(vv, SP)))
-
 				if p.ChartVersion != "" {
 					p.perr(F("DEBUG ChartVersion %s", p.ChartVersion))
 					for _, v := range repochartversions {
@@ -766,21 +751,20 @@ func ServerPackagesUpdate() (err error) {
 					repochartversion = repochartversions[0]
 				}
 			}
-
+			
 			if repochartversion == nil {
 				return EF("packages chart [%s] repo index no chart version found", p.ChartName)
 			}
-
+			
 			chartname = repochartversion.Name
 			chartversion = repochartversion.Version
 			chartpath = path.Join(ConfigDir, F("%s-%s.tgz", chartname, chartversion))
 			p.perr(F("DEBUG local chartpath [%s] exists <%t>", chartpath, fileExists(chartpath)))
-
+			
 			if !fileExists(chartpath) {
 				if len(repochartversion.URLs) == 0 {
 					return EF("packages chart %s: no chart urls", p.ChartName)
 				}
-
 				charturl, err := helmrepo.ResolveReferenceURL(p.ChartRepo.Address, repochartversion.URLs[0])
 				if err != nil {
 					return err
@@ -789,18 +773,15 @@ func ServerPackagesUpdate() (err error) {
 					return err
 				}
 			}
-
 		} else if p.ChartAddress != "" {
-
+			
 			chartaddress := p.ChartAddress
 			chartaddress = strings.TrimPrefix(chartaddress, "https://")
 			chartaddress = strings.TrimPrefix(chartaddress, "oci://")
-
 			hrclient, err := helmregistry.NewClient(helmregistry.ClientOptDebug(false))
 			if err != nil {
 				return EF("helmregistry.NewClient: %v", err)
 			}
-
 			if p.ChartAuth.Username != "" {
 				if charturl, err := url.Parse(p.ChartAddress); err != nil {
 					p.perr(F("ERROR url.Parse %+v", err))
@@ -810,24 +791,15 @@ func ServerPackagesUpdate() (err error) {
 					}
 				}
 			}
-
 			tags, err := hrclient.Tags(chartaddress)
-			if err != nil {
-				return EF("hrclient.Tags %v", err)
-			}
-
-			if len(tags) == 0 {
-				return EF("ChartAddress %v empty tags list", p.ChartAddress, err)
-			}
-
+			if err != nil { return EF("hrclient.Tags %v", err) }
+			if len(tags) == 0 { return EF("ChartAddress %v empty tags list", p.ChartAddress, err) }
 			var tagss []string
 			for _, t := range tags {
 				tagss = append(tagss, "["+t+"]")
 			}
 			p.perr(F("DEBUG tags ( %s ))", strings.Join(tagss, SP)))
-
 			chartversion = tags[0]
-
 			if u, err := url.Parse(p.ChartAddress); err != nil {
 				return EF("parse ChartAddress %v %v", p.ChartAddress, err)
 			} else {
@@ -835,19 +807,18 @@ func ServerPackagesUpdate() (err error) {
 				chartpath = path.Join(ConfigDir, F("%s-%s.tgz", chartname, chartversion))
 				p.perr(F("DEBUG local chartpath [%s] exists <%t>", chartpath, fileExists(chartpath)))
 			}
-
 			if !fileExists(chartpath) {
 				if chartpath, _, err = chartdownloader.DownloadTo(p.ChartAddress, chartversion, ConfigDir); err != nil {
 					return err
 				}
 			}
-
+			
 		} else if p.ChartLocalFilename != "" {
-
+			
 			if !strings.HasSuffix(p.ChartLocalFilename, ".tgz") {
 				return EF("ChartLocalFilename %v is not a .tgz file", p.ChartLocalFilename)
 			}
-
+			
 			if mm, err := filepath.Glob(path.Join(ConfigDir, p.ChartLocalFilename)); err != nil {
 				return EF("Glob ConfigDir %v ChartLocalFilename %v %v", ConfigDir, p.ChartLocalFilename, err)
 			} else if len(mm) == 0 {
@@ -856,13 +827,13 @@ func ServerPackagesUpdate() (err error) {
 				sort.Sort(sort.Reverse(sort.StringSlice(mm)))
 				chartpath = mm[0]
 			}
-
+			
 		} else {
-
+			
 			return EF("no ChartRepoAddress, ChartAddress, ChartLocalFilename")
-
+			
 		}
-
+		
 		// https://pkg.go.dev/helm.sh/helm/v3/pkg/chart/loader#Load
 		chartfull, err = helmloader.Load(chartpath)
 		if err != nil {
@@ -870,34 +841,30 @@ func ServerPackagesUpdate() (err error) {
 		} else if chartfull == nil {
 			return EF("loaded chart is <nil>")
 		}
-
+		
 		// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/chart#Metadata
 		chartversion = chartfull.Metadata.Version
-
+		
 		//
 		// FILL IMAGES VALUES
 		//
-
+		
 		p.ImagesValues[p.ChartVersionKey] = chartversion
-
+		
 		drlatestyamlhelmvalues := make(map[string]interface{})
 		for _, m := range []map[string]interface{}{chartfull.Values, p.Values, p.EnvValues} {
 			// https://pkg.go.dev/maps#Copy
 			maps.Copy(drlatestyamlhelmvalues, m)
 		}
 		err = drlatestyaml(drlatestyamlhelmvalues, Config.DrLatestYaml, &p.ImagesValues)
-		if err != nil {
-			return EF("drlatestyaml %s %w", p.Name, err)
-		}
-
+		if err != nil { return EF("drlatestyaml %s %w", p.Name, err) }
 		p.ImagesValuesList, p.ImagesValuesText, err = ImagesValuesToList(p.ImagesValues)
-
 		p.perr(F("DEBUG ImagesValues %v", p.ImagesValues))
 
 		//
 		// UPDATE TIMESTAMP
 		//
-
+		
 		if err := os.Chtimes(updatetimestampfilename, timenow, timenow); os.IsNotExist(err) {
 			if f, err := os.Create(updatetimestampfilename); err == nil {
 				f.Close()
@@ -909,7 +876,7 @@ func ServerPackagesUpdate() (err error) {
 		//
 		// LATEST VALUES HASH
 		//
-
+		
 		var allvaluestext string
 		if p.LocalValues == nil {
 			allvaluestext = p.ValuesText + p.EnvValuesText + p.ImagesValuesText
@@ -924,65 +891,61 @@ func ServerPackagesUpdate() (err error) {
 		//
 		// READ DEPLOYED HASH
 		//
-
+		
 		var ValuesDeployedHash string
 		if err := GetValuesText(p.ValuesDeployedHashFilename(), &ValuesDeployedHash, true); err != nil {
-
 			p.perr(F("ERROR GetValuesText %s", err))
 			continue
-
 		}
 
 		//
 		// COMPARE LATEST HASH VS DEPLOYED HASH
 		//
-
+		
 		if p.ValuesHash == ValuesDeployedHash {
-
+			
 			p.perr(F("DEBUG ValuesHash==ValuesDeployedHash"))
 			time.Sleep(PackagesSleepDuration)
 			continue
-
+			
 		}
 
 		//
 		// READ REPORTED HASH
 		//
-
+		
 		var ValuesReportedHash string
 		if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash, true); err != nil {
 			p.perr(F("ERROR GetValuesText %v", err))
 		}
-
 		p.perr(F("DEBUG ValuesHash [%s] ValuesReportedHash [%s] ValuesDeployedHash [%s] PermitHash [%s]", p.ValuesHash, ValuesReportedHash, ValuesDeployedHash, PermitHash))
 
 		//
 		// READ DEPLOYED VALUES
 		//
-
+		
 		var DeployedGlobalValuesText string
 		var DeployedValuesText string
 		var DeployedEnvValuesText string
 		var DeployedImagesValuesText string
 
 		if p.LocalValues == nil {
-
+			
 			if *p.GlobalValuesEnable {
 				if err := GetValuesTextFile(filepath.Join(p.FullName(), p.GlobalValuesFilename()), &DeployedGlobalValuesText, false); err != nil {
 					p.perr(F("ERROR GetValuesTextFile %v", err))
 				}
 			}
-
+			
 			if err := GetValuesTextFile(filepath.Join(p.FullName(), p.ValuesFilename()), &DeployedValuesText, false); err != nil {
 				p.perr(F("ERROR GetValuesTextFile %v", err))
 			}
-
+			
 			if err := GetValuesTextFile(filepath.Join(p.FullName(), p.EnvValuesFilename()), &DeployedEnvValuesText, false); err != nil {
 				p.perr(F("ERROR GetValuesTextFile %v", err))
 			}
-
+			
 		}
-
 		if err := GetValuesTextFile(filepath.Join(p.FullName(), p.ImagesValuesFilename()), &DeployedImagesValuesText, false); err != nil {
 			p.perr(F("ERROR GetValuesTextFile %v", err))
 		}
@@ -990,27 +953,27 @@ func ServerPackagesUpdate() (err error) {
 		//
 		// COMPARE LATEST VS DEPLOYED
 		//
-
+		
 		globalvaluesdiff := false
 		valuesdiff := false
 		envvaluesdiff := false
 		var imagesvaluesdiffss []string
 		var imagesvaluesdiff string
-
+		
 		if *p.GlobalValuesEnable && p.GlobalValuesText != DeployedGlobalValuesText {
 			globalvaluesdiff = true
 		}
-
+		
 		if p.ValuesText != DeployedValuesText {
 			valuesdiff = true
 		}
-
+		
 		if p.EnvValuesText != DeployedEnvValuesText {
 			envvaluesdiff = true
 		}
-
+		
 		if p.ImagesValuesText != DeployedImagesValuesText {
-
+			
 			DeployedImagesValuesMap := make(map[string]string)
 			yd := yaml.NewDecoder(strings.NewReader(DeployedImagesValuesText))
 			for {
@@ -1021,7 +984,7 @@ func ServerPackagesUpdate() (err error) {
 					break
 				}
 			}
-
+			
 			iv1, iv2 := DeployedImagesValuesMap, p.ImagesValues
 			for name, v1 := range iv1 {
 				if v2, ok := iv2[name]; ok {
@@ -1039,17 +1002,16 @@ func ServerPackagesUpdate() (err error) {
 			}
 			slices.SortFunc(imagesvaluesdiffss, strings.Compare)
 			imagesvaluesdiff = strings.Join(imagesvaluesdiffss, NL)
-
+			
 			p.perr(F("DEBUG ImagesValues diff [-"+NL+"%s"+NL+"-]", imagesvaluesdiff))
-
+			
 		}
 
 		//
 		// CHECK IF DEPLOY IS ALLOWED NOW
 		//
-
+		
 		deploynow := false
-
 		if p.AlwaysForceNow != nil && *p.AlwaysForceNow {
 			deploynow = true
 		}
@@ -1063,11 +1025,11 @@ func ServerPackagesUpdate() (err error) {
 		//
 		// PREPARE TELEGRAM MESSAGE
 		//
-
+		
 		var tgmsg string
 		var tgmsgid int64
 		var tgerr error
-
+		
 		tgmsg = tg.Bold(tg.Esc(tg.F("%s %s UPDATE", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)))) + NL
 		tgmsg += tg.Code("["+ServerHostname+"]") + NL + NL
 		if globalvaluesdiff {
@@ -1082,13 +1044,10 @@ func ServerPackagesUpdate() (err error) {
 		if imagesvaluesdiff != "" {
 			tgmsg += tg.Code(p.ImagesValuesFilename()) + " diff:" + NL + tg.Pre(imagesvaluesdiff) + NL + NL
 		}
-
+		
 		if !deploynow {
-
 			if p.ValuesHash != ValuesReportedHash {
-
 				p.perr(F("VERBOSE reporting pending update"))
-
 				tgmsg += tg.Bold(tg.Esc("NOT UPDATING NOW")) + tg.Esc("; update will start ") + tg.Bold(tg.Esc("in the next allowed time window")) + NL + NL
 				tgmsg += tg.Esc("TO FORCE START THIS UPDATE NOW REPLY TO THIS MESSAGE WITH TEXT \"") + tg.Code("NOW") + tg.Esc("\" (UPPERCASE)") + NL + NL
 				if tgmsgid, tgerr = p.tglog(tgmsg, 0, 0); tgerr != nil {
@@ -1098,20 +1057,19 @@ func ServerPackagesUpdate() (err error) {
 				//
 				// WRITE REPORTED HASH
 				//
-
+				
 				if err := PutValuesText(p.ValuesReportedHashFilename(), p.ValuesHash); err != nil {
 					return EF("PutValuesText %w", err)
 				}
-
 			}
-
+			
 			time.Sleep(PackagesSleepDuration)
 			continue
-
+			
 		}
 
 		p.perr(F("VERBOSE INSTALLING UPDATE"))
-
+		
 		if p.UpdateDelayDuration > 0 {
 			tgmsg += tg.Bold(tg.Esc(tg.F("STARTING IN %v", p.UpdateDelayDuration))) + NL + NL
 			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
@@ -1119,29 +1077,27 @@ func ServerPackagesUpdate() (err error) {
 			}
 			p.perr(F("VERBOSE sleeping %v", p.UpdateDelayDuration))
 			time.Sleep(p.UpdateDelayDuration)
-
+			
 		}
 
 		//
 		// DEPLOY
 		//
-
+		
 		p.perr(F("VERBOSE starting update"))
-
 		tgmsg += tg.Bold(tg.Esc("STARTED")) + NL + NL
-
 		if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
 			p.perr(F("ERROR tglog %v", tgerr))
 		}
-
+		
 		// PREPARE VALUES
-
+		
 		values := make(map[string]interface{})
-
+		
 		// why? cert-manager: values don't meet the specifications of the schema
 		delete(p.ImagesValues, p.ChartVersionKey)
 		helmchartutil.MergeTables(values, p.ImagesValues)
-
+		
 		if p.LocalValues == nil {
 			helmchartutil.MergeTables(values, p.EnvValues)
 			helmchartutil.MergeTables(values, p.Values)
@@ -1152,14 +1108,14 @@ func ServerPackagesUpdate() (err error) {
 		} else {
 			helmchartutil.MergeTables(values, p.LocalValues)
 		}
-
+		
 		helmchartutil.MergeTables(values, chartfull.Values)
-
+		
 		// TODO make sure values are correctly merged
 		//p.perr(F("DEBUG values %+v", values))
-
+		
 		// TODO objects get created in helmbot namespace if namespace not specified in the yaml manifest
-
+		
 		helmenvsettings := helmcli.New()
 		helmenvsettings.SetNamespace(p.Namespace)
 		helmactioncfg := new(helmaction.Configuration)
@@ -1170,66 +1126,60 @@ func ServerPackagesUpdate() (err error) {
 			}
 			return err
 		}
-
+		
 		isinstalled := false
 		for _, r := range installedreleases {
 			if r.Name == p.Name && r.Namespace == p.Namespace {
 				isinstalled = true
 			}
 		}
-
+		
 		var release *helmrelease.Release
-
+		
 		if isinstalled {
-
+			
 			// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Upgrade
 			helmupgrade := helmaction.NewUpgrade(helmactioncfg)
 			helmupgrade.DryRun = *p.DryRun
 			helmupgrade.Namespace = p.Namespace
-
+			
 			release, err = helmupgrade.Run(
 				p.Name,
 				chartfull,
 				values,
 			)
-
+			
 		} else {
-
+			
 			// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Install
 			helminstall := helmaction.NewInstall(helmactioncfg)
 			helminstall.DryRun = *p.DryRun
 			helminstall.CreateNamespace = true
 			helminstall.Namespace = p.Namespace
 			helminstall.ReleaseName = p.Name
-
+			
 			release, err = helminstall.Run(
 				chartfull,
 				values,
 			)
-
+			
 		}
-
+		
 		if err != nil {
-
 			p.perr(F("ERROR helm Run %v", err))
-
 			errtext := F("%v", err)
 			if len(errtext) > 2000 {
 				errtext = errtext[:1000] + NL + NL + "---cut---" + NL + NL + errtext[len(errtext)-1000:]
 			}
-
 			tgmsg += tg.Bold(tg.Esc("ERROR")) + NL + NL + tg.Pre(errtext) + NL + NL
-
 			if _, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
 				p.perr(F("ERROR tglog %v", tgerr))
 			}
-
 			return err
-
 		}
-
+		
 		// TODO delay helmbot self-update for saving deployed values and hash
-
+		
 		p.perr(
 			"VERBOSE installed "+
 				"status [%v] "+
@@ -1254,7 +1204,7 @@ func ServerPackagesUpdate() (err error) {
 				release.Info.Notes,
 			)
 		}
-
+		
 		var installstatus string
 		installstatus += tg.F("status %s", release.Info.Status) + NL
 		installstatus += tg.F("release %s", release.Name) + NL
@@ -1265,7 +1215,7 @@ func ServerPackagesUpdate() (err error) {
 			installstatus += tg.F("appversion %s", release.Chart.Metadata.AppVersion) + NL
 		}
 		tgmsg += tg.Pre(installstatus) + NL + NL
-
+		
 		if release.Info.Notes != "" {
 			notes := strings.TrimSpace(release.Info.Notes)
 			if len(notes) > 2000 {
@@ -1273,16 +1223,16 @@ func ServerPackagesUpdate() (err error) {
 			}
 			tgmsg += tg.Pre(notes) + NL + NL
 		}
-
+		
 		// TODO TgBossUserIds
 		if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
 			p.perr(F("ERROR tglog %v", tgerr))
 		}
-
+		
 		//
 		// WRITE DEPLOYED HASH
 		//
-
+		
 		if err := PutValuesText(p.ValuesDeployedHashFilename(), p.ValuesHash); err != nil {
 			tgmsg += tg.Bold(tg.Esc("INTERNAL ERROR")) + NL + NL
 			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
@@ -1290,22 +1240,22 @@ func ServerPackagesUpdate() (err error) {
 			}
 			return EF("PutValuesText: %w", err)
 		}
-
+		
 		//
 		// DELETE PERMIT HASH AND REPORTED HASH
 		//
-
+		
 		if err := DeleteValues(p.ValuesPermitHashFilename()); err != nil {
 			p.perr(F("VERBOSE WARNING DeleteValues %v", err))
 		}
 		if err := DeleteValues(p.ValuesReportedHashFilename()); err != nil {
 			p.perr(F("VERBOSE WARNING DeleteValues %v", err))
 		}
-
+		
 		//
 		// WRITE DEPLOYED VALUES
 		//
-
+		
 		if err := p.WriteDeployedValues(); err != nil {
 			p.perr(F("ERROR WriteDeployedValues %v", err))
 			tgmsg += tg.Bold(tg.Esc("INTERNAL ERROR")) + NL + NL
@@ -1314,9 +1264,8 @@ func ServerPackagesUpdate() (err error) {
 			}
 			return err
 		}
-
+		
 		tgmsg += tg.Bold(tg.Esc(tg.F("%s %s UPDATE FINISHED", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)))) + NL + NL
-
 		if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
 			p.perr(F("ERROR tglog %v", tgerr))
 		}
@@ -1324,14 +1273,14 @@ func ServerPackagesUpdate() (err error) {
 		//
 		// DEPLOY FINISHED
 		//
-
+		
 		time.Sleep(PackagesSleepDuration)
 		continue
-
+		
 	}
-
+	
 	return nil
-
+	
 }
 
 func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, err error) {
