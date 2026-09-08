@@ -1761,14 +1761,14 @@ func S3NewRequest(method, name string, payload []byte) (req *http.Request, err e
 	if err != nil { return nil, err }
 	req.Header.Set("User-Agent", "rclone")
 	req.Header.Set("Content-Type", "application/octet-stream")
-	req.Header.Set("Host", ValuesS3Url)
+	req.Header.Set("Host", ValuesS3UrlHost)
 	tnow := time.Now().UTC()
 	tnowheader := tnow.Format(time.RFC1123Z)
 	tnowauth := tnow.Format("20060102T150405Z")
 	// https://pkg.go.dev/time#pkg-constants
-	req.Header.Set("Date", tnowauth)
+	req.Header.Set("Date", tnowheader)
 	perr(F("DEBUG S3NewRequest tnowheader [%s] tnowauth [%s]", tnowheader, tnowauth))
-	hdrauthsig := method+NL+NL+req.Header.Get("Content-Type")+NL+tnowauth+NL+ValuesS3UrlPath+name
+	hdrauthsig := method+NL+NL+req.Header.Get("Content-Type")+NL+tnowheader+NL+ValuesS3UrlPath+name
 	hdrauthsighmac := hmac.New(sha1.New, []byte(ValuesS3Pass))
 	hdrauthsighmac.Write([]byte(hdrauthsig))
 	hdrauthsig = base64.StdEncoding.EncodeToString(hdrauthsighmac.Sum(nil))
@@ -1779,17 +1779,19 @@ func S3NewRequest(method, name string, payload []byte) (req *http.Request, err e
 func GetValuesTextS3(name string, valuestext *string, notexistok bool) (err error) {
 	var respbody string
 	if req, err := S3NewRequest(http.MethodGet, name, nil); err != nil {
-		return EF("GetValuesTextS3 %s: %w", name, err)
+		return EF("%s: %w", name, err)
 	} else if resp, err := http.DefaultClient.Do(req); err != nil {
-		return EF("GetValuesTextS3 %s: %w", name, err)
+		return EF("%s: %w", name, err)
 	} else if resp.StatusCode == 404 && !notexistok {
-		return EF("GetValuesTextS3 %s: s3 server response status %s", name, resp.Status)
+		return EF("%s: s3 server response status %s", name, resp.Status)
 	} else if resp.StatusCode == 404 && notexistok {
 		respbody = ""
 	} else if resp.StatusCode != 200 {
-		return EF("GetValuesTextS3 %s: s3 server response status %s", name, resp.Status)
+		bb, err := ioutil.ReadAll(resp.Body)
+		if err!=nil { perr(F("ERROR GetValuesTextS3 resp.Body ReadAll %v", err)) }
+		return EF("%s: s3 server response status <%d> body [%s]", name, resp.StatusCode, string(bb))
 	} else if bb, err := ioutil.ReadAll(resp.Body); err != nil {
-		return EF("GetValuesTextS3 %s: %w", name, err)
+		return EF("%s: %w", name, err)
 	} else {
 		respbody = string(bb)
 	}
