@@ -6,19 +6,16 @@ import (
 	"strings"
 
 	"dagger/helmbot/internal/dagger"
-
 	"golang.org/x/sync/errgroup"
 )
 
 const (
 	// https://hub.docker.com/_/golang/tags
-	GolangDockerImage = "golang:1.26-alpine"
-
+	GolangDockerImage = "golang:1.27-alpine"
 	// https://hub.docker.com/_/alpine/tags/
 	AlpineDockerImage = "alpine:3"
-
 	ExposedPort = 80
-
+	
 	NL = "\n"
 )
 
@@ -30,7 +27,6 @@ var (
 	SourceFiles = []string{
 		"helmbot.go", "go.mod", "go.sum",
 	}
-
 	Ctx = context.TODO()
 )
 
@@ -42,26 +38,19 @@ func (m *Helmbot) Build(
 	// +optional
 	version string,
 ) []*dagger.Container {
-
 	c := make([]*dagger.Container, 0, len(Platforms))
-
 	ff := []*dagger.File{}
 	for _, fn := range SourceFiles {
 		ff = append(ff, srcdir.File(fn))
 	}
-
 	eg, _ := errgroup.WithContext(Ctx)
-
 	for _, platform := range Platforms {
-
 		eg.Go(func() (err error) {
-
 			GOARCH := strings.Split(string(platform), "/")[1]
 			VERSION := version
 			fmt.Printf("platform %s"+NL, platform)
 			fmt.Printf("GOARCH %s"+NL, GOARCH)
 			fmt.Printf("VERSION %s"+NL, VERSION)
-
 			a := dag.Container().
 				From(GolangDockerImage).
 				WithFiles("/helmbot/", ff).
@@ -70,7 +59,6 @@ func (m *Helmbot) Build(
 				WithEnvVariable("GOARCH", GOARCH).
 				WithExec([]string{"go", "get", "-v"}).
 				WithExec([]string{"go", "build", "-o", "helmbot", "-ldflags", "-X main.VERSION=" + VERSION, "."})
-
 			b := dag.Container(dagger.ContainerOpts{Platform: platform}).
 				From(AlpineDockerImage).
 				WithExec([]string{"apk", "upgrade", "--no-cache"}).
@@ -80,18 +68,12 @@ func (m *Helmbot) Build(
 				WithWorkdir("/root/").
 				WithEntrypoint([]string{"/bin/helmbot"}).
 				WithExposedPort(ExposedPort)
-
 			c = append(c, b)
-
 			return err
 		})
-
 		eg.Wait()
-
 	}
-
 	return c
-
 }
 
 func (m *Helmbot) Publish(
@@ -107,7 +89,6 @@ func (m *Helmbot) Publish(
 	password *dagger.Secret,
 	image string,
 ) string {
-
 	d := dag.Container()
 	if username != "" {
 		d = d.WithRegistryAuth(registry, username, password)
@@ -119,7 +100,5 @@ func (m *Helmbot) Publish(
 			PlatformVariants: m.Build(srcdir, version),
 		},
 	)
-
 	return p
-
 }
