@@ -1759,7 +1759,7 @@ func fileExists(path string) bool {
 func S3NewRequest(method, name string, payload []byte) (req *http.Request, err error) {
 	req, err = http.NewRequest(method, ValuesS3Url+name, bytes.NewBuffer(payload))
 	if err != nil { return nil, err }
-	req.Header.Set("User-Agent", "helmbot")
+	req.Header.Set("User-Agent", "rclone")
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.Header.Set("Host", ValuesS3Url)
 	tnow := time.Now().UTC()
@@ -1768,7 +1768,7 @@ func S3NewRequest(method, name string, payload []byte) (req *http.Request, err e
 	// https://pkg.go.dev/time#pkg-constants
 	req.Header.Set("Date", tnowauth)
 	perr(F("DEBUG S3NewRequest tnowheader [%s] tnowauth [%s]", tnowheader, tnowauth))
-	hdrauthsig := method + NL + NL + req.Header.Get("Content-Type") + NL + tnowauth + NL + ValuesS3UrlPath + name
+	hdrauthsig := method+NL+NL+req.Header.Get("Content-Type")+NL+tnowauth+NL+ValuesS3UrlPath+name
 	hdrauthsighmac := hmac.New(sha1.New, []byte(ValuesS3Pass))
 	hdrauthsighmac.Write([]byte(hdrauthsig))
 	hdrauthsig = base64.StdEncoding.EncodeToString(hdrauthsighmac.Sum(nil))
