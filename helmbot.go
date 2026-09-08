@@ -13,9 +13,10 @@ package main
 import (
 	"bytes"
 	"crypto/hmac"
-	"crypto/sha1"
+//	"crypto/sha1"
 	"crypto/sha256"
-	"encoding/base64"
+//	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -1761,18 +1762,43 @@ func S3NewRequest(method, name string, payload []byte) (req *http.Request, err e
 	if err != nil { return nil, err }
 	req.Header.Set("User-Agent", "rclone")
 	req.Header.Set("Content-Type", "application/octet-stream")
-	req.Header.Set("Host", ValuesS3UrlHost)
+	req.Host = ValuesS3UrlHost
 	tnow := time.Now().UTC()
-	tnowheader := tnow.Format(time.RFC1123Z)
-	tnowauth := tnow.Format("20060102T150405Z")
-	// https://pkg.go.dev/time#pkg-constants
-	req.Header.Set("Date", tnowheader)
-	perr(F("DEBUG S3NewRequest tnowheader [%s] tnowauth [%s]", tnowheader, tnowauth))
-	hdrauthsig := method+NL+NL+req.Header.Get("Content-Type")+NL+tnowheader+NL+ValuesS3UrlPath+name
-	hdrauthsighmac := hmac.New(sha1.New, []byte(ValuesS3Pass))
-	hdrauthsighmac.Write([]byte(hdrauthsig))
-	hdrauthsig = base64.StdEncoding.EncodeToString(hdrauthsighmac.Sum(nil))
-	req.Header.Set("Authorization", "AWS "+ValuesS3User+":"+hdrauthsig)
+	tnowheader := tnow.Format("20060102T150405Z")
+	tnowdate := tnow.Format("20060102")
+	region := strings.Split(ValuesS3UrlHost, ".")[0]
+	service := "s3"
+	payloadhash := sha256.Sum256(payload)
+	payloadhashhex := hex.EncodeToString(payloadhash[:])
+	req.Header.Set("X-Amz-Date", tnowheader)
+	req.Header.Set("X-Amz-Content-Sha256", payloadhashhex)
+	canonicaluri := req.URL.EscapedPath()
+	if canonicaluri == "" { canonicaluri = "/" }
+	canonicalquerystring := req.URL.Query().Encode()
+	canonicalheaders := "content-type:"+req.Header.Get("Content-Type")+NL+
+		"host:"+ValuesS3UrlHost+NL+
+		"x-amz-content-sha256:"+payloadhashhex+NL+
+		"x-amz-date:"+tnowheader+NL
+	signedheaders := "content-type;host;x-amz-content-sha256;x-amz-date"
+	canonicalrequest := method+NL+canonicaluri+NL+canonicalquerystring+NL+canonicalheaders+NL+signedheaders+NL+payloadhashhex
+	canonicalrequesthash := sha256.Sum256([]byte(canonicalrequest))
+	canonicalrequesthashhex := hex.EncodeToString(canonicalrequesthash[:])
+	credentialscope := tnowdate+"/"+region+"/"+service+"/aws4_request"
+	stringtosign := "AWS4-HMAC-SHA256"+NL+tnowheader+NL+credentialscope+NL+canonicalrequesthashhex
+	aws4sign := func(key []byte, value string) []byte {
+		aws4hmac := hmac.New(sha256.New, key)
+		aws4hmac.Write([]byte(value))
+		return aws4hmac.Sum(nil)
+	}
+	datekey := aws4sign([]byte("AWS4"+ValuesS3Pass), tnowdate)
+	regionkey := aws4sign(datekey, region)
+	servicekey := aws4sign(regionkey, service)
+	signingkey := aws4sign(servicekey, "aws4_request")
+	signaturehmac := hmac.New(sha256.New, signingkey)
+	signaturehmac.Write([]byte(stringtosign))
+	signature := hex.EncodeToString(signaturehmac.Sum(nil))
+	authorization := "AWS4-HMAC-SHA256 Credential="+ValuesS3User+"/"+credentialscope+", SignedHeaders="+signedheaders+", Signature="+signature
+	req.Header.Set("Authorization", authorization)
 	return req, nil
 }
 
