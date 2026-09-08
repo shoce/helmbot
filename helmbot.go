@@ -1762,10 +1762,13 @@ func S3NewRequest(method, name string, payload []byte) (req *http.Request, err e
 	req.Header.Set("User-Agent", "helmbot")
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.Header.Set("Host", ValuesS3Url)
+	tnow := time.Now().UTC()
+	tnowheader := tnow.Format(time.RFC1123Z)
+	tnowauth := tnow.Format("20060102T150405Z")
 	// https://pkg.go.dev/time#pkg-constants
-	req.Header.Set("Date", time.Now().UTC().Format("20060102T150405Z"))
-	perr(F("DEBUG S3NewRequest Date [%s]", req.Header.Get("Date")))
-	hdrauthsig := method + NL + NL + req.Header.Get("Content-Type") + NL + req.Header.Get("Date") + NL + ValuesS3UrlPath + name
+	req.Header.Set("Date", tnowauth)
+	perr(F("DEBUG S3NewRequest tnowheader [%s] tnowauth [%s]", tnowheader, tnowauth))
+	hdrauthsig := method + NL + NL + req.Header.Get("Content-Type") + NL + tnowauth + NL + ValuesS3UrlPath + name
 	hdrauthsighmac := hmac.New(sha1.New, []byte(ValuesS3Pass))
 	hdrauthsighmac.Write([]byte(hdrauthsig))
 	hdrauthsig = base64.StdEncoding.EncodeToString(hdrauthsighmac.Sum(nil))
