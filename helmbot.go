@@ -1702,14 +1702,11 @@ func fileExists(path string) bool {
 	if os.IsNotExist(err) { return false }
 	return err == nil && s.Mode().IsRegular()
 }
-
-// get/put values file from/to an s3 storage
-// https://gist.github.com/gabo89/5e3e316bd4be0fb99369eac512a66537
-// https://stackoverflow.com/questions/72047783/how-do-i-download-files-from-a-s3-s3-bucket-using-curl
+// aws4 signature
 func S3NewRequest(method, name string, payload []byte) (req *http.Request, err error) {
 	req, err = http.NewRequest(method, ValuesS3Url+name, bytes.NewBuffer(payload))
 	if err != nil { return nil, err }
-	req.Header.Set("User-Agent", "rclone")
+	req.Header.Set("User-Agent", "helmbot")
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.Host = ValuesS3UrlHost
 	tnow := time.Now().UTC()
@@ -1724,7 +1721,8 @@ func S3NewRequest(method, name string, payload []byte) (req *http.Request, err e
 	canonicaluri := req.URL.EscapedPath()
 	if canonicaluri == "" { canonicaluri = "/" }
 	canonicalquerystring := req.URL.Query().Encode()
-	canonicalheaders := "content-type:"+req.Header.Get("Content-Type")+NL+
+	canonicalheaders := ""+
+		"content-type:"+req.Header.Get("Content-Type")+NL+
 		"host:"+ValuesS3UrlHost+NL+
 		"x-amz-content-sha256:"+payloadhashhex+NL+
 		"x-amz-date:"+tnowheader+NL
