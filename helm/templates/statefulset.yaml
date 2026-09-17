@@ -31,7 +31,7 @@ spec:
       volumes:
         - name: "config-dir"
           hostPath:
-            path: "{{ $.Values.ConfigDir }}"
+            path: "{{ $.Values.HostPath }}"
             type: "DirectoryOrCreate"
 
       containers:

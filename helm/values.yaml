@@ -8,6 +8,7 @@ DEBUG: ""
 
 ServerHostname: ""
 
+HostPath: "/opt/helmbot/"
 ConfigDir: "/opt/helmbot/"
 ConfigFilename: "helmbot.config.yaml"
 HostConfigFilename: "" # helmbot.config.hostname.yaml
