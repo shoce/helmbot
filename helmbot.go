@@ -1,5 +1,6 @@
 /*
 :1811 conflict S3NewRequest
+TODO
 */
 /*
 GoGet
@@ -1096,6 +1097,7 @@ func ServerPackagesUpdate() (err error) {
 		
 		// why? cert-manager: values don't meet the specifications of the schema
 		delete(p.ImagesValues, p.ChartVersionKey)
+		
 		helmchartutil.MergeTables(values, p.ImagesValues)
 		
 		if p.LocalValues == nil {
