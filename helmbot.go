@@ -1,7 +1,7 @@
 /*
 :1811 conflict S3NewRequest
 TODO
-LocalValues
+LocalValues INSTALLING
 */
 /*
 GoGet
@@ -1088,7 +1088,7 @@ func ServerPackagesUpdate() (err error) {
 		// DEPLOY
 		//
 		
-		p.perr(F("VERBOSE starting update"))
+		p.perr(F("VERBOSE preparing update"))
 		tgmsg += tg.Bold(tg.Esc("STARTED")) + NL + NL
 		if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
 			p.perr(F("ERROR tglog %v", tgerr))
@@ -1136,12 +1136,14 @@ func ServerPackagesUpdate() (err error) {
 		for _, r := range installedreleases {
 			if r.Name == p.Name && r.Namespace == p.Namespace {
 				isinstalled = true
+				p.perr(F("VERBOSE release [%s]/[%s] is already installed", p.Namespace,  p.Name))
 			}
 		}
 		
 		var release *helmrelease.Release
 		
 		if isinstalled {
+			p.perr(F("VERBOSE upgrading now"))
 			
 			// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Upgrade
 			helmupgrade := helmaction.NewUpgrade(helmactioncfg)
@@ -1155,6 +1157,7 @@ func ServerPackagesUpdate() (err error) {
 			)
 			
 		} else {
+			p.perr(F("VERBOSE installing now"))
 			
 			// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Install
 			helminstall := helmaction.NewInstall(helmactioncfg)
