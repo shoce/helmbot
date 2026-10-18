@@ -83,7 +83,7 @@ jobs:
           context: "."
           platforms: "linux/${{ matrix.arch }}"
           push: ${{ github.event_name != 'pull_request' }}
-          tags: "${{ env.IMAGE }}:${{ env.VERSION }}-${{ matrix.arch }}"
+          tags: "${{ env.IMAGE }}/${{ matrix.arch }}:${{ env.VERSION }}"
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: "type=gha"
           cache-to: "type=gha,mode=max"
@@ -123,8 +123,8 @@ jobs:
           docker buildx imagetools create \
             -t "${IMAGE}:latest" \
             -t "${IMAGE}:${VERSION}" \
-            "${IMAGE}:${VERSION}-amd64" \
-            "${IMAGE}:${VERSION}-arm64" 
+            "${IMAGE}/amd64:${VERSION}" \
+            "${IMAGE}/arm64:${VERSION}" 
 
 
 
