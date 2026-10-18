@@ -93,11 +93,19 @@ jobs:
       # https://github.com/actions/delete-package-versions/tags
       - uses: actions/delete-package-versions@v5
         with:
-          package-name: "${{ github.event.repository.name }}/${{ github.ref_name }}"
+          package-name: "${{ github.event.repository.name }}/${{ github.ref_name }}/${{ matrix.arch }}"
           package-type: "container"
-          min-versions-to-keep: 3
+          min-versions-to-keep: 6
           delete-only-untagged-versions: "false"
 
+      - name: "delete latest"
+        uses: "jenskeiner/ghcr-container-repository-cleanup-action@v1"
+        with:
+          package: "${{ github.event.repository.name }}/${{ github.ref_name }}/${{ matrix.arch }}"
+          include-tags: "^latest$"
+          token: "${{ secrets.GITHUB_TOKEN }}"
+  
+  
   manifest:
     
     needs:
@@ -128,9 +136,16 @@ jobs:
       # https://github.com/actions/delete-package-versions/tags
       - uses: actions/delete-package-versions@v5
         with:
-          package-name: "${{ github.event.repository.name }}"
+          package-name: "${{ github.event.repository.name }}/${{ github.ref_name }}"
           package-type: "container"
           min-versions-to-keep: 6
           delete-only-untagged-versions: "false"
 
+      - name: "delete latest"
+        uses: "jenskeiner/ghcr-container-repository-cleanup-action@v1"
+        with:
+          package: "${{ github.event.repository.name }}/${{ github.ref_name }}"
+          include-tags: "^latest$"
+          token: "${{ secrets.GITHUB_TOKEN }}"
+  
 
