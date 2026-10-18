@@ -606,9 +606,7 @@ func ServerPackagesUpdate() (err error) {
 		return err
 	}
 	installedreleases, err := helmaction.NewList(helmactioncfg).Run()
-	if err != nil {
-		return err
-	}
+	if err!=nil { return err }
 	
 	/*
 		for _, r := range installedreleases {
@@ -1139,41 +1137,51 @@ func ServerPackagesUpdate() (err error) {
 				p.perr(F("VERBOSE release [%s]/[%s] is already installed", p.Namespace,  p.Name))
 			}
 		}
+		if isinstalled {
+			p.perr(F("VERBOSE release [%s]/[%s] is already installed", p.Namespace,  p.Name))
+		} else {
+			p.perr(F("VERBOSE release [%s]/[%s] is not installed", p.Namespace,  p.Name))
+		}
 		
 		var release *helmrelease.Release
 		
-		if isinstalled {
-			p.perr(F("VERBOSE upgrading now"))
-			
+		doupgrade := func() {
+			p.perr(F("VERBOSE starting upgrade now"))
 			// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Upgrade
 			helmupgrade := helmaction.NewUpgrade(helmactioncfg)
 			helmupgrade.DryRun = *p.DryRun
 			helmupgrade.Namespace = p.Namespace
-			
 			release, err = helmupgrade.Run(
 				p.Name,
 				chartfull,
 				values,
 			)
-			
-		} else {
-			p.perr(F("VERBOSE installing now"))
-			
+		}
+		doinstall := func() {
+			p.perr(F("VERBOSE starting install now"))
 			// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Install
 			helminstall := helmaction.NewInstall(helmactioncfg)
 			helminstall.DryRun = *p.DryRun
 			helminstall.CreateNamespace = true
 			helminstall.Namespace = p.Namespace
 			helminstall.ReleaseName = p.Name
-			
 			release, err = helminstall.Run(
 				chartfull,
 				values,
 			)
-			
+		}
+		if isinstalled {
+			doupgrade()
+		} else {
+			doinstall()
+			if err!=nil {
+				p.perr(F("ERROR helm Run %v", err))
+				p.perr(F("ERROR helm Run trying upgrade"))
+			}
+			doupgrade()
 		}
 		
-		if err != nil {
+		if err!=nil {
 			p.perr(F("ERROR helm Run %v", err))
 			errtext := F("%v", err)
 			if len(errtext) > 2000 {
