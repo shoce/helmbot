@@ -19,5 +19,5 @@ COPY --from=build /helmbot/helmbot /bin/helmbot
 RUN ls -l -a /bin/helmbot
 WORKDIR /root/
 ENTRYPOINT ["/bin/helmbot"]
-
+EXPOSE 80
 
