@@ -1,6 +1,7 @@
 /*
 :1811 conflict S3NewRequest
 TODO
+LocalValues
 */
 /*
 GoGet
@@ -853,9 +854,11 @@ func ServerPackagesUpdate() (err error) {
 		p.ImagesValues[p.ChartVersionKey] = chartversion
 		
 		drlatestyamlhelmvalues := make(map[string]interface{})
-		for _, m := range []map[string]interface{}{chartfull.Values, p.Values, p.EnvValues} {
-			// https://pkg.go.dev/maps#Copy
-			maps.Copy(drlatestyamlhelmvalues, m)
+		maps.Copy(drlatestyamlhelmvalues, chartfull.Values)
+		maps.Copy(drlatestyamlhelmvalues, p.Values)
+		maps.Copy(drlatestyamlhelmvalues, p.EnvValues)
+		if p.LocalValues!=nil {
+			maps.Copy(drlatestyamlhelmvalues, p.LocalValues)
 		}
 		err = drlatestyaml(drlatestyamlhelmvalues, Config.DrLatestYaml, &p.ImagesValues)
 		if err != nil { return EF("drlatestyaml %s %w", p.Name, err) }
