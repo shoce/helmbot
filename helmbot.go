@@ -665,10 +665,9 @@ func ServerPackagesUpdate() (err error) {
 		// READ LATEST VALUES
 		//
 		
-		if p.LocalValues == nil {
-			
+		if p.LocalValues==nil {
 			if *p.GlobalValuesEnable {
-				if err := GetValues(p.GlobalValuesFilename(), &p.GlobalValuesText, &p.GlobalValues); err != nil { return err }
+				if err := GetValues(p.GlobalValuesFilename(), &p.GlobalValuesText, &p.GlobalValues); err!=nil { return err }
 			}
 			if err := GetValues(p.ValuesFilename(), &p.ValuesText, &p.Values); err != nil { return err }
 			if err := GetValues(p.EnvValuesFilename(), &p.EnvValuesText, &p.EnvValues); err != nil { return err }
@@ -853,9 +852,10 @@ func ServerPackagesUpdate() (err error) {
 		
 		drlatestyamlhelmvalues := make(map[string]interface{})
 		maps.Copy(drlatestyamlhelmvalues, chartfull.Values)
-		maps.Copy(drlatestyamlhelmvalues, p.Values)
-		maps.Copy(drlatestyamlhelmvalues, p.EnvValues)
-		if p.LocalValues!=nil {
+		if p.LocalValues==nil {
+			maps.Copy(drlatestyamlhelmvalues, p.Values)
+			maps.Copy(drlatestyamlhelmvalues, p.EnvValues)
+		} else {
 			maps.Copy(drlatestyamlhelmvalues, p.LocalValues)
 		}
 		err = drlatestyaml(drlatestyamlhelmvalues, Config.DrLatestYaml, &p.ImagesValues)
@@ -931,24 +931,20 @@ func ServerPackagesUpdate() (err error) {
 		var DeployedEnvValuesText string
 		var DeployedImagesValuesText string
 
-		if p.LocalValues == nil {
-			
+		if p.LocalValues==nil {
 			if *p.GlobalValuesEnable {
-				if err := GetValuesTextFile(filepath.Join(p.FullName(), p.GlobalValuesFilename()), &DeployedGlobalValuesText, false); err != nil {
+				if err := GetValuesTextFile(filepath.Join(p.FullName(), p.GlobalValuesFilename()), &DeployedGlobalValuesText, false); err!=nil {
 					p.perr(F("ERROR GetValuesTextFile %v", err))
 				}
 			}
-			
-			if err := GetValuesTextFile(filepath.Join(p.FullName(), p.ValuesFilename()), &DeployedValuesText, false); err != nil {
+			if err := GetValuesTextFile(filepath.Join(p.FullName(), p.ValuesFilename()), &DeployedValuesText, false); err!=nil {
 				p.perr(F("ERROR GetValuesTextFile %v", err))
 			}
-			
-			if err := GetValuesTextFile(filepath.Join(p.FullName(), p.EnvValuesFilename()), &DeployedEnvValuesText, false); err != nil {
+			if err := GetValuesTextFile(filepath.Join(p.FullName(), p.EnvValuesFilename()), &DeployedEnvValuesText, false); err!=nil {
 				p.perr(F("ERROR GetValuesTextFile %v", err))
 			}
-			
 		}
-		if err := GetValuesTextFile(filepath.Join(p.FullName(), p.ImagesValuesFilename()), &DeployedImagesValuesText, false); err != nil {
+		if err := GetValuesTextFile(filepath.Join(p.FullName(), p.ImagesValuesFilename()), &DeployedImagesValuesText, false); err!=nil {
 			p.perr(F("ERROR GetValuesTextFile %v", err))
 		}
 
@@ -1101,7 +1097,7 @@ func ServerPackagesUpdate() (err error) {
 		
 		helmchartutil.MergeTables(values, p.ImagesValues)
 		
-		if p.LocalValues == nil {
+		if p.LocalValues==nil {
 			helmchartutil.MergeTables(values, p.EnvValues)
 			helmchartutil.MergeTables(values, p.Values)
 			p.perr(F("DEBUG GlobalValuesEnable %v", *p.GlobalValuesEnable))
@@ -1624,26 +1620,30 @@ func (p *PackageConfig) HashId() string {
 }
 
 func (p *PackageConfig) WriteDeployedValues() error {
-	if err := os.RemoveAll(path.Join(ConfigDir, p.FullName())); err != nil {
+	if err := os.RemoveAll(path.Join(ConfigDir, p.FullName())); err!=nil {
 		return EF("RemoveAll %w", err)
 	}
-	if err := os.MkdirAll(path.Join(ConfigDir, p.FullName()), 0700); err != nil {
+	if err := os.MkdirAll(path.Join(ConfigDir, p.FullName()), 0700); err!=nil {
 		return EF("MkdirAll %w", err)
 	}
-	if p.LocalValues == nil {
+	if p.LocalValues==nil {
 		if *p.GlobalValuesEnable {
-			if err := PutValuesTextFile(path.Join(p.FullName(), p.GlobalValuesFilename()), p.GlobalValuesText); err != nil {
+			if err := PutValuesTextFile(path.Join(p.FullName(), p.GlobalValuesFilename()), p.GlobalValuesText); err!=nil {
 				return EF("PutValuesTextFile %w", err)
 			}
 		}
-		if err := PutValuesTextFile(path.Join(p.FullName(), p.ValuesFilename()), p.ValuesText); err != nil {
+		if err := PutValuesTextFile(path.Join(p.FullName(), p.ValuesFilename()), p.ValuesText); err!=nil {
 			return EF("PutValuesTextFile %w", err)
 		}
-		if err := PutValuesTextFile(path.Join(p.FullName(), p.EnvValuesFilename()), p.EnvValuesText); err != nil {
+		if err := PutValuesTextFile(path.Join(p.FullName(), p.EnvValuesFilename()), p.EnvValuesText); err!=nil {
+			return EF("PutValuesTextFile %w", err)
+		}
+	} else {
+		if err := PutValuesTextFile(path.Join(p.FullName(), "local.values.yaml"), F("%#v", p.LocalValues)); err!=nil {
 			return EF("PutValuesTextFile %w", err)
 		}
 	}
-	if err := PutValuesTextFile(path.Join(p.FullName(), p.ImagesValuesFilename()), p.ImagesValuesText); err != nil {
+	if err := PutValuesTextFile(path.Join(p.FullName(), p.ImagesValuesFilename()), p.ImagesValuesText); err!=nil {
 		return EF("PutValuesTextFile %w", err)
 	}
 	return nil
