@@ -32,7 +32,7 @@ jobs:
     steps:
       - id: "image"
         run: |
-          echo "IMAGE=${REGISTRY}/${ github.event.repository.name }" >> "$GITHUB_ENV"
+          echo "IMAGE=${REGISTRY}/${{ github.event.repository.name }}" >> "$GITHUB_ENV"
       - id: "version"
         uses: "shoce/action-version@v1"
       - id: "output"
