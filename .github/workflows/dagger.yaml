@@ -1,30 +1,33 @@
 
-name: dagger
+name: "dagger"
 
 permissions:
-  contents: write
-  packages: write
-  id-token: write
+  contents: "write"
+  packages: "write"
+  id-token: "write"
 
 on:
   push:
     branches:
-      - dev
-      - main
+      - "dev"
+      - "main"
     paths-ignore:
-      - 'helm/**'
-      - '.github/workflows/helm.yaml'
-      - '.github/workflows/docker.yaml'
+      - "helm/**"
+      - ".github/workflows/helm.yaml"
+      - ".github/workflows/docker.yaml"
 
 env:
-  REGISTRY: ghcr.io
+  REGISTRY: "ghcr.io"
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   DAGGER_NO_NAG: 1
 
 jobs:
   build-publish:
-    if: true
-    runs-on: ubuntu-24.04
+    
+    if: false
+    
+    runs-on: "ubuntu-24.04"
+    
     steps:
 
       - uses: shoce/action-version@v1
