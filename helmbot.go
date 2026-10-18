@@ -857,6 +857,8 @@ func ServerPackagesUpdate() (err error) {
 			maps.Copy(drlatestyamlhelmvalues, p.EnvValues)
 		} else {
 			maps.Copy(drlatestyamlhelmvalues, p.LocalValues)
+			p.perr(F("DEBUG LocalValues %#v", p.LocalValues))
+			p.perr(F("DEBUG drlatestyamlhelmvalues %#v", drlatestyamlhelmvalues))
 		}
 		err = drlatestyaml(drlatestyamlhelmvalues, Config.DrLatestYaml, &p.ImagesValues)
 		if err != nil { return EF("drlatestyaml %s %w", p.Name, err) }
