@@ -1,7 +1,7 @@
 /*
 :1811 conflict S3NewRequest
 TODO
-LocalValues INSTALLING
+LocalValues INSTALLING drlatestyaml
 */
 /*
 GoGet
@@ -852,6 +852,7 @@ func ServerPackagesUpdate() (err error) {
 		
 		drlatestyamlhelmvalues := make(map[string]interface{})
 		maps.Copy(drlatestyamlhelmvalues, chartfull.Values)
+		// TODO if LocalValues.ImageTag provided then skip drlatestyaml
 		if p.LocalValues==nil {
 			maps.Copy(drlatestyamlhelmvalues, p.Values)
 			maps.Copy(drlatestyamlhelmvalues, p.EnvValues)
@@ -861,7 +862,7 @@ func ServerPackagesUpdate() (err error) {
 			p.perr(F("DEBUG drlatestyamlhelmvalues %#v", drlatestyamlhelmvalues))
 		}
 		err = drlatestyaml(drlatestyamlhelmvalues, Config.DrLatestYaml, &p.ImagesValues)
-		if err != nil { return EF("drlatestyaml %s %w", p.Name, err) }
+		if err!=nil { return EF("drlatestyaml %s %w", p.Name, err) }
 		p.ImagesValuesList, p.ImagesValuesText, err = ImagesValuesToList(p.ImagesValues)
 		p.perr(F("DEBUG ImagesValues %v", p.ImagesValues))
 
@@ -1874,14 +1875,14 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 			if strings.HasPrefix(helmvalueskey, e.KeyPrefix) {
 				imagename := helmvalueskey
 				imagenamereplace := e.KeyPrefixReplace + strings.TrimPrefix(imagename, e.KeyPrefix)
-				if v, ok := helmvalues[imagenamereplace]; ok && v != "" { continue }
+				if v, ok := helmvalues[imagenamereplace]; ok && v!="" { continue }
 				imageurl := helmvaluesvalue.(string)
 				if !strings.HasPrefix(imageurl, "https://") && !strings.HasPrefix(imageurl, "http://") {
-					imageurl = F("https://%s", imageurl)
+					imageurl = "https://" + imageurl
 				}
 				var u *url.URL
 				if u, err = url.Parse(imageurl); err != nil { return EF("url.Parse %s %v: %w", imagename, imageurl, err) }
-				RegistryUrl := F("%s://%s", u.Scheme, u.Host)
+				RegistryUrl := u.Scheme + "://" + u.Host
 				RegistryRepository := u.Path
 				//perr(F("DEBUG drlatestyaml registry %s %s", RegistryUrl, RegistryRepository))
 				dr := dregistry.NewInsecure(RegistryUrl, e.RegistryUsername, e.RegistryPassword)
