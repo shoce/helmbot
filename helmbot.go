@@ -2,11 +2,11 @@
 :1811 conflict S3NewRequest Aton %v
 TODO
 LocalValues INSTALLING drlatestyaml
-local.values.yaml DEBUG tags
+local.values.yaml DEBUG tags AllowedHours
+AtonList
 */
 /*
 GoGet
-GoFmt
 GoBuildNull
 GoFixDiff
 */
@@ -657,10 +657,10 @@ func ServerPackagesUpdate() (err error) {
 		timenow := time.Now()
 		timenowhour := F("%02d", timenow.In(p.TimezoneLocation).Hour())
 		
-		p.perr(F("DEBUG Namespace [%s] DryRun <%t> AlwaysForceNow <%t> AllowedHours (%s)) Timezone [%s] TimeNowHour [%s] UpdateInterval <%s>", p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration))
+		p.perr(F("DEBUG Namespace[%s] DryRun<%t> AlwaysForceNow<%t> AllowedHours(%s) Timezone[%s] TimeNowHour[%s] UpdateInterval<%s>", p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration))
 		
 		//p.perr(F("DEBUG config %+v", p))
-		p.perr(F("DEBUG repo.address [%s] chartaddress [%s] chartlocalfilename [%s]", p.ChartRepo.Address, p.ChartAddress, p.ChartLocalFilename))
+		p.perr(F("DEBUG repo.address[%s] chartaddress[%s] chartlocalfilename[%s]", p.ChartRepo.Address, p.ChartAddress, p.ChartLocalFilename))
 		
 		//
 		// READ LATEST VALUES
@@ -858,14 +858,14 @@ func ServerPackagesUpdate() (err error) {
 			maps.Copy(drlatestyamlhelmvalues, p.Values)
 			maps.Copy(drlatestyamlhelmvalues, p.EnvValues)
 		} else {
-			p.perr(F("DEBUG LocalValues { %s }", AtonMap(p.LocalValues)))
+			p.perr(F("DEBUG LocalValues {%s}", AtonMap(p.LocalValues)))
 			maps.Copy(drlatestyamlhelmvalues, p.LocalValues)
-			p.perr(F("DEBUG drlatestyamlhelmvalues { %s }", AtonMap(drlatestyamlhelmvalues)))
 		}
+		p.perr(F("DEBUG drlatestyamlhelmvalues {%s}", AtonMap(drlatestyamlhelmvalues)))
 		err = drlatestyaml(drlatestyamlhelmvalues, Config.DrLatestYaml, &p.ImagesValues)
-		if err!=nil { return EF("drlatestyaml %s %w", p.Name, err) }
+		if err!=nil { return EF("drlatestyaml [%s] %w", p.Name, err) }
 		p.ImagesValuesList, p.ImagesValuesText, err = ImagesValuesToList(p.ImagesValues)
-		p.perr(F("DEBUG ImagesValues { %s }", AtonMap(p.ImagesValues)))
+		p.perr(F("DEBUG ImagesValues {%s}", AtonMap(p.ImagesValues)))
 
 		//
 		// UPDATE TIMESTAMP
@@ -1733,9 +1733,9 @@ func AtonMap(mm map[string]any) (aton string) {
 		} else if aa, ok := mm[k].([]any); ok {
 			ssb.WriteString(F("[%s]( %s ) ", AtonString(k), AtonList(aa)))			
 		} else if aa, ok := mm[k].(map[string]any); ok {
-			ssb.WriteString(F("[%s]{ %s } ", AtonString(k), AtonMap(aa)))			
+			ssb.WriteString(F("[%s]{%s} ", AtonString(k), AtonMap(aa)))			
 		} else {
-			ssb.WriteString(F("[%s]{ %s } ", AtonString(k), AtonString(F("%#v", mm[k]))))
+			ssb.WriteString(F("[%s]{%s} ", AtonString(k), AtonString(F("%#v", mm[k]))))
 		}
 	}
 	aton = ssb.String()
@@ -1769,9 +1769,9 @@ func AtonList(aa []any) (aton string) {
 		} else if t, ok := v.(time.Duration); ok {
 			ssb.WriteString(F("<%s> ", t))
 		} else if aa, ok := v.([]any); ok {
-			ssb.WriteString(F("( %s ) ", AtonList(aa)))			
+			ssb.WriteString(F("(%s) ", AtonList(aa)))			
 		} else if aa, ok := v.(map[string]any); ok {
-			ssb.WriteString(F("{ %s } ", AtonMap(aa)))			
+			ssb.WriteString(F("{%s} ", AtonMap(aa)))			
 		} else {
 			ssb.WriteString(F("{%s} ", AtonString(F("%+v", v))))
 		}
@@ -1975,6 +1975,8 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 					if s, ok := v.(string); ok && s!="" {
 						perr(F("DEBUG drlatestyaml [%s] found [%s][%s]", AtonString(imagename), AtonString(imagenamereplace), s))
 						continue
+					} else if ok && s=="" {
+						perr(F("DEBUG drlatestyaml [%s] found [%s][]", AtonString(imagename), AtonString(imagenamereplace), v))
 					} else {
 						perr(F("DEBUG drlatestyaml [%s] found [%s]{ %#v }", AtonString(imagename), AtonString(imagenamereplace), v))
 					}
