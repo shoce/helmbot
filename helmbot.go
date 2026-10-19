@@ -1,5 +1,5 @@
 /*
-:1811 conflict S3NewRequest Aton %#v
+:1811 conflict S3NewRequest Aton %v
 TODO
 LocalValues INSTALLING drlatestyaml
 local.values.yaml
@@ -185,7 +185,7 @@ func init() {
 
 	if v := os.Getenv("PackagesUpgradeInterval"); v != "" {
 		if d, err := time.ParseDuration(v); err != nil {
-			perr(F("ERROR parse duration PackagesUpgradeInterval %v %s", v, err))
+			perr(F("ERROR parse duration PackagesUpgradeInterval [%s] %v", v, err))
 			os.Exit(1)
 		} else {
 			PackagesUpgradeInterval = d
@@ -200,7 +200,7 @@ func init() {
 	if ValuesS3Url == "" {
 		perr(F("WARNING empty ValuesS3Url env var"))
 	} else if u, err := url.Parse(ValuesS3Url); err != nil {
-		perr(F("ERROR ValuesS3Url %v parse %s", ValuesS3Url, err))
+		perr(F("ERROR ValuesS3Url [%s] parse %v", ValuesS3Url, err))
 		os.Exit(1)
 	} else {
 		ValuesS3UrlHost = u.Host
@@ -486,7 +486,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
 	var ValuesDeployedHash string
 	if err := GetValuesText(p.ValuesDeployedHashFilename(), &ValuesDeployedHash, true); err != nil {
-		perr(F("ERROR webhook %v could not be read %v", p.ValuesDeployedHashFilename(), err))
+		perr(F("ERROR webhook [%s] could not be read %v", p.ValuesDeployedHashFilename(), err))
 		if _, tgerr = tglog(
 			tg.Bold(tg.Esc("INTERNAL ERROR"))+NL+
 				tg.Esc(TgAdminMention),
@@ -540,7 +540,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	perr(F("DEBUG webhook creating [%s] file", p.ValuesPermitHashFilename()))
 
 	if err := PutValuesText(p.ValuesPermitHashFilename(), UpdateValuesHash); err != nil {
-		perr(F("ERROR webhook [%s] file could not be written %v", p.ValuesPermitHashFilename(), err))
+		perr(F("ERROR webhook [%s] could not be written %v", p.ValuesPermitHashFilename(), err))
 		if _, tgerr = tglog(
 			tg.Bold(tg.Esc("INTERNAL ERROR"))+NL+
 				tg.Esc(TgAdminMention),
@@ -780,7 +780,7 @@ func ServerPackagesUpdate() (err error) {
 			chartaddress = strings.TrimPrefix(chartaddress, "oci://")
 			hrclient, err := helmregistry.NewClient(helmregistry.ClientOptDebug(false))
 			if err != nil {
-				return EF("helmregistry.NewClient: %v", err)
+				return EF("helmregistry.NewClient %v", err)
 			}
 			if p.ChartAuth.Username != "" {
 				if charturl, err := url.Parse(p.ChartAddress); err != nil {
@@ -793,7 +793,7 @@ func ServerPackagesUpdate() (err error) {
 			}
 			tags, err := hrclient.Tags(chartaddress)
 			if err != nil { return EF("hrclient.Tags %v", err) }
-			if len(tags) == 0 { return EF("ChartAddress %v empty tags list", p.ChartAddress, err) }
+			if len(tags) == 0 { return EF("ChartAddress [%s] empty tags list", p.ChartAddress, err) }
 			var tagss []string
 			for _, t := range tags {
 				tagss = append(tagss, "["+t+"]")
@@ -801,7 +801,7 @@ func ServerPackagesUpdate() (err error) {
 			p.perr(F("DEBUG tags ( %s ))", strings.Join(tagss, SP)))
 			chartversion = tags[0]
 			if u, err := url.Parse(p.ChartAddress); err != nil {
-				return EF("parse ChartAddress %v %v", p.ChartAddress, err)
+				return EF("parse ChartAddress [%s] %v", p.ChartAddress, err)
 			} else {
 				chartname = path.Base(u.Path)
 				chartpath = path.Join(ConfigDir, F("%s-%s.tgz", chartname, chartversion))
@@ -816,13 +816,13 @@ func ServerPackagesUpdate() (err error) {
 		} else if p.ChartLocalFilename != "" {
 			
 			if !strings.HasSuffix(p.ChartLocalFilename, ".tgz") {
-				return EF("ChartLocalFilename %v is not a .tgz file", p.ChartLocalFilename)
+				return EF("ChartLocalFilename [%s] is not a .tgz file", p.ChartLocalFilename)
 			}
 			
 			if mm, err := filepath.Glob(path.Join(ConfigDir, p.ChartLocalFilename)); err != nil {
-				return EF("Glob ConfigDir %v ChartLocalFilename %v %v", ConfigDir, p.ChartLocalFilename, err)
+				return EF("Glob ConfigDir [%s] ChartLocalFilename [%s] %v", ConfigDir, p.ChartLocalFilename, err)
 			} else if len(mm) == 0 {
-				return EF("Glob ConfigDir %v ChartLocalFilename %v files not found", ConfigDir, p.ChartLocalFilename)
+				return EF("Glob ConfigDir [%s] ChartLocalFilename [%s] glob no match", ConfigDir, p.ChartLocalFilename)
 			} else {
 				sort.Sort(sort.Reverse(sort.StringSlice(mm)))
 				chartpath = mm[0]
@@ -837,7 +837,7 @@ func ServerPackagesUpdate() (err error) {
 		// https://pkg.go.dev/helm.sh/helm/v3/pkg/chart/loader#Load
 		chartfull, err = helmloader.Load(chartpath)
 		if err != nil {
-			return EF("helmloader.Load %v %w", chartpath, err)
+			return EF("helmloader.Load [%s] %w", chartpath, err)
 		} else if chartfull == nil {
 			return EF("loaded chart is <nil>")
 		}
@@ -865,17 +865,17 @@ func ServerPackagesUpdate() (err error) {
 		err = drlatestyaml(drlatestyamlhelmvalues, Config.DrLatestYaml, &p.ImagesValues)
 		if err!=nil { return EF("drlatestyaml %s %w", p.Name, err) }
 		p.ImagesValuesList, p.ImagesValuesText, err = ImagesValuesToList(p.ImagesValues)
-		p.perr(F("DEBUG ImagesValues %v", p.ImagesValues))
+		p.perr(F("DEBUG ImagesValues { %s }", AtonMap(p.ImagesValues)))
 
 		//
 		// UPDATE TIMESTAMP
 		//
 		
 		if err := os.Chtimes(updatetimestampfilename, timenow, timenow); os.IsNotExist(err) {
-			if f, err := os.Create(updatetimestampfilename); err == nil {
+			if f, err := os.Create(updatetimestampfilename); err==nil {
 				f.Close()
 			} else {
-				p.perr(F("ERROR create timestamp file %v", err))
+				p.perr(F("ERROR create timestamp file [%s] %v", updatetimestampfilename, err))
 			}
 		}
 
@@ -1077,7 +1077,7 @@ func ServerPackagesUpdate() (err error) {
 			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
 				p.perr(F("ERROR tglog %v", tgerr))
 			}
-			p.perr(F("VERBOSE sleeping %v", p.UpdateDelayDuration))
+			p.perr(F("VERBOSE sleeping <%v>", p.UpdateDelayDuration))
 			time.Sleep(p.UpdateDelayDuration)
 			
 		}
@@ -1104,7 +1104,7 @@ func ServerPackagesUpdate() (err error) {
 		if p.LocalValues==nil {
 			helmchartutil.MergeTables(values, p.EnvValues)
 			helmchartutil.MergeTables(values, p.Values)
-			p.perr(F("DEBUG GlobalValuesEnable <%v>", *p.GlobalValuesEnable))
+			p.perr(F("DEBUG GlobalValuesEnable <%t>", *p.GlobalValuesEnable))
 			if *p.GlobalValuesEnable {
 				helmchartutil.MergeTables(values, p.GlobalValues)
 			}
@@ -1210,18 +1210,18 @@ func ServerPackagesUpdate() (err error) {
 		
 		p.perr(
 			"VERBOSE installed "+
-				"status [%v] "+
-				"release [%v] "+
-				"namespace [%v] "+
-				"version [%v] "+
-				"appversion [%v] "+
-				"hashid [%v] ",
-			release.Info.Status,
-			release.Name,
-			release.Namespace,
-			release.Chart.Metadata.Version,
-			release.Chart.Metadata.AppVersion,
-			p.HashId(),
+				"status [%s] "+
+				"release [%s] "+
+				"namespace [%s] "+
+				"version [%s] "+
+				"appversion [%s] "+
+				"hashid [%s] ",
+			AtonString(string(release.Info.Status)),
+			AtonString(release.Name),
+			AtonString(release.Namespace),
+			AtonString(release.Chart.Metadata.Version),
+			AtonString(release.Chart.Metadata.AppVersion),
+			AtonString(p.HashId()),
 		)
 		if strings.TrimSpace(release.Info.Notes)!="" {
 			p.perr(
@@ -1725,12 +1725,49 @@ func AtonMap(mm map[string]any) (aton string) {
 			ssb.WriteString(F("[%s]<%f> ", AtonString(k), j))
 		} else if j, ok := mm[k].(bool); ok {
 			ssb.WriteString(F("[%s]<%t> ", AtonString(k), j))
-		} else if v, ok := mm[k].(time.Time); ok {
-			ssb.WriteString(F("[%s]<%s> ", AtonString(k), v))
-		} else if v, ok := mm[k].(time.Duration); ok {
-			ssb.WriteString(F("[%s]<%s> ", AtonString(k), v))
+		} else if t, ok := mm[k].(time.Time); ok {
+			ssb.WriteString(F("[%s]<%s> ", AtonString(k), t))
+		} else if t, ok := mm[k].(time.Duration); ok {
+			ssb.WriteString(F("[%s]<%s> ", AtonString(k), t))
+		} else if aa, ok := mm[k].([]any); ok {
+			ssb.WriteString(F("[%s]( %s ) ", AtonString(k), aa))
 		} else {
-			ssb.WriteString(F("[%s][%s] ", AtonString(k), AtonString(F("%+v", mm[k]))))
+			ssb.WriteString(F("[%s]{%s} ", AtonString(k), AtonString(F("%#v", mm[k]))))
+		}
+	}
+	aton = ssb.String()
+	return aton
+}
+
+func AtonList(aa []any) (aton string) {
+	var ssb strings.Builder
+	for _, v := range aa {
+		if s, ok := v.(string); ok {
+			ssb.WriteString(F("[%s] ", AtonString(s)))
+		} else if j, ok := v.(int); ok {
+			ssb.WriteString(F("<%d> ", j))
+		} else if j, ok := v.(int32); ok {
+			ssb.WriteString(F("<%d> ", j))
+		} else if j, ok := v.(int64); ok {
+			ssb.WriteString(F("<%d> ", j))
+		} else if j, ok := v.(uint); ok {
+			ssb.WriteString(F("<%x> ", j))
+		} else if j, ok := v.(uint32); ok {
+			ssb.WriteString(F("<%x> ", j))
+		} else if j, ok := v.(uint64); ok {
+			ssb.WriteString(F("<%x> ", j))
+		} else if j, ok := v.(float32); ok {
+			ssb.WriteString(F("<%f> ", j))
+		} else if j, ok := v.(float64); ok {
+			ssb.WriteString(F("<%f> ", j))
+		} else if j, ok := v.(bool); ok {
+			ssb.WriteString(F("[%s]<%t> ", j))
+		} else if t, ok := v.(time.Time); ok {
+			ssb.WriteString(F("<%s> ", t))
+		} else if t, ok := v.(time.Duration); ok {
+			ssb.WriteString(F("<%s> ", t))
+		} else {
+			ssb.WriteString(F("{%s} ", AtonString(F("%+v", v))))
 		}
 	}
 	aton = ssb.String()
@@ -1872,13 +1909,13 @@ func PutValuesTextS3(name string, valuestext string) (err error) {
 }
 
 func DeleteValuesS3(name string) (err error) {
-	perr(F("DEBUG DeleteValuesS3 %v", name))
+	perr(F("DEBUG DeleteValuesS3 [%s]", AtonString(name)))
 	if req, err := S3NewRequest(http.MethodDelete, name, nil); err != nil {
-		return EF("DeleteValuesS3 [%s] %w", name, err)
+		return EF("DeleteValuesS3 [%s] %w", AtonString(name), err)
 	} else if resp, err := http.DefaultClient.Do(req); err != nil {
-		return EF("DeleteValuesS3 [%s] %w", name, err)
+		return EF("DeleteValuesS3 [%s] %w", AtonString(name), err)
 	} else if resp.StatusCode != 200 {
-		return EF("DeleteValuesS3 [%s] s3 server response status %s", name, resp.Status)
+		return EF("DeleteValuesS3 [%s] s3 server response status %s", AtonString(name), resp.Status)
 	}
 	return nil
 }
