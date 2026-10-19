@@ -1691,7 +1691,7 @@ type ServerConfig struct {
 
 type HelmbotConfig struct {
 	DrLatestYaml []DrLatestYamlItem `yaml:"DrLatestYaml"`
-	Servers      []ServerConfig     `yaml:"Servers"`
+	Servers []ServerConfig `yaml:"Servers"`
 }
 
 // aws4 signature
