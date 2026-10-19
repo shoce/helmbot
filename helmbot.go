@@ -1964,12 +1964,12 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 			if strings.HasPrefix(helmvalueskey, e.KeyPrefix) {
 				imagename := helmvalueskey
 				imagenamereplace := e.KeyPrefixReplace + strings.TrimPrefix(imagename, e.KeyPrefix)
-				perr(F("DEBUG drlatestyaml [%s]", imagename))
-				if v, ok := helmvalues[imagenamereplace]; ok && v!="" {
-					perr(F("DEBUG drlatestyaml [%s] found [%s][%s]", imagename, imagenamereplace, v))
+				perr(F("DEBUG drlatestyaml [%s]", AtonString(imagename)))
+				if v, ok := helmvalues[imagenamereplace]; ok && v!=nil && v!="" {
+					perr(F("DEBUG drlatestyaml [%s] found [%s][%s]", AtonString(imagename), AtonString(imagenamereplace), v))
 					continue
 				}
-				perr(F("DEBUG drlatestyaml [%s] not found", imagenamereplace))
+				perr(F("DEBUG drlatestyaml [%s] not found", AtonString(imagenamereplace)))
 				imageurl := helmvaluesvalue.(string)
 				if !strings.HasPrefix(imageurl, "https://") && !strings.HasPrefix(imageurl, "http://") {
 					imageurl = "https://" + imageurl
@@ -1991,7 +1991,7 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 				} else {
 					imagetag = "latest"
 				}
-				perr(F("DEBUG drlatestyaml [%s] setting to [%s]", imagenamereplace, imagetag))
+				perr(F("DEBUG drlatestyaml [%s] setting to [%s]", AtonString(imagenamereplace), AtonString(imagetag)))
 				(*imagesvalues)[imagenamereplace] = imagetag
 			}
 		}
@@ -2115,6 +2115,5 @@ func tglog(msg string, chatid, replyid, editid int64) (msgid int64, err error) {
 	}
 	return tgresp.Result.MessageId, nil
 }
-
 
 
