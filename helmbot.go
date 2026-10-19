@@ -657,7 +657,7 @@ func ServerPackagesUpdate() (err error) {
 		timenow := time.Now()
 		timenowhour := F("%02d", timenow.In(p.TimezoneLocation).Hour())
 		
-		p.perr(F("DEBUG Namespace [%s] DryRun <%t> AlwaysForceNow <%t> AllowedHours (%s)) Timezone [%s] TimeNowHour [%s] UpdateInterval <%s> LocalValues %v", p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration, p.LocalValues))
+		p.perr(F("DEBUG Namespace [%s] DryRun <%t> AlwaysForceNow <%t> AllowedHours (%s)) Timezone [%s] TimeNowHour [%s] UpdateInterval <%s>", p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration))
 		
 		//p.perr(F("DEBUG config %+v", p))
 		p.perr(F("DEBUG repo.address [%s] chartaddress [%s] chartlocalfilename [%s]", p.ChartRepo.Address, p.ChartAddress, p.ChartLocalFilename))
@@ -1694,9 +1694,10 @@ type HelmbotConfig struct {
 
 func AtonString(tt string) (aton string) {
 	aton = tt
-	aton = strings.ReplaceAll(aton, CR, "<CR>")
-	aton = strings.ReplaceAll(aton, NL, "<NL>")
-	aton = strings.ReplaceAll(aton, "]", "\\]")
+	aton = strings.ReplaceAll(aton, "[", "[[")
+	aton = strings.ReplaceAll(aton, CR, "[\\r")
+	aton = strings.ReplaceAll(aton, NL, "[\\n")
+	aton = strings.ReplaceAll(aton, "]", "[]")
 	return aton
 }
 func AtonMap(mm map[string]any) (aton string) {
