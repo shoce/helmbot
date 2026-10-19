@@ -1103,12 +1103,15 @@ func ServerPackagesUpdate() (err error) {
 		if p.LocalValues==nil {
 			helmchartutil.MergeTables(values, p.EnvValues)
 			helmchartutil.MergeTables(values, p.Values)
-			p.perr(F("DEBUG GlobalValuesEnable %v", *p.GlobalValuesEnable))
+			p.perr(F("DEBUG GlobalValuesEnable <%v>", *p.GlobalValuesEnable))
 			if *p.GlobalValuesEnable {
 				helmchartutil.MergeTables(values, p.GlobalValues)
 			}
 		} else {
 			helmchartutil.MergeTables(values, p.LocalValues)
+			if *p.GlobalValuesEnable {
+				helmchartutil.MergeTables(values, p.GlobalValues)
+			}
 		}
 		
 		helmchartutil.MergeTables(values, chartfull.Values)
@@ -1133,7 +1136,6 @@ func ServerPackagesUpdate() (err error) {
 		for _, r := range installedreleases {
 			if r.Name == p.Name && r.Namespace == p.Namespace {
 				isinstalled = true
-				p.perr(F("VERBOSE release [%s]/[%s] is already installed", p.Namespace,  p.Name))
 			}
 		}
 		if isinstalled {
