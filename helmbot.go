@@ -1843,10 +1843,11 @@ func (vv DrVersions) Swap(i, j int) {
 }
 
 func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLatestYamlItem, imagesvalues *map[string]interface{}) (err error) {
-	for helmvalueskey, helmvaluesvalue := range helmvalues {
+	perr(F("DEBUG drlatestyaml helmvalues{%s} drlatestyamlitems(%s)", helmvalues, drlatestyamlitems))
+	for hvkey, hvvalue := range helmvalues {
 		for _, e := range drlatestyamlitems {
-			if strings.HasPrefix(helmvalueskey, e.KeyPrefix) {
-				imagename := helmvalueskey
+			if strings.HasPrefix(hvkey, e.KeyPrefix) {
+				imagename := hvkey
 				imagenamereplace := e.KeyPrefixReplace + strings.TrimPrefix(imagename, e.KeyPrefix)
 				perr(F("DEBUG drlatestyaml [%s]", AtonString(imagename)))
 				if v, ok := helmvalues[imagenamereplace]; ok {
@@ -1859,8 +1860,8 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 						perr(F("DEBUG drlatestyaml [%s] found [%s]{ %#v }", AtonString(imagename), AtonString(imagenamereplace), v))
 					}
 				}
-				perr(F("DEBUG drlatestyaml [%s] not found, fetching versions", AtonString(imagenamereplace)))
-				imageurl := helmvaluesvalue.(string)
+				perr(F("DEBUG drlatestyaml [%s] empty, fetching versions list", AtonString(imagenamereplace)))
+				imageurl := hvvalue.(string)
 				if !strings.HasPrefix(imageurl, "https://") && !strings.HasPrefix(imageurl, "http://") {
 					imageurl = "https://" + imageurl
 				}
@@ -1875,6 +1876,7 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 				imagetags, err := dr.Tags(RegistryRepository)
 				if err != nil { return EF("registry.Tags [%s] [%s] %w", imagename, imageurl, err) }
 				sort.Sort(sort.Reverse(DrVersions(imagetags)))
+				perr(F("DEBUG drlatestyaml [%s] tags (%s)", AtonString(imagename), AtonListStrings(imagetags)))
 				imagetag := ""
 				if len(imagetags)>0 {
 					imagetag = imagetags[0]
@@ -2049,9 +2051,15 @@ func AtonList(aa []any) (aton string) {
 	aton = ssb.String()
 	return aton
 }
+func AtonListStrings(ss []string) (aton string) {
+	var ssb strings.Builder
+	for _, s := range ss { ssb.WriteString("["+AtonString(s)+"] ") }
+	aton = ssb.String()
+	return aton
+}
 
-func fmttime(t time.Time) string {
-	ts := F(
+func fmttime(t time.Time) (ts string) {
+	ts = F(
 		"%d:%02d%02d::%02d%02d",
 		t.Year()%1000, t.Month(), t.Day(), t.Hour(), t.Minute(),
 	)
