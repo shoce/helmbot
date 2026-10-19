@@ -857,8 +857,8 @@ func ServerPackagesUpdate() (err error) {
 			maps.Copy(drlatestyamlhelmvalues, p.Values)
 			maps.Copy(drlatestyamlhelmvalues, p.EnvValues)
 		} else {
-			maps.Copy(drlatestyamlhelmvalues, p.LocalValues)
 			p.perr(F("DEBUG LocalValues %#v", p.LocalValues))
+			maps.Copy(drlatestyamlhelmvalues, p.LocalValues)
 			p.perr(F("DEBUG drlatestyamlhelmvalues %#v", drlatestyamlhelmvalues))
 		}
 		err = drlatestyaml(drlatestyamlhelmvalues, Config.DrLatestYaml, &p.ImagesValues)
@@ -1875,7 +1875,10 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 			if strings.HasPrefix(helmvalueskey, e.KeyPrefix) {
 				imagename := helmvalueskey
 				imagenamereplace := e.KeyPrefixReplace + strings.TrimPrefix(imagename, e.KeyPrefix)
-				if v, ok := helmvalues[imagenamereplace]; ok && v!="" { continue }
+				if v, ok := helmvalues[imagenamereplace]; ok && v!="" {
+					perr(F("DEBUG drlatestyaml [%s][%s]", imagenamereplace, v))
+					continue
+				}
 				imageurl := helmvaluesvalue.(string)
 				if !strings.HasPrefix(imageurl, "https://") && !strings.HasPrefix(imageurl, "http://") {
 					imageurl = "https://" + imageurl
