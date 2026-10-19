@@ -1732,7 +1732,7 @@ func AtonMap(mm map[string]any) (aton string) {
 		} else if aa, ok := mm[k].([]any); ok {
 			ssb.WriteString(F("[%s]( %s ) ", AtonString(k), AtonList(aa)))			
 		} else if aa, ok := mm[k].(map[string]any); ok {
-			ssb.WriteString(F("[%s]( %s ) ", AtonString(k), AtonMap(aa)))			
+			ssb.WriteString(F("[%s]{ %s } ", AtonString(k), AtonMap(aa)))			
 		} else {
 			ssb.WriteString(F("[%s]{ %s } ", AtonString(k), AtonString(F("%#v", mm[k]))))
 		}
@@ -1770,7 +1770,7 @@ func AtonList(aa []any) (aton string) {
 		} else if aa, ok := v.([]any); ok {
 			ssb.WriteString(F("( %s ) ", AtonList(aa)))			
 		} else if aa, ok := v.(map[string]any); ok {
-			ssb.WriteString(F("( %s ) ", AtonMap(aa)))			
+			ssb.WriteString(F("{ %s } ", AtonMap(aa)))			
 		} else {
 			ssb.WriteString(F("{%s} ", AtonString(F("%+v", v))))
 		}
