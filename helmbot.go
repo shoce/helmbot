@@ -1,7 +1,8 @@
 /*
-:1811 conflict S3NewRequest
+:1811 conflict S3NewRequest Aton %#v
 TODO
 LocalValues INSTALLING drlatestyaml
+local.values.yaml
 */
 /*
 GoGet
@@ -396,10 +397,10 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
 	perr(F(
 		"DEBUG webhook request method [%s] url [%s] contenttype [%s] data [%s]", 
-		atonString(r.Method), 
-		atonString(r.URL.String()), 
-		atonString(r.Header.Get("Content-Type")), 
-		atonString(string(rbody)),
+		AtonString(r.Method), 
+		AtonString(r.URL.String()), 
+		AtonString(r.Header.Get("Content-Type")), 
+		AtonString(string(rbody)),
 	))
 	var reqheaders []string
 	// https://pkg.go.dev/http#Request.Header
@@ -738,7 +739,7 @@ func ServerPackagesUpdate() (err error) {
 						}
 					}
 				} else if p.ChartVersionPrefix != "" {
-					p.perr(F("DEBUG ChartVersionPrefix %#v", p.ChartVersionPrefix))
+					p.perr(F("DEBUG ChartVersionPrefix [%s]", p.ChartVersionPrefix))
 					for _, v := range repochartversions {
 						if strings.HasPrefix(v.Version, p.ChartVersionPrefix) {
 							p.perr(F("DEBUG chart version [%s] found in repo", v.Version))
@@ -857,9 +858,9 @@ func ServerPackagesUpdate() (err error) {
 			maps.Copy(drlatestyamlhelmvalues, p.Values)
 			maps.Copy(drlatestyamlhelmvalues, p.EnvValues)
 		} else {
-			p.perr(F("DEBUG LocalValues %#v", p.LocalValues))
+			p.perr(F("DEBUG LocalValues { %s }", AtonMap(p.LocalValues)))
 			maps.Copy(drlatestyamlhelmvalues, p.LocalValues)
-			p.perr(F("DEBUG drlatestyamlhelmvalues %#v", drlatestyamlhelmvalues))
+			p.perr(F("DEBUG drlatestyamlhelmvalues { %s }", AtonMap(drlatestyamlhelmvalues)))
 		}
 		err = drlatestyaml(drlatestyamlhelmvalues, Config.DrLatestYaml, &p.ImagesValues)
 		if err!=nil { return EF("drlatestyaml %s %w", p.Name, err) }
@@ -889,7 +890,7 @@ func ServerPackagesUpdate() (err error) {
 				allvaluestext = p.GlobalValuesText + allvaluestext
 			}
 		} else {
-			allvaluestext = F("%#v", p.LocalValues) + p.ImagesValuesText
+			allvaluestext = AtonMap(p.LocalValues) + p.ImagesValuesText
 		}
 		p.ValuesHash = F("%x", sha256.Sum256([]byte(allvaluestext)))[:HashLength]
 
@@ -1171,6 +1172,16 @@ func ServerPackagesUpdate() (err error) {
 				values,
 			)
 		}
+		
+		if err := p.WriteValues("new"); err!=nil {
+			p.perr(F("ERROR WriteValues [new] %v", err))
+			tgmsg += tg.Bold(tg.Esc("INTERNAL ERROR")) + NL + NL
+			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr!=nil {
+				p.perr(F("ERROR tglog %v", tgerr))
+			}
+			return err
+		}
+		
 		if isinstalled {
 			doupgrade()
 		} else {
@@ -1189,7 +1200,7 @@ func ServerPackagesUpdate() (err error) {
 				errtext = errtext[:1000] + NL + NL + "---cut---" + NL + NL + errtext[len(errtext)-1000:]
 			}
 			tgmsg += tg.Bold(tg.Esc("ERROR")) + NL + NL + tg.Pre(errtext) + NL + NL
-			if _, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
+			if _, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr!=nil {
 				p.perr(F("ERROR tglog %v", tgerr))
 			}
 			return err
@@ -1212,7 +1223,7 @@ func ServerPackagesUpdate() (err error) {
 			release.Chart.Metadata.AppVersion,
 			p.HashId(),
 		)
-		if strings.TrimSpace(release.Info.Notes) != "" {
+		if strings.TrimSpace(release.Info.Notes)!="" {
 			p.perr(
 				"installed "+
 					"notes [-"+NL+
@@ -1233,7 +1244,7 @@ func ServerPackagesUpdate() (err error) {
 		}
 		tgmsg += tg.Pre(installstatus) + NL + NL
 		
-		if release.Info.Notes != "" {
+		if release.Info.Notes!="" {
 			notes := strings.TrimSpace(release.Info.Notes)
 			if len(notes) > 2000 {
 				notes = notes[:1000] + NL + NL + "---cut---" + NL + NL + notes[len(notes)-1000:]
@@ -1242,7 +1253,7 @@ func ServerPackagesUpdate() (err error) {
 		}
 		
 		// TODO TgBossUserIds
-		if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
+		if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr!=nil {
 			p.perr(F("ERROR tglog %v", tgerr))
 		}
 		
@@ -1250,9 +1261,9 @@ func ServerPackagesUpdate() (err error) {
 		// WRITE DEPLOYED HASH
 		//
 		
-		if err := PutValuesText(p.ValuesDeployedHashFilename(), p.ValuesHash); err != nil {
+		if err := PutValuesText(p.ValuesDeployedHashFilename(), p.ValuesHash); err!=nil {
 			tgmsg += tg.Bold(tg.Esc("INTERNAL ERROR")) + NL + NL
-			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
+			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr!=nil {
 				p.perr(F("ERROR tglog %v", tgerr))
 			}
 			return EF("PutValuesText %w", err)
@@ -1273,8 +1284,8 @@ func ServerPackagesUpdate() (err error) {
 		// WRITE DEPLOYED VALUES
 		//
 		
-		if err := p.WriteDeployedValues(); err != nil {
-			p.perr(F("ERROR WriteDeployedValues %v", err))
+		if err := p.WriteValues(""); err!=nil {
+			p.perr(F("ERROR WriteValues %v", err))
 			tgmsg += tg.Bold(tg.Esc("INTERNAL ERROR")) + NL + NL
 			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
 				p.perr(F("ERROR tglog %v", tgerr))
@@ -1624,31 +1635,32 @@ func (p *PackageConfig) HashId() string {
 	return F("#%s#%s#%s", p.ChartName, p.EnvName, p.ValuesHash)
 }
 
-func (p *PackageConfig) WriteDeployedValues() error {
-	if err := os.RemoveAll(path.Join(ConfigDir, p.FullName())); err!=nil {
+func (p *PackageConfig) WriteValues(subdir string) error {
+	pkgdir := filepath.Join(ConfigDir, p.FullName(), subdir)
+	if err := os.RemoveAll(pkgdir); err!=nil {
 		return EF("RemoveAll %w", err)
 	}
-	if err := os.MkdirAll(path.Join(ConfigDir, p.FullName()), 0700); err!=nil {
+	if err := os.MkdirAll(pkgdir, 0700); err!=nil {
 		return EF("MkdirAll %w", err)
 	}
 	if p.LocalValues==nil {
 		if *p.GlobalValuesEnable {
-			if err := PutValuesTextFile(path.Join(p.FullName(), p.GlobalValuesFilename()), p.GlobalValuesText); err!=nil {
+			if err := PutValuesTextFile(path.Join(p.FullName(), subdir, p.GlobalValuesFilename()), p.GlobalValuesText); err!=nil {
 				return EF("PutValuesTextFile %w", err)
 			}
 		}
-		if err := PutValuesTextFile(path.Join(p.FullName(), p.ValuesFilename()), p.ValuesText); err!=nil {
+		if err := PutValuesTextFile(path.Join(p.FullName(), subdir, p.ValuesFilename()), p.ValuesText); err!=nil {
 			return EF("PutValuesTextFile %w", err)
 		}
-		if err := PutValuesTextFile(path.Join(p.FullName(), p.EnvValuesFilename()), p.EnvValuesText); err!=nil {
+		if err := PutValuesTextFile(path.Join(p.FullName(), subdir, p.EnvValuesFilename()), p.EnvValuesText); err!=nil {
 			return EF("PutValuesTextFile %w", err)
 		}
 	} else {
-		if err := PutValuesTextFile(path.Join(p.FullName(), "local.values.yaml"), F("%#v", p.LocalValues)); err!=nil {
+		if err := PutValuesTextFile(path.Join(p.FullName(), subdir, "local.values.yaml"), AtonMap(p.LocalValues)); err!=nil {
 			return EF("PutValuesTextFile %w", err)
 		}
 	}
-	if err := PutValuesTextFile(path.Join(p.FullName(), p.ImagesValuesFilename()), p.ImagesValuesText); err!=nil {
+	if err := PutValuesTextFile(path.Join(p.FullName(), subdir, p.ImagesValuesFilename()), p.ImagesValuesText); err!=nil {
 		return EF("PutValuesTextFile %w", err)
 	}
 	return nil
@@ -1680,11 +1692,49 @@ type HelmbotConfig struct {
 	Servers      []ServerConfig     `yaml:"Servers"`
 }
 
-func atonString(text string) string {
-	text = strings.ReplaceAll(text, CR, "<CR>")
-	text = strings.ReplaceAll(text, NL, "<NL>")
-	text = strings.ReplaceAll(text, "]", "\\]")
-	return text
+func AtonString(tt string) (aton string) {
+	aton = tt
+	aton = strings.ReplaceAll(aton, CR, "<CR>")
+	aton = strings.ReplaceAll(aton, NL, "<NL>")
+	aton = strings.ReplaceAll(aton, "]", "\\]")
+	return aton
+}
+func AtonMap(mm map[string]any) (aton string) {
+	var kk []string
+	for k := range mm { kk = append(kk, k) }
+	slices.Sort(kk)
+	var ssb strings.Builder
+	for _, k := range kk {
+		if s, ok := mm[k].(string); ok {
+			ssb.WriteString(F("[%s][%s] ", AtonString(k), AtonString(s)))
+		} else if j, ok := mm[k].(int); ok {
+			ssb.WriteString(F("[%s]<%d> ", AtonString(k), j))
+		} else if j, ok := mm[k].(int32); ok {
+			ssb.WriteString(F("[%s]<%d> ", AtonString(k), j))
+		} else if j, ok := mm[k].(int64); ok {
+			ssb.WriteString(F("[%s]<%d> ", AtonString(k), j))
+		} else if j, ok := mm[k].(uint); ok {
+			ssb.WriteString(F("[%s]<%d> ", AtonString(k), j))
+		} else if j, ok := mm[k].(uint32); ok {
+			ssb.WriteString(F("[%s]<%d> ", AtonString(k), j))
+		} else if j, ok := mm[k].(uint64); ok {
+			ssb.WriteString(F("[%s]<%d> ", AtonString(k), j))
+		} else if j, ok := mm[k].(float32); ok {
+			ssb.WriteString(F("[%s]<%f> ", AtonString(k), j))
+		} else if j, ok := mm[k].(float64); ok {
+			ssb.WriteString(F("[%s]<%f> ", AtonString(k), j))
+		} else if j, ok := mm[k].(bool); ok {
+			ssb.WriteString(F("[%s]<%t> ", AtonString(k), j))
+		} else if v, ok := mm[k].(time.Time); ok {
+			ssb.WriteString(F("[%s]<%s> ", AtonString(k), v))
+		} else if v, ok := mm[k].(time.Duration); ok {
+			ssb.WriteString(F("[%s]<%s> ", AtonString(k), v))
+		} else {
+			ssb.WriteString(F("[%s][%s] ", AtonString(k), AtonString(F("%+v", mm[k]))))
+		}
+	}
+	aton = ssb.String()
+	return aton
 }
 
 func fmttime(t time.Time) string {
@@ -1958,7 +2008,7 @@ func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error
 		swreqjsBuffer,
 	)
 	if err != nil {
-		return EF("url [%s] data [%s] error %v", atonString(tgapiurl), atonString(string(swreqjs)), err)
+		return EF("url [%s] data [%s] error %v", AtonString(tgapiurl), AtonString(string(swreqjs)), err)
 	}
 	var swresp TgSetWebhookResponse
 	var swrespbody []byte
@@ -1967,7 +2017,7 @@ func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error
 	err = json.NewDecoder(bytes.NewBuffer(swrespbody)).Decode(&swresp)
 	if err != nil { return EF("json.Decoder.Decode: %w", err) }
 	if !swresp.OK || !swresp.Result {
-		return EF("url [%s] data [%s] api response not ok %+v", atonString(tgapiurl), atonString(string(swreqjs)), swresp)
+		return EF("url [%s] data [%s] api response not ok %+v", AtonString(tgapiurl), AtonString(string(swreqjs)), swresp)
 	}
 	return nil
 }
@@ -2019,12 +2069,12 @@ func tglog(msg string, chatid, replyid, editid int64) (msgid int64, err error) {
 	}
 	var resp *http.Response
 	resp, err = http.Post( tgurl, "application/json", reqjsBuffer, )
-	if err != nil { return 0, EF("url [%s] data [%s] error %v", atonString(tgurl), atonString(string(reqjs)), err) }
+	if err!=nil { return 0, EF("url [%s] data [%s] %v", AtonString(tgurl), AtonString(string(reqjs)), err) }
 	var tgresp tg.MessageResponse
 	err = json.NewDecoder(resp.Body).Decode(&tgresp)
 	if err != nil { return 0, EF("%v", err) }
 	if !tgresp.Ok {
-		return 0, EF("url [%s] data [%s] api response not ok %+v", atonString(tgurl), atonString(string(reqjs)), tgresp)
+		return 0, EF("url [%s] data [%s] api response not ok %+v", AtonString(tgurl), AtonString(string(reqjs)), tgresp)
 	}
 	return tgresp.Result.MessageId, nil
 }
