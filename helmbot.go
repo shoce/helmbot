@@ -1843,7 +1843,11 @@ func (vv DrVersions) Swap(i, j int) {
 }
 
 func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLatestYamlItem, imagesvalues *map[string]interface{}) (err error) {
-	perr(F("DEBUG drlatestyaml helmvalues{%s} drlatestyamlitems(%s)", helmvalues, drlatestyamlitems))
+	if len(drlatestyamlitems)==0 {
+		perr(F("DEBUG drlatestyaml drlatestyamlitems empty"))
+		return nil
+	}
+	perr(F("DEBUG drlatestyaml helmvalues{%s} drlatestyamlitems(%s)", AtonMap(helmvalues), drlatestyamlitems))
 	for hvkey, hvvalue := range helmvalues {
 		for _, e := range drlatestyamlitems {
 			if strings.HasPrefix(hvkey, e.KeyPrefix) {
