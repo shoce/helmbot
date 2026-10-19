@@ -1,9 +1,11 @@
 /*
 :1811 conflict S3NewRequest Aton %v
 TODO
-LocalValues INSTALLING drlatestyaml
+LocalValues INSTALLING drlatestyaml(
 local.values.yaml DEBUG tags AllowedHours
 AtonList
+func perr(
+) perr(
 */
 /*
 GoGet
@@ -1692,130 +1694,6 @@ type HelmbotConfig struct {
 	Servers      []ServerConfig     `yaml:"Servers"`
 }
 
-func AtonString(tt string) (aton string) {
-	aton = tt
-	aton = strings.ReplaceAll(aton, "[", "[[")
-	aton = strings.ReplaceAll(aton, CR, "[\\r")
-	aton = strings.ReplaceAll(aton, NL, "[\\n")
-	aton = strings.ReplaceAll(aton, "]", "[]")
-	return aton
-}
-func AtonMap(mm map[string]any) (aton string) {
-	var kk []string
-	for k := range mm { kk = append(kk, k) }
-	slices.Sort(kk)
-	var ssb strings.Builder
-	for _, k := range kk {
-		if s, ok := mm[k].(string); ok {
-			ssb.WriteString(F("[%s][%s] ", AtonString(k), AtonString(s)))
-		} else if j, ok := mm[k].(int); ok {
-			ssb.WriteString(F("[%s]<%d> ", AtonString(k), j))
-		} else if j, ok := mm[k].(int32); ok {
-			ssb.WriteString(F("[%s]<%d> ", AtonString(k), j))
-		} else if j, ok := mm[k].(int64); ok {
-			ssb.WriteString(F("[%s]<%d> ", AtonString(k), j))
-		} else if j, ok := mm[k].(uint); ok {
-			ssb.WriteString(F("[%s]<%d> ", AtonString(k), j))
-		} else if j, ok := mm[k].(uint32); ok {
-			ssb.WriteString(F("[%s]<%d> ", AtonString(k), j))
-		} else if j, ok := mm[k].(uint64); ok {
-			ssb.WriteString(F("[%s]<%d> ", AtonString(k), j))
-		} else if j, ok := mm[k].(float32); ok {
-			ssb.WriteString(F("[%s]<%f> ", AtonString(k), j))
-		} else if j, ok := mm[k].(float64); ok {
-			ssb.WriteString(F("[%s]<%f> ", AtonString(k), j))
-		} else if j, ok := mm[k].(bool); ok {
-			ssb.WriteString(F("[%s]<%t> ", AtonString(k), j))
-		} else if t, ok := mm[k].(time.Time); ok {
-			ssb.WriteString(F("[%s]<%s> ", AtonString(k), t))
-		} else if t, ok := mm[k].(time.Duration); ok {
-			ssb.WriteString(F("[%s]<%s> ", AtonString(k), t))
-		} else if aa, ok := mm[k].([]any); ok {
-			ssb.WriteString(F("[%s]( %s ) ", AtonString(k), AtonList(aa)))			
-		} else if aa, ok := mm[k].(map[string]any); ok {
-			ssb.WriteString(F("[%s]{%s} ", AtonString(k), AtonMap(aa)))			
-		} else {
-			ssb.WriteString(F("[%s]{%s} ", AtonString(k), AtonString(F("%#v", mm[k]))))
-		}
-	}
-	aton = ssb.String()
-	return aton
-}
-func AtonList(aa []any) (aton string) {
-	var ssb strings.Builder
-	for _, v := range aa {
-		if s, ok := v.(string); ok {
-			ssb.WriteString(F("[%s] ", AtonString(s)))
-		} else if j, ok := v.(int); ok {
-			ssb.WriteString(F("<%d> ", j))
-		} else if j, ok := v.(int32); ok {
-			ssb.WriteString(F("<%d> ", j))
-		} else if j, ok := v.(int64); ok {
-			ssb.WriteString(F("<%d> ", j))
-		} else if j, ok := v.(uint); ok {
-			ssb.WriteString(F("<%x> ", j))
-		} else if j, ok := v.(uint32); ok {
-			ssb.WriteString(F("<%x> ", j))
-		} else if j, ok := v.(uint64); ok {
-			ssb.WriteString(F("<%x> ", j))
-		} else if j, ok := v.(float32); ok {
-			ssb.WriteString(F("<%f> ", j))
-		} else if j, ok := v.(float64); ok {
-			ssb.WriteString(F("<%f> ", j))
-		} else if j, ok := v.(bool); ok {
-			ssb.WriteString(F("[%s]<%t> ", j))
-		} else if t, ok := v.(time.Time); ok {
-			ssb.WriteString(F("<%s> ", t))
-		} else if t, ok := v.(time.Duration); ok {
-			ssb.WriteString(F("<%s> ", t))
-		} else if aa, ok := v.([]any); ok {
-			ssb.WriteString(F("(%s) ", AtonList(aa)))			
-		} else if aa, ok := v.(map[string]any); ok {
-			ssb.WriteString(F("{%s} ", AtonMap(aa)))			
-		} else {
-			ssb.WriteString(F("{%s} ", AtonString(F("%+v", v))))
-		}
-	}
-	aton = ssb.String()
-	return aton
-}
-
-func fmttime(t time.Time) string {
-	ts := F(
-		"%d:%02d%02d:%02d%02d",
-		t.Year()%1000, t.Month(), t.Day(), t.Hour(), t.Minute(),
-	)
-	// https://pkg.go.dev/time#Time.Zone
-	if _, tzoffset := t.Zone(); tzoffset == 0 {
-		ts += "+"
-	} else {
-		ts += "-"
-	}
-	return ts
-}
-
-func perr(msg string) {
-	if strings.HasPrefix(msg, "DEBUG ") && !DEBUG { return }
-	if strings.HasPrefix(msg, "VERBOSE ") && !VERBOSE { return }
-	tnow := time.Now()
-	if TgToken != "" { msg = strings.ReplaceAll(msg, TgToken, "[TgToken]") }
-	if TgWebhookToken != "" { msg = strings.ReplaceAll(msg, TgWebhookToken, "[TgWebhookToken]") }
-	fmt.Fprint(os.Stderr, "<"+fmttime(tnow)+">"+SP+msg+NL)
-}
-
-func perrf(msg string, args ...interface{}) { perr(F(msg, args...)) }
-
-func dirExists(path string) bool {
-	s, err := os.Stat(path)
-	if os.IsNotExist(err) { return false }
-	return err == nil && s.IsDir()
-}
-
-func fileExists(path string) bool {
-	s, err := os.Stat(path)
-	if os.IsNotExist(err) { return false }
-	return err == nil && s.Mode().IsRegular()
-}
 // aws4 signature
 func S3NewRequest(method, name string, payload []byte) (req *http.Request, err error) {
 	req, err = http.NewRequest(method, ValuesS3Url+name, bytes.NewBuffer(payload))
@@ -2084,7 +1962,130 @@ type TgSetWebhookResponse struct {
 	Result      bool   `json:"result"`
 }
 
+func AtonString(tt string) (aton string) {
+	aton = tt
+	aton = strings.ReplaceAll(aton, "[", "[[")
+	aton = strings.ReplaceAll(aton, CR, "[\\r")
+	aton = strings.ReplaceAll(aton, NL, "[\\n")
+	aton = strings.ReplaceAll(aton, "]", "[]")
+	return aton
+}
+func AtonMap(mm map[string]any) (aton string) {
+	var kk []string
+	for k := range mm { kk = append(kk, k) }
+	slices.Sort(kk)
+	var ssb strings.Builder
+	for _, k := range kk {
+		if s, ok := mm[k].(string); ok {
+			ssb.WriteString(F("[%s][%s] ", AtonString(k), AtonString(s)))
+		} else if j, ok := mm[k].(int); ok {
+			ssb.WriteString(F("[%s]<%d> ", AtonString(k), j))
+		} else if j, ok := mm[k].(int32); ok {
+			ssb.WriteString(F("[%s]<%d> ", AtonString(k), j))
+		} else if j, ok := mm[k].(int64); ok {
+			ssb.WriteString(F("[%s]<%d> ", AtonString(k), j))
+		} else if j, ok := mm[k].(uint); ok {
+			ssb.WriteString(F("[%s]<%d> ", AtonString(k), j))
+		} else if j, ok := mm[k].(uint32); ok {
+			ssb.WriteString(F("[%s]<%d> ", AtonString(k), j))
+		} else if j, ok := mm[k].(uint64); ok {
+			ssb.WriteString(F("[%s]<%d> ", AtonString(k), j))
+		} else if j, ok := mm[k].(float32); ok {
+			ssb.WriteString(F("[%s]<%f> ", AtonString(k), j))
+		} else if j, ok := mm[k].(float64); ok {
+			ssb.WriteString(F("[%s]<%f> ", AtonString(k), j))
+		} else if j, ok := mm[k].(bool); ok {
+			ssb.WriteString(F("[%s]<%t> ", AtonString(k), j))
+		} else if t, ok := mm[k].(time.Time); ok {
+			ssb.WriteString(F("[%s]<%s> ", AtonString(k), t))
+		} else if t, ok := mm[k].(time.Duration); ok {
+			ssb.WriteString(F("[%s]<%s> ", AtonString(k), t))
+		} else if aa, ok := mm[k].([]any); ok {
+			ssb.WriteString(F("[%s]( %s ) ", AtonString(k), AtonList(aa)))			
+		} else if aa, ok := mm[k].(map[string]any); ok {
+			ssb.WriteString(F("[%s]{%s} ", AtonString(k), AtonMap(aa)))			
+		} else {
+			ssb.WriteString(F("[%s]{%s} ", AtonString(k), AtonString(F("%#v", mm[k]))))
+		}
+	}
+	aton = ssb.String()
+	return aton
+}
+func AtonList(aa []any) (aton string) {
+	var ssb strings.Builder
+	for _, v := range aa {
+		if s, ok := v.(string); ok {
+			ssb.WriteString(F("[%s] ", AtonString(s)))
+		} else if j, ok := v.(int); ok {
+			ssb.WriteString(F("<%d> ", j))
+		} else if j, ok := v.(int32); ok {
+			ssb.WriteString(F("<%d> ", j))
+		} else if j, ok := v.(int64); ok {
+			ssb.WriteString(F("<%d> ", j))
+		} else if j, ok := v.(uint); ok {
+			ssb.WriteString(F("<%x> ", j))
+		} else if j, ok := v.(uint32); ok {
+			ssb.WriteString(F("<%x> ", j))
+		} else if j, ok := v.(uint64); ok {
+			ssb.WriteString(F("<%x> ", j))
+		} else if j, ok := v.(float32); ok {
+			ssb.WriteString(F("<%f> ", j))
+		} else if j, ok := v.(float64); ok {
+			ssb.WriteString(F("<%f> ", j))
+		} else if j, ok := v.(bool); ok {
+			ssb.WriteString(F("[%s]<%t> ", j))
+		} else if t, ok := v.(time.Time); ok {
+			ssb.WriteString(F("<%s> ", t))
+		} else if t, ok := v.(time.Duration); ok {
+			ssb.WriteString(F("<%s> ", t))
+		} else if aa, ok := v.([]any); ok {
+			ssb.WriteString(F("(%s) ", AtonList(aa)))			
+		} else if aa, ok := v.(map[string]any); ok {
+			ssb.WriteString(F("{%s} ", AtonMap(aa)))			
+		} else {
+			ssb.WriteString(F("{%s} ", AtonString(F("%+v", v))))
+		}
+	}
+	aton = ssb.String()
+	return aton
+}
+
+func fmttime(t time.Time) string {
+	ts := F(
+		"%d:%02d%02d::%02d%02d",
+		t.Year()%1000, t.Month(), t.Day(), t.Hour(), t.Minute(),
+	)
+	// https://pkg.go.dev/time#Time.Zone
+	if _, tzoffset := t.Zone(); tzoffset==0 { ts += "+" } else { ts += "-" }
+	return ts
+}
+
+func dirExists(path string) bool {
+	s, err := os.Stat(path)
+	if os.IsNotExist(err) { return false }
+	return err == nil && s.IsDir()
+}
+
+func fileExists(path string) bool {
+	s, err := os.Stat(path)
+	if os.IsNotExist(err) { return false }
+	return err == nil && s.Mode().IsRegular()
+}
+
+func perr(msg string) {
+	if strings.HasPrefix(msg, "DEBUG ") && !DEBUG { return }
+	if strings.HasPrefix(msg, "VERBOSE ") && !VERBOSE { return }
+	tnow := time.Now()
+	if TgToken != "" { msg = strings.ReplaceAll(msg, TgToken, "[TgToken]") }
+	if TgWebhookToken != "" { msg = strings.ReplaceAll(msg, TgWebhookToken, "[TgWebhookToken]") }
+	fmt.Fprint(os.Stderr, "<"+fmttime(tnow)+">"+SP+msg+NL)
+}
+
+func perrf(msg string, args ...interface{}) { perr(F(msg, args...)) }
+
 func (p *PackageConfig) perr(msg string, args ...interface{}) {
+	if strings.HasPrefix(msg, "DEBUG ") && !DEBUG { return }
+	if strings.HasPrefix(msg, "VERBOSE ") && !VERBOSE { return }
 	perr(F(SPAC+p.Name+SP+msg, args...))
 }
 
