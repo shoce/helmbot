@@ -1,18 +1,15 @@
 {{ if $.Values.TgWebhookHost -}}
-
+---
 apiVersion: "v1"
 kind: "Service"
-
 metadata:
   name: "helmbot"
-  namespace: "{{ $.Release.Namespace }}"
+  namespace: "{{$.Release.Namespace}}"
   labels:
     app: "helmbot"
-
 spec:
   selector:
     app: "helmbot"
-
   # https://kubernetes.io/docs/tasks/access-application-cluster/create-external-load-balancer/#preserving-the-client-source-ip
   # https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
   # https://kubernetes.io/docs/concepts/services-networking/service-traffic-policy/#using-service-internal-traffic-policy
@@ -21,6 +18,55 @@ spec:
   externalTrafficPolicy: "Local"
   ports:
     - port: 80
+{{end}}
 
-{{ end }}
+{{ if and $.Values.TgWebhookHost $.Values.TgWebhookIngress -}}
+---
+apiVersion: "networking.k8s.io/v1"
+kind: "Ingress"
+metadata:
+  name: "helmbot"
+  namespace: "{{$.Release.Namespace}}"
+  annotations:
+    kubernetes.io/ingress.allow-http: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "{{$.Values.IngressRequestMaxBodySizeString}}"
+    nginx.ingress.kubernetes.io/whitelist-source-range: "{{ join ", " $.Values.IngressWhitelistSourceRange }}"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "30"
+spec:
+  ingressClassName: "nginx"
+  tls:
+  - hosts:
+    - "{{$.Values.TgWebhookHost}}"
+  rules:
+  - host: "{{$.Values.TgWebhookHost}}"
+    http:
+      paths:
+      - pathType: "Prefix"
+        path: "/"
+        backend:
+          service:
+            name: "helmbot"
+            port:
+              number: 80
+{{end}}
+
+{{ if and $.Values.TgWebhookHost $.Values.TgWebhookIngressRoute -}}
+---
+apiVersion: "traefik.io/v1alpha1"
+kind: "IngressRoute"
+metadata:
+  name: "helmbot"
+  namespace: "{{$.Release.Namespace}}"
+spec:
+  entryPoints:
+    - "websecure"
+  routes:
+    - kind: "Rule"
+      match: "Host(`{{$.Values.TgWebhookHost}}`)"
+      services:
+        - name: "helmbot"
+          port: 80
+{{end}}
+
 

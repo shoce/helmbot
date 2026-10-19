@@ -1,63 +1,70 @@
+---
+apiVersion: "v1"
+kind: "ServiceAccount"
+metadata:
+  name: "helmbot-admin"
+  namespace: "{{$.Release.Namespace}}"
+
+---
+apiVersion: "rbac.authorization.k8s.io/v1"
+kind: "ClusterRoleBinding"
+metadata:
+  name: "helmbot-admin"
+  namespace: "{{$.Release.Namespace}}"
+roleRef:
+  kind: "ClusterRole"
+  name: "cluster-admin"
+  apiGroup: "rbac.authorization.k8s.io"
+subjects:
+  - kind: "ServiceAccount"
+    name: "helmbot-admin"
+    namespace: "{{$.Release.Namespace}}"
+
+---
 apiVersion: "apps/v1"
 kind: "StatefulSet"
-
 metadata:
   name: "helmbot"
-  namespace: "{{ $.Release.Namespace }}"
+  namespace: "{{$.Release.Namespace}}"
   labels:
     app: "helmbot"
-
 spec:
-
   replicas: 1
-
   selector:
     matchLabels:
       app: "helmbot"
-
   template:
     metadata:
       name: "helmbot"
       labels:
         app: "helmbot"
-
       annotations:
         checksum/configmap: {{ include ( print $.Template.BasePath "/" "configmap.yaml" ) . | sha256sum }}
-
     spec:
-
       serviceAccountName: "helmbot-admin"
-
       volumes:
         - name: "config-dir"
           hostPath:
-            path: "{{ $.Values.HostPath }}"
+            path: "{{$.Values.HostPath}}"
             type: "DirectoryOrCreate"
-
       containers:
-
         - name: "helmbot"
-          image: "{{ $.Values.ImageNameGithubHelmbot }}:{{ $.Values.ImageTagGithubHelmbot }}"
+          image: "{{$.Values.ImageNameGithubHelmbot}}:{{$.Values.ImageTagGithubHelmbot}}"
           imagePullPolicy: "IfNotPresent"
-
           volumeMounts:
             - name: "config-dir"
-              mountPath: "{{ $.Values.ConfigDir }}"
-
+              mountPath: "{{$.Values.ConfigDir}}"
           {{ if $.Values.TgWebhookHost -}}
           ports:
             - containerPort: 80
           {{ end }}
-
           envFrom:
             - configMapRef:
                 name: "helmbot"
-
           livenessProbe:
             httpGet:
               path: "/healthz"
               port: 81
             initialDelaySeconds: 3
             periodSeconds: 3
-
 
