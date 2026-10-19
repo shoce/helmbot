@@ -1970,11 +1970,15 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 				imagename := helmvalueskey
 				imagenamereplace := e.KeyPrefixReplace + strings.TrimPrefix(imagename, e.KeyPrefix)
 				perr(F("DEBUG drlatestyaml [%s]", AtonString(imagename)))
-				if v, ok := helmvalues[imagenamereplace]; ok && v!=nil && v!="" {
-					perr(F("DEBUG drlatestyaml [%s] found [%s][%s]", AtonString(imagename), AtonString(imagenamereplace), v))
-					continue
+				if v, ok := helmvalues[imagenamereplace]; ok {
+					if s, ok := v.(string); ok && s!="" {
+						perr(F("DEBUG drlatestyaml [%s] found [%s][%s]", AtonString(imagename), AtonString(imagenamereplace), s))
+						continue
+					} else {
+						perr(F("DEBUG drlatestyaml [%s] found [%s]{ %#v }", AtonString(imagename), AtonString(imagenamereplace), v))
+					}
 				}
-				perr(F("DEBUG drlatestyaml [%s] not found", AtonString(imagenamereplace)))
+				perr(F("DEBUG drlatestyaml [%s] not found, fetching versions", AtonString(imagenamereplace)))
 				imageurl := helmvaluesvalue.(string)
 				if !strings.HasPrefix(imageurl, "https://") && !strings.HasPrefix(imageurl, "http://") {
 					imageurl = "https://" + imageurl
@@ -1991,7 +1995,7 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 				if err != nil { return EF("registry.Tags [%s] [%s] %w", imagename, imageurl, err) }
 				sort.Sort(sort.Reverse(DrVersions(imagetags)))
 				imagetag := ""
-				if len(imagetags) > 0 {
+				if len(imagetags)>0 {
 					imagetag = imagetags[0]
 				} else {
 					imagetag = "latest"
