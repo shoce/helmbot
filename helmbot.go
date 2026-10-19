@@ -1255,7 +1255,7 @@ func ServerPackagesUpdate() (err error) {
 			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
 				p.perr(F("ERROR tglog %v", tgerr))
 			}
-			return EF("PutValuesText: %w", err)
+			return EF("PutValuesText %w", err)
 		}
 		
 		//
@@ -1877,24 +1877,26 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 			if strings.HasPrefix(helmvalueskey, e.KeyPrefix) {
 				imagename := helmvalueskey
 				imagenamereplace := e.KeyPrefixReplace + strings.TrimPrefix(imagename, e.KeyPrefix)
+				perr(F("DEBUG drlatestyaml [%s] checking [%s]", imagename, imagenamereplace))
 				if v, ok := helmvalues[imagenamereplace]; ok && v!="" {
-					perr(F("DEBUG drlatestyaml [%s][%s]", imagenamereplace, v))
+					perr(F("DEBUG drlatestyaml [%s] found [%s][%s]", imagename, imagenamereplace, v))
 					continue
 				}
+				perr(F("DEBUG drlatestyaml [%s] not found [%s]", imagename, imagenamereplace))
 				imageurl := helmvaluesvalue.(string)
 				if !strings.HasPrefix(imageurl, "https://") && !strings.HasPrefix(imageurl, "http://") {
 					imageurl = "https://" + imageurl
 				}
 				var u *url.URL
-				if u, err = url.Parse(imageurl); err != nil { return EF("url.Parse %s %v: %w", imagename, imageurl, err) }
+				if u, err = url.Parse(imageurl); err!=nil { return EF("url.Parse [%s] [%s] %w", imagename, imageurl, err) }
 				RegistryUrl := u.Scheme + "://" + u.Host
 				RegistryRepository := u.Path
-				//perr(F("DEBUG drlatestyaml registry %s %s", RegistryUrl, RegistryRepository))
+				//perr(F("DEBUG drlatestyaml registry [%s] [%s]", RegistryUrl, RegistryRepository))
 				dr := dregistry.NewInsecure(RegistryUrl, e.RegistryUsername, e.RegistryPassword)
 				dr.Logf = dregistry.Quiet
 				// TODO hangs here ?
 				imagetags, err := dr.Tags(RegistryRepository)
-				if err != nil { return EF("registry.Tags %s %v: %w", imagename, imageurl, err) }
+				if err != nil { return EF("registry.Tags [%s] [%s] %w", imagename, imageurl, err) }
 				sort.Sort(sort.Reverse(DrVersions(imagetags)))
 				imagetag := ""
 				if len(imagetags) > 0 {
@@ -1902,6 +1904,7 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 				} else {
 					imagetag = "latest"
 				}
+				perr(F("DEBUG drlatestyaml [%s] setting to [%s]", imagename, imagetag))
 				(*imagesvalues)[imagenamereplace] = imagetag
 			}
 		}
