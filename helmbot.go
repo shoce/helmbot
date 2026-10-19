@@ -2,7 +2,7 @@
 :1811 conflict S3NewRequest Aton %v
 TODO
 LocalValues INSTALLING drlatestyaml
-local.values.yaml
+local.values.yaml DEBUG tags
 */
 /*
 GoGet
@@ -798,7 +798,7 @@ func ServerPackagesUpdate() (err error) {
 			for _, t := range tags {
 				tagss = append(tagss, "["+t+"]")
 			}
-			p.perr(F("DEBUG tags ( %s ))", strings.Join(tagss, SP)))
+			p.perr(F("DEBUG tags ( %s )", strings.Join(tagss, SP)))
 			chartversion = tags[0]
 			if u, err := url.Parse(p.ChartAddress); err != nil {
 				return EF("parse ChartAddress [%s] %v", p.ChartAddress, err)
@@ -1730,7 +1730,7 @@ func AtonMap(mm map[string]any) (aton string) {
 		} else if t, ok := mm[k].(time.Duration); ok {
 			ssb.WriteString(F("[%s]<%s> ", AtonString(k), t))
 		} else if aa, ok := mm[k].([]any); ok {
-			ssb.WriteString(F("[%s]( %s ) ", AtonString(k), aa))
+			ssb.WriteString(F("[%s]( %s ) ", AtonString(k), AtonList(aa)))			
 		} else {
 			ssb.WriteString(F("[%s]{%s} ", AtonString(k), AtonString(F("%#v", mm[k]))))
 		}
@@ -1738,7 +1738,6 @@ func AtonMap(mm map[string]any) (aton string) {
 	aton = ssb.String()
 	return aton
 }
-
 func AtonList(aa []any) (aton string) {
 	var ssb strings.Builder
 	for _, v := range aa {
