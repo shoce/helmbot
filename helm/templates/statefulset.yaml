@@ -40,6 +40,7 @@ spec:
         app: "helmbot"
       annotations:
         checksum/configmap: {{ include ( print $.Template.BasePath "/" "configmap.yaml" ) . | sha256sum }}
+        image: "{{$.Values.ImageNameGithubHelmbot}}:{{$.Values.ImageTagGithubHelmbot}}"
     spec:
       serviceAccountName: "helmbot-admin"
       volumes:
