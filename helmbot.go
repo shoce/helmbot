@@ -1883,12 +1883,10 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 				perr(F("DEBUG drlatestyaml [%s] tags (%s)", AtonString(imagename), AtonListStrings(imagetags)))
 				imagetag := ""
 				if len(imagetags)>0 {
+					perr(F("DEBUG drlatestyaml [%s] setting to [%s]", AtonString(imagenamereplace), AtonString(imagetag)))
 					imagetag = imagetags[0]
-				} else {
-					imagetag = "latest"
+					break
 				}
-				perr(F("DEBUG drlatestyaml [%s] setting to [%s]", AtonString(imagenamereplace), AtonString(imagetag)))
-				(*imagesvalues)[imagenamereplace] = imagetag
 			}
 		}
 	}
