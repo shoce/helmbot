@@ -6,6 +6,7 @@ local.values.yaml DEBUG tags AllowedHours
 AtonList
 func perr(
 ) perr(
+DEBUG tags 
 */
 /*
 GoGet
@@ -659,7 +660,10 @@ func ServerPackagesUpdate() (err error) {
 		timenow := time.Now()
 		timenowhour := F("%02d", timenow.In(p.TimezoneLocation).Hour())
 		
-		p.perr(F("DEBUG Namespace[%s] DryRun<%t> AlwaysForceNow<%t> AllowedHours(%s) Timezone[%s] TimeNowHour[%s] UpdateInterval<%s>", p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration))
+		p.perr(F(
+		"DEBUG Namespace[%s] DryRun<%t> AlwaysForceNow<%t> AllowedHours(%s) Timezone[%s] TimeNowHour[%s] UpdateInterval<%s> ChartVersion[%s] ChartVersionPrefix[%s]",
+		p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration, p.ChartVersion, p.ChartVersionPrefix,
+		))
 		
 		//p.perr(F("DEBUG config %+v", p))
 		p.perr(F("DEBUG repo.address[%s] chartaddress[%s] chartlocalfilename[%s]", p.ChartRepo.Address, p.ChartAddress, p.ChartLocalFilename))
