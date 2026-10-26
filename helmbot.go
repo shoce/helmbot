@@ -46,6 +46,7 @@ import (
 	_ "time/tzdata"
 
 	yaml "github.com/goccy/go-yaml"
+	semver "github.com/Masterminds/semver/v3"
 
 	textcases "golang.org/x/text/cases"
 	textlanguage "golang.org/x/text/language"
@@ -726,6 +727,7 @@ func ServerPackagesUpdate() (err error) {
 				return EF("LoadIndexFile %w", err)
 			}
 			
+			// https://pkg.go.dev/helm.sh/helm/v3/pkg/repo#ChartVersion
 			var repochartversion *helmrepo.ChartVersion
 			for repochartname, repochartversions := range idx.Entries {
 				if repochartname != p.ChartName { continue }
@@ -806,7 +808,7 @@ func ServerPackagesUpdate() (err error) {
 			if err!=nil { return EF("hrclient.Tags %v", err) }
 			if len(tags) == 0 { return EF("ChartAddress [%s] empty tags list", p.ChartAddress, err) }
 			// https://pkg.go.dev/sort#StringSlice
-			sort.Sort(sort.Reverse(sort.StringSlice(tags)))
+			sort.Sort(sort.Reverse(VersionSlice(tags)))
 			var tagss []string
 			for _, t := range tags {
 				tagss = append(tagss, "["+t+"]")
@@ -2174,5 +2176,18 @@ func tglog(msg string, chatid, replyid, editid int64) (msgid int64, err error) {
 	}
 	return tgresp.Result.MessageId, nil
 }
+
+
+type VersionSlice []string
+func (vv VersionSlice) Len() int { return len(vv) }
+func (vv VersionSlice) Swap(i, j int) { vv[i], vv[j] = vv[j], vv[i] }
+func (vv VersionSlice) Less(a, b int) bool {
+	va, err := semver.NewVersion(vv[a])
+	if err!=nil { return true }
+	vb, err := semver.NewVersion(vv[b])
+	if err!=nil { return false }
+	return va.LessThan(vb)
+}
+
 
 
