@@ -1,12 +1,15 @@
 /*
-:1811 conflict S3NewRequest Aton %v
+:1811
+:815
+conflict S3NewRequest Aton %v
 TODO
 LocalValues INSTALLING drlatestyaml(
-local.values.yaml DEBUG tags AllowedHours
+local.values.yaml AllowedHours
 AtonList
 func perr(
 ) perr(
-DEBUG tags 
+DEBUG repo helm chart 
+ChartVersionPrefix
 */
 /*
 GoGet
@@ -139,17 +142,17 @@ func init() {
 	perr(F("HOSTNAME [%s]", HOSTNAME))
 
 	UpdateHashIdRe, err = regexp.Compile(UpdateHashIdReString)
-	if err != nil {
+	if err!=nil {
 		perr(F("ERROR regexp [%s] compile %v", UpdateHashIdReString, err))
 		os.Exit(1)
 	}
 
-	if os.Getenv("VERBOSE") != "" {
+	if os.Getenv("VERBOSE")!="" {
 		VERBOSE = true
 		perr(F("VERBOSE <%t>", VERBOSE))
 	}
 
-	if os.Getenv("DEBUG") != "" {
+	if os.Getenv("DEBUG")!="" {
 		DEBUG = true
 		perr(F("DEBUG <%t>", DEBUG))
 		tg.DEBUG = DEBUG
@@ -161,14 +164,14 @@ func init() {
 	}
 
 	ServerHostname = os.Getenv("ServerHostname")
-	if ServerHostname == "" {
+	if ServerHostname=="" {
 		perr(F("ERROR empty ServerHostname env var"))
 		os.Exit(1)
 	}
 
 	ConfigDir = os.Getenv("ConfigDir")
 	perr(F("DEBUG ConfigDir [%s]", ConfigDir))
-	if ConfigDir == "" {
+	if ConfigDir=="" {
 		perr(F("ERROR empty ConfigDir env var"))
 		os.Exit(1)
 	}
@@ -186,8 +189,8 @@ func init() {
 	HostConfigFilename = os.Getenv("HostConfigFilename")
 	perr(F("DEBUG HostConfigFilename [%s]", HostConfigFilename))
 
-	if v := os.Getenv("PackagesUpgradeInterval"); v != "" {
-		if d, err := time.ParseDuration(v); err != nil {
+	if v := os.Getenv("PackagesUpgradeInterval"); v!="" {
+		if d, err := time.ParseDuration(v); err!=nil {
 			perr(F("ERROR parse duration PackagesUpgradeInterval [%s] %v", v, err))
 			os.Exit(1)
 		} else {
@@ -200,9 +203,9 @@ func init() {
 	perr(F("DEBUG PackagesUpgradeInterval <%s>", PackagesUpgradeInterval))
 
 	ValuesS3Url = os.Getenv("ValuesS3Url")
-	if ValuesS3Url == "" {
+	if ValuesS3Url=="" {
 		perr(F("WARNING empty ValuesS3Url env var"))
-	} else if u, err := url.Parse(ValuesS3Url); err != nil {
+	} else if u, err := url.Parse(ValuesS3Url); err!=nil {
 		perr(F("ERROR ValuesS3Url [%s] parse %v", ValuesS3Url, err))
 		os.Exit(1)
 	} else {
@@ -212,21 +215,21 @@ func init() {
 	perr(F("DEBUG ValuesS3Url [%s]", ValuesS3Url))
 
 	ValuesS3User = os.Getenv("ValuesS3User")
-	if ValuesS3User == "" && ValuesS3UrlHost != "" {
+	if ValuesS3User=="" && ValuesS3UrlHost!="" {
 		perr(F("WARNING empty ValuesS3User env var"))
 	}
 
 	ValuesS3Pass = os.Getenv("ValuesS3Pass")
-	if ValuesS3Pass == "" && ValuesS3UrlHost != "" {
+	if ValuesS3Pass=="" && ValuesS3UrlHost!="" {
 		perr(F("WARNING empty ValuesS3Pass env var"))
 	}
 
 	ListenAddr = os.Getenv("ListenAddr")
-	if ListenAddr == "" {
+	if ListenAddr=="" {
 		ListenAddr = ListenAddrDefault
 	}
 
-	if v := os.Getenv("TgApiUrl"); v != "" {
+	if v := os.Getenv("TgApiUrl"); v!="" {
 		TgApiUrl = v
 		tg.ApiUrl = TgApiUrl
 	}
@@ -234,15 +237,15 @@ func init() {
 	perr(F("tg.ApiUrl [%s]", tg.ApiUrl))
 
 	TgToken = os.Getenv("TgToken")
-	if TgToken == "" {
+	if TgToken=="" {
 		perr(F("ERROR empty TgToken env var"))
 		os.Exit(1)
 	}
 
-	if TgToken != "" {
+	if TgToken!="" {
 		botuserid := strings.Split(TgToken, ":")[0]
 		userid, err := strconv.Atoi(botuserid)
-		if err != nil {
+		if err!=nil {
 			perr(F("ERROR invalid bot user id [%s]", botuserid))
 			os.Exit(1)
 		}
@@ -254,12 +257,12 @@ func init() {
 	}
 
 	TgAdminMention = os.Getenv("TgAdminMention")
-	if TgAdminMention == "" {
+	if TgAdminMention=="" {
 		perr(F("WARNING empty TgAdminMention env var"))
 	}
 
 	TgWebhookHost = os.Getenv("TgWebhookHost")
-	if TgWebhookHost == "" {
+	if TgWebhookHost=="" {
 		perr(F("WARNING empty TgWebhookHost env var"))
 	}
 
@@ -267,31 +270,31 @@ func init() {
 	perr(F("DEBUG TgWebhookUrl [%s]", TgWebhookUrl))
 
 	TgWebhookToken = os.Getenv("TgWebhookToken")
-	if TgWebhookToken == "" {
+	if TgWebhookToken=="" {
 		perr(F("WARNING empty TgWebhookToken env var"))
 	}
 
 	for _, i := range strings.Fields(os.Getenv("TgChatIds")) {
-		if i == "" {
+		if i=="" {
 			continue
 		}
 		chatid, err := strconv.Atoi(i)
-		if err != nil || chatid == 0 {
+		if err!=nil || chatid == 0 {
 			perr(F("WARNING invalid chat id [%s]", i))
 		}
 		TgChatIds = append(TgChatIds, int64(chatid))
 	}
-	if len(TgChatIds) == 0 && TgWebhookUrl != "" {
+	if len(TgChatIds) == 0 && TgWebhookUrl!="" {
 		perr(F("ERROR empty or invalid TgChatIds env var"))
 		os.Exit(1)
 	}
 
 	for _, i := range strings.Fields(os.Getenv("TgBossUserIds")) {
-		if i == "" {
+		if i=="" {
 			continue
 		}
 		userid, err := strconv.Atoi(i)
-		if err != nil || userid == 0 {
+		if err!=nil || userid == 0 {
 			perr(F("WARNING invalid user id [%s]", i))
 		}
 		TgBossUserIds = append(TgBossUserIds, int64(userid))
@@ -316,12 +319,12 @@ func main() {
 				"ServerPackagesUpdateAgo": time.Since(ServerPackagesUpdateLastRun).Truncate(time.Second).String(),
 			}
 			w.Header().Set("Content-Type", "application/json")
-			if err := json.NewEncoder(w).Encode(health); err != nil {
+			if err := json.NewEncoder(w).Encode(health); err!=nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 		})
 		for {
-			if err := http.ListenAndServe(HealthListenAddrDefault, healthmux); err != nil {
+			if err := http.ListenAndServe(HealthListenAddrDefault, healthmux); err!=nil {
 				perr(F("ERROR healthmux %+v", err))
 				time.Sleep(time.Second)
 			}
@@ -329,10 +332,10 @@ func main() {
 
 	}()
 
-	if TgWebhookUrl != "" {
+	if TgWebhookUrl!="" {
 
 		perr(F("DEBUG TgWebhookUrl [%s] is not empty so setting webhook with telegram to receive updates", TgWebhookUrl))
-		if err := TgSetWebhook(TgWebhookUrl, []string{"message", "channel_post"}, TgWebhookToken); err != nil {
+		if err := TgSetWebhook(TgWebhookUrl, []string{"message", "channel_post"}, TgWebhookToken); err!=nil {
 			perr(F("ERROR TgSetWebhook %+v", err))
 			os.Exit(1)
 		}
@@ -343,7 +346,7 @@ func main() {
 			for {
 				perr(F("webhook serving requests on [%s]", ListenAddr))
 				err := http.ListenAndServe(ListenAddr, nil)
-				if err != nil {
+				if err!=nil {
 					perr(F("ERROR webhook ListenAndServe %+v", err))
 				}
 				retryinterval := 11 * time.Second
@@ -364,7 +367,7 @@ func main() {
 		for {
 			ServerPackagesUpdateLastRun = time.Now()
 
-			if err := ServerPackagesUpdate(); err != nil {
+			if err := ServerPackagesUpdate(); err!=nil {
 				perr(F("ERROR packages update %+v", err))
 			}
 
@@ -384,7 +387,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var tgerr error
 
-	if TgWebhookToken != "" && r.Header.Get("X-Telegram-Bot-Api-Secret-Token") != TgWebhookToken {
+	if TgWebhookToken!="" && r.Header.Get("X-Telegram-Bot-Api-Secret-Token") != TgWebhookToken {
 		perr(F("WARNING webhook request with invalid X-Telegram-Bot-Api-Secret-Token header"))
 		w.WriteHeader(http.StatusOK)
 		return
@@ -392,7 +395,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
 	var rbody []byte
 	rbody, err = io.ReadAll(r.Body)
-	if err != nil {
+	if err!=nil {
 		perr(F("ERROR webhook io.ReadAll r.Body %v", err))
 		w.WriteHeader(http.StatusOK)
 		return
@@ -419,7 +422,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
 	var rupdate tg.Update
 	err = json.NewDecoder(bytes.NewBuffer(rbody)).Decode(&rupdate)
-	if err != nil {
+	if err!=nil {
 		perr(F("ERROR webhook json.Decoder.Decode %v", err))
 		return
 	}
@@ -436,7 +439,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	}
 	perr(F("DEBUG webhook reply to message chat id valid"))
 
-	if rupdate.Message.ReplyToMessage == nil || (rupdate.Message.ReplyToMessage.From.Id != TgBotUserId && !slices.Contains(TgChatIds, rupdate.Message.ReplyToMessage.SenderChat.Id)) {
+	if rupdate.Message.ReplyToMessage==nil || (rupdate.Message.ReplyToMessage.From.Id != TgBotUserId && !slices.Contains(TgChatIds, rupdate.Message.ReplyToMessage.SenderChat.Id)) {
 		perr(F("DEBUG webhook reply to message user id not valid"))
 		return
 	}
@@ -478,7 +481,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		if _, tgerr = tglog(
 			tg.Bold(tg.Esc(tg.F("Your request to force update %s-%s is NOT accepted.", p.ChartName, p.EnvName)))+NL+NL+tg.Esc("Check helmbot TgBossUserIds config value."),
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
-		); tgerr != nil {
+		); tgerr!=nil {
 			perr(F("ERROR webhook tglog %v", tgerr))
 		}
 		return
@@ -488,13 +491,13 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 	perr(F("DEBUG webhook update hash id submatch %+v", UpdateHashIdSubmatch))
 
 	var ValuesDeployedHash string
-	if err := GetValuesText(p.ValuesDeployedHashFilename(), &ValuesDeployedHash, true); err != nil {
+	if err := GetValuesText(p.ValuesDeployedHashFilename(), &ValuesDeployedHash, true); err!=nil {
 		perr(F("ERROR webhook [%s] could not be read %v", p.ValuesDeployedHashFilename(), err))
 		if _, tgerr = tglog(
 			tg.Bold(tg.Esc("INTERNAL ERROR"))+NL+
 				tg.Esc(TgAdminMention),
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
-		); tgerr != nil {
+		); tgerr!=nil {
 			perr(F("ERROR webhook tglog %v", tgerr))
 		}
 		return
@@ -506,20 +509,20 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		if _, tgerr = tglog(
 			tg.Bold(tg.Esc("THIS UPDATE IS ALREADY DEPLOYED")),
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
-		); tgerr != nil {
+		); tgerr!=nil {
 			perr(F("ERROR webhook tglog %v", tgerr))
 		}
 		return
 	}
 
 	var ValuesReportedHash string
-	if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash, true); err != nil {
+	if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash, true); err!=nil {
 		perr(F("ERROR webhook [%s] could not be read %v", p.ValuesReportedHashFilename(), err))
 		if _, tgerr = tglog(
 			tg.Bold(tg.Esc("INTERNAL ERROR"))+NL+
 				tg.Esc(TgAdminMention),
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
-		); tgerr != nil {
+		); tgerr!=nil {
 			perr(F("ERROR webhook tglog %v", tgerr))
 		}
 		return
@@ -531,7 +534,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 		if _, tgerr = tglog(
 			tg.Bold(tg.Esc("THIS IS NOT THE LAST AVAILABLE UPDATE"))+NL+NL+tg.Esc("Only the last available update can be forced."),
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
-		); tgerr != nil {
+		); tgerr!=nil {
 			perr(F("ERROR webhook tglog %v", tgerr))
 		}
 		return
@@ -542,13 +545,13 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
 	perr(F("DEBUG webhook creating [%s] file", p.ValuesPermitHashFilename()))
 
-	if err := PutValuesText(p.ValuesPermitHashFilename(), UpdateValuesHash); err != nil {
+	if err := PutValuesText(p.ValuesPermitHashFilename(), UpdateValuesHash); err!=nil {
 		perr(F("ERROR webhook [%s] could not be written %v", p.ValuesPermitHashFilename(), err))
 		if _, tgerr = tglog(
 			tg.Bold(tg.Esc("INTERNAL ERROR"))+NL+
 				tg.Esc(TgAdminMention),
 			rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
-		); tgerr != nil {
+		); tgerr!=nil {
 			perr(F("ERROR webhook tglog %v", tgerr))
 		}
 		return
@@ -563,7 +566,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 			NL+NL+
 			tg.Code(UpdateHashId),
 		rupdate.Message.Chat.Id, rupdate.Message.MessageId, 0,
-	); tgerr != nil {
+	); tgerr!=nil {
 		perr(F("ERROR webhook tglog %v", tgerr))
 	}
 
@@ -572,20 +575,20 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
 func ServerPackagesUpdate() (err error) {
 	
-	if err := GetValuesTextFile("paused", nil, false); err == nil {
+	if err := GetValuesTextFile("paused", nil, false); err==nil {
 		// paused packages update - return with no error
 		perr(F("VERBOSE packages update paused"))
 		return nil
 	}
 	
-	if ConfigFilename != "" {
-		if err := GetValues(ConfigFilename, nil, &Config); err != nil {
+	if ConfigFilename!="" {
+		if err := GetValues(ConfigFilename, nil, &Config); err!=nil {
 			return err
 		}
 	}
 	
-	if HostConfigFilename != "" {
-		if err := GetValues(HostConfigFilename, nil, &Config); err != nil {
+	if HostConfigFilename!="" {
+		if err := GetValues(HostConfigFilename, nil, &Config); err!=nil {
 			return err
 		}
 	}
@@ -606,7 +609,7 @@ func ServerPackagesUpdate() (err error) {
 	// https://pkg.go.dev/helm.sh/helm/v3/pkg/cli
 	helmenvsettings := helmcli.New()
 	helmactioncfg := new(helmaction.Configuration)
-	if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), "", "", perrf); err != nil {
+	if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), "", "", perrf); err!=nil {
 		return err
 	}
 	installedreleases, err := helmaction.NewList(helmactioncfg).Run()
@@ -621,14 +624,14 @@ func ServerPackagesUpdate() (err error) {
 	*/
 	
 	Packages, err = ProcessServersPackages(Config.Servers)
-	if err != nil {
+	if err!=nil {
 		perr(F("packages ERROR ProcessServersPackages %v", err))
 		return err
 	}
 	
 	for _, p := range Packages {
 		
-		if err := GetValuesTextFile(p.PausedFilename(), nil, false); err == nil {
+		if err := GetValuesTextFile(p.PausedFilename(), nil, false); err==nil {
 			// paused package update - skip with no error
 			p.perr(F("DEBUG update paused"))
 			continue
@@ -639,18 +642,18 @@ func ServerPackagesUpdate() (err error) {
 		//
 		
 		var PermitHash string
-		if err := GetValuesText(p.ValuesPermitHashFilename(), &PermitHash, true); err != nil {
+		if err := GetValuesText(p.ValuesPermitHashFilename(), &PermitHash, true); err!=nil {
 			p.perr(F("ERROR GetValuesText %v", err))
 		}
 		
 		updatetimestampfilename := path.Join(ConfigDir, p.UpdateTimestampFilename())
-		if updatetimestampfilestat, err := os.Stat(updatetimestampfilename); err == nil {
+		if updatetimestampfilestat, err := os.Stat(updatetimestampfilename); err==nil {
 			p.UpdateTimestamp = updatetimestampfilestat.ModTime()
 		}
 		
 		// TODO check values for updates more often but not images.values
 		
-		if PermitHash == "" {
+		if PermitHash=="" {
 			if d := time.Now().Sub(p.UpdateTimestamp).Truncate(time.Second); d < p.UpdateIntervalDuration {
 				p.perr(F("DEBUG <%s> until next update", p.UpdateIntervalDuration-d))
 				continue
@@ -676,8 +679,8 @@ func ServerPackagesUpdate() (err error) {
 			if *p.GlobalValuesEnable {
 				if err := GetValues(p.GlobalValuesFilename(), &p.GlobalValuesText, &p.GlobalValues); err!=nil { return err }
 			}
-			if err := GetValues(p.ValuesFilename(), &p.ValuesText, &p.Values); err != nil { return err }
-			if err := GetValues(p.EnvValuesFilename(), &p.EnvValuesText, &p.EnvValues); err != nil { return err }
+			if err := GetValues(p.ValuesFilename(), &p.ValuesText, &p.Values); err!=nil { return err }
+			if err := GetValues(p.EnvValuesFilename(), &p.EnvValuesText, &p.EnvValues); err!=nil { return err }
 		}
 		
 		//
@@ -690,36 +693,36 @@ func ServerPackagesUpdate() (err error) {
 		
 		chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetter.All(helmenvsettings)}
 		chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
-		if p.ChartRepo.Address != "" && p.ChartRepo.Username != "" {
+		if p.ChartRepo.Address!="" && p.ChartRepo.Username!="" {
 			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithBasicAuth(p.ChartRepo.Username, p.ChartRepo.Password))
 		}
 		
-		if p.ChartRepo.Address != "" {
+		if p.ChartRepo.Address!="" {
 			
 			chartrepo, err := helmrepo.NewChartRepository(
 				&helmrepo.Entry{
-					Name:                  F("helm.%s.%s", p.ChartName, p.EnvName),
-					URL:                   p.ChartRepo.Address,
-					Username:              p.ChartRepo.Username,
-					Password:              p.ChartRepo.Password,
+					Name: F("helm.%s.%s", p.ChartName, p.EnvName),
+					URL: p.ChartRepo.Address,
+					Username: p.ChartRepo.Username,
+					Password: p.ChartRepo.Password,
 					InsecureSkipTLSverify: false,
-					PassCredentialsAll:    false,
+					PassCredentialsAll: false,
 				},
 				helmgetter.All(helmenvsettings),
 			)
-			if err != nil {
+			if err!=nil {
 				return EF("NewChartRepository %w", err)
 			}
 			
 			indexfilepath, err := chartrepo.DownloadIndexFile()
-			if err != nil {
+			if err!=nil {
 				return EF("DownloadIndexFile %w", err)
 			}
 			//p.perr(F("DEBUG chart repo index file path %s", indexfilepath))
 			// TODO store chart repo indexes in /opt/helmbot/, not at /root/.cache/helm/
 			
 			idx, err := helmrepo.LoadIndexFile(indexfilepath)
-			if err != nil {
+			if err!=nil {
 				return EF("LoadIndexFile %w", err)
 			}
 			
@@ -734,17 +737,18 @@ func ServerPackagesUpdate() (err error) {
 				for _, v := range repochartversions {
 					vv = append(vv, "["+v.Version+"]")
 				}
-				p.perr(F("DEBUG repo versions ( %s ))", strings.Join(vv, SP)))
-				if p.ChartVersion != "" {
+				p.perr(F("DEBUG helm chart repo versions ( %s )", strings.Join(vv, SP)))
+				
+				if p.ChartVersion!="" {
 					p.perr(F("DEBUG ChartVersion %s", p.ChartVersion))
 					for _, v := range repochartversions {
 						if v.Version == p.ChartVersion {
-							p.perr(F("DEBUG ChartVersion %s found in repo", p.ChartVersion))
+							p.perr(F("DEBUG ChartVersion [%s] found in repo", p.ChartVersion))
 							repochartversion = v
 							break
 						}
 					}
-				} else if p.ChartVersionPrefix != "" {
+				} else if p.ChartVersionPrefix!="" {
 					p.perr(F("DEBUG ChartVersionPrefix [%s]", p.ChartVersionPrefix))
 					for _, v := range repochartversions {
 						if strings.HasPrefix(v.Version, p.ChartVersionPrefix) {
@@ -758,7 +762,7 @@ func ServerPackagesUpdate() (err error) {
 				}
 			}
 			
-			if repochartversion == nil {
+			if repochartversion==nil {
 				return EF("packages chart [%s] repo index no chart version found", p.ChartName)
 			}
 			
@@ -772,41 +776,69 @@ func ServerPackagesUpdate() (err error) {
 					return EF("packages chart %s: no chart urls", p.ChartName)
 				}
 				charturl, err := helmrepo.ResolveReferenceURL(p.ChartRepo.Address, repochartversion.URLs[0])
-				if err != nil {
+				if err!=nil {
 					return err
 				}
-				if chartpath, _, err = chartdownloader.DownloadTo(charturl, chartversion, ConfigDir); err != nil {
+				if chartpath, _, err = chartdownloader.DownloadTo(charturl, chartversion, ConfigDir); err!=nil {
 					return err
 				}
 			}
-		} else if p.ChartAddress != "" {
+			
+		} else if p.ChartAddress!="" {
 			
 			chartaddress := p.ChartAddress
 			chartaddress = strings.TrimPrefix(chartaddress, "https://")
 			chartaddress = strings.TrimPrefix(chartaddress, "oci://")
 			hrclient, err := helmregistry.NewClient(helmregistry.ClientOptDebug(false))
-			if err != nil {
+			if err!=nil {
 				return EF("helmregistry.NewClient %v", err)
 			}
-			if p.ChartAuth.Username != "" {
-				if charturl, err := url.Parse(p.ChartAddress); err != nil {
+			if p.ChartAuth.Username!="" {
+				if charturl, err := url.Parse(p.ChartAddress); err!=nil {
 					p.perr(F("ERROR url.Parse %+v", err))
 				} else {
-					if err := hrclient.Login(charturl.Host, helmregistry.LoginOptBasicAuth(p.ChartAuth.Username, p.ChartAuth.Password)); err != nil {
+					if err := hrclient.Login(charturl.Host, helmregistry.LoginOptBasicAuth(p.ChartAuth.Username, p.ChartAuth.Password)); err!=nil {
 						p.perr(F("ERROR hrclient.Login %+v", err))
 					}
 				}
 			}
 			tags, err := hrclient.Tags(chartaddress)
-			if err != nil { return EF("hrclient.Tags %v", err) }
+			if err!=nil { return EF("hrclient.Tags %v", err) }
 			if len(tags) == 0 { return EF("ChartAddress [%s] empty tags list", p.ChartAddress, err) }
+			// https://pkg.go.dev/sort#StringSlice
+			sort.Sort(sort.Reverse(sort.StringSlice(tags)))
 			var tagss []string
 			for _, t := range tags {
 				tagss = append(tagss, "["+t+"]")
 			}
-			p.perr(F("DEBUG tags ( %s )", strings.Join(tagss, SP)))
-			chartversion = tags[0]
-			if u, err := url.Parse(p.ChartAddress); err != nil {
+			p.perr(F("DEBUG helm chart versions ( %s )", strings.Join(tagss, SP)))
+			
+			if p.ChartVersion!="" {
+				p.perr(F("DEBUG ChartVersion %s", p.ChartVersion))
+				for _, v := range tags {
+					if v == p.ChartVersion {
+						p.perr(F("DEBUG ChartVersion [%s] found in repo", p.ChartVersion))
+						chartversion = v
+						break
+					}
+				}
+			} else if p.ChartVersionPrefix!="" {
+				p.perr(F("DEBUG ChartVersionPrefix [%s]", p.ChartVersionPrefix))
+				for _, v := range tags {
+					if strings.HasPrefix(v, p.ChartVersionPrefix) {
+						p.perr(F("DEBUG chart version [%s] found in tags", v))
+						chartversion = v
+						break
+					}
+				}
+			} else {
+				chartversion = tags[0]
+			}
+			if chartversion=="" {
+				return EF("packages chart [%s] tags no chart version found", p.ChartName)
+			}
+			
+			if u, err := url.Parse(p.ChartAddress); err!=nil {
 				return EF("parse ChartAddress [%s] %v", p.ChartAddress, err)
 			} else {
 				chartname = path.Base(u.Path)
@@ -814,18 +846,18 @@ func ServerPackagesUpdate() (err error) {
 				p.perr(F("DEBUG local chartpath [%s] exists <%t>", chartpath, fileExists(chartpath)))
 			}
 			if !fileExists(chartpath) {
-				if chartpath, _, err = chartdownloader.DownloadTo(p.ChartAddress, chartversion, ConfigDir); err != nil {
+				if chartpath, _, err = chartdownloader.DownloadTo(p.ChartAddress, chartversion, ConfigDir); err!=nil {
 					return err
 				}
 			}
 			
-		} else if p.ChartLocalFilename != "" {
+		} else if p.ChartLocalFilename!="" {
 			
 			if !strings.HasSuffix(p.ChartLocalFilename, ".tgz") {
 				return EF("ChartLocalFilename [%s] is not a .tgz file", p.ChartLocalFilename)
 			}
 			
-			if mm, err := filepath.Glob(path.Join(ConfigDir, p.ChartLocalFilename)); err != nil {
+			if mm, err := filepath.Glob(path.Join(ConfigDir, p.ChartLocalFilename)); err!=nil {
 				return EF("Glob ConfigDir [%s] ChartLocalFilename [%s] %v", ConfigDir, p.ChartLocalFilename, err)
 			} else if len(mm) == 0 {
 				return EF("Glob ConfigDir [%s] ChartLocalFilename [%s] glob no match", ConfigDir, p.ChartLocalFilename)
@@ -842,9 +874,9 @@ func ServerPackagesUpdate() (err error) {
 		
 		// https://pkg.go.dev/helm.sh/helm/v3/pkg/chart/loader#Load
 		chartfull, err = helmloader.Load(chartpath)
-		if err != nil {
+		if err!=nil {
 			return EF("helmloader.Load [%s] %w", chartpath, err)
-		} else if chartfull == nil {
+		} else if chartfull==nil {
 			return EF("loaded chart is <nil>")
 		}
 		
@@ -890,7 +922,7 @@ func ServerPackagesUpdate() (err error) {
 		//
 		
 		var allvaluestext string
-		if p.LocalValues == nil {
+		if p.LocalValues==nil {
 			allvaluestext = p.ValuesText + p.EnvValuesText + p.ImagesValuesText
 			if *p.GlobalValuesEnable {
 				allvaluestext = p.GlobalValuesText + allvaluestext
@@ -905,7 +937,7 @@ func ServerPackagesUpdate() (err error) {
 		//
 		
 		var ValuesDeployedHash string
-		if err := GetValuesText(p.ValuesDeployedHashFilename(), &ValuesDeployedHash, true); err != nil {
+		if err := GetValuesText(p.ValuesDeployedHashFilename(), &ValuesDeployedHash, true); err!=nil {
 			p.perr(F("ERROR GetValuesText %s", err))
 			continue
 		}
@@ -927,7 +959,7 @@ func ServerPackagesUpdate() (err error) {
 		//
 		
 		var ValuesReportedHash string
-		if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash, true); err != nil {
+		if err := GetValuesText(p.ValuesReportedHashFilename(), &ValuesReportedHash, true); err!=nil {
 			p.perr(F("ERROR GetValuesText %v", err))
 		}
 		p.perr(F("DEBUG ValuesHash [%s] ValuesReportedHash [%s] ValuesDeployedHash [%s] PermitHash [%s]", p.ValuesHash, ValuesReportedHash, ValuesDeployedHash, PermitHash))
@@ -985,7 +1017,7 @@ func ServerPackagesUpdate() (err error) {
 			DeployedImagesValuesMap := make(map[string]string)
 			yd := yaml.NewDecoder(strings.NewReader(DeployedImagesValuesText))
 			for {
-				if err := yd.Decode(&DeployedImagesValuesMap); err != nil {
+				if err := yd.Decode(&DeployedImagesValuesMap); err!=nil {
 					if err != io.EOF {
 						return EF("yaml Decode %w", err)
 					}
@@ -1020,7 +1052,7 @@ func ServerPackagesUpdate() (err error) {
 		//
 		
 		deploynow := false
-		if p.AlwaysForceNow != nil && *p.AlwaysForceNow {
+		if p.AlwaysForceNow!=nil && *p.AlwaysForceNow {
 			deploynow = true
 		}
 		if slices.Contains(p.AllowedHoursList, timenowhour) {
@@ -1049,7 +1081,7 @@ func ServerPackagesUpdate() (err error) {
 		if envvaluesdiff {
 			tgmsg += tg.Code(p.EnvValuesFilename()) + " changed" + NL + NL
 		}
-		if imagesvaluesdiff != "" {
+		if imagesvaluesdiff!="" {
 			tgmsg += tg.Code(p.ImagesValuesFilename()) + " diff:" + NL + tg.Pre(imagesvaluesdiff) + NL + NL
 		}
 		
@@ -1058,7 +1090,7 @@ func ServerPackagesUpdate() (err error) {
 				p.perr(F("VERBOSE reporting pending update"))
 				tgmsg += tg.Bold(tg.Esc("NOT UPDATING NOW")) + tg.Esc("; update will start ") + tg.Bold(tg.Esc("in the next allowed time window")) + NL + NL
 				tgmsg += tg.Esc("TO FORCE START THIS UPDATE NOW REPLY TO THIS MESSAGE WITH TEXT \"") + tg.Code("NOW") + tg.Esc("\" (UPPERCASE)") + NL + NL
-				if tgmsgid, tgerr = p.tglog(tgmsg, 0, 0); tgerr != nil {
+				if tgmsgid, tgerr = p.tglog(tgmsg, 0, 0); tgerr!=nil {
 					p.perr(F("ERROR tglog %v", tgerr))
 				}
 
@@ -1066,7 +1098,7 @@ func ServerPackagesUpdate() (err error) {
 				// WRITE REPORTED HASH
 				//
 				
-				if err := PutValuesText(p.ValuesReportedHashFilename(), p.ValuesHash); err != nil {
+				if err := PutValuesText(p.ValuesReportedHashFilename(), p.ValuesHash); err!=nil {
 					return EF("PutValuesText %w", err)
 				}
 			}
@@ -1080,7 +1112,7 @@ func ServerPackagesUpdate() (err error) {
 		
 		if p.UpdateDelayDuration > 0 {
 			tgmsg += tg.Bold(tg.Esc(tg.F("STARTING IN %v", p.UpdateDelayDuration))) + NL + NL
-			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
+			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr!=nil {
 				p.perr(F("ERROR tglog %v", tgerr))
 			}
 			p.perr(F("VERBOSE sleeping <%v>", p.UpdateDelayDuration))
@@ -1094,7 +1126,7 @@ func ServerPackagesUpdate() (err error) {
 		
 		p.perr(F("VERBOSE preparing update"))
 		tgmsg += tg.Bold(tg.Esc("STARTED")) + NL + NL
-		if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
+		if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr!=nil {
 			p.perr(F("ERROR tglog %v", tgerr))
 		}
 		
@@ -1131,9 +1163,9 @@ func ServerPackagesUpdate() (err error) {
 		helmenvsettings := helmcli.New()
 		helmenvsettings.SetNamespace(p.Namespace)
 		helmactioncfg := new(helmaction.Configuration)
-		if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), p.Namespace, "", p.perr); err != nil {
+		if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), p.Namespace, "", p.perr); err!=nil {
 			tgmsg += tg.Bold(tg.Esc("INTERNAL ERROR")) + NL + NL
-			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
+			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr!=nil {
 				p.perr(F("ERROR tglog %v", tgerr))
 			}
 			return err
@@ -1245,7 +1277,7 @@ func ServerPackagesUpdate() (err error) {
 		installstatus += tg.F("namespace %s", release.Namespace) + NL
 		installstatus += tg.F("chart %s", release.Chart.Metadata.Name) + NL
 		installstatus += tg.F("version %s", release.Chart.Metadata.Version) + NL
-		if release.Chart.Metadata.AppVersion != "" {
+		if release.Chart.Metadata.AppVersion!="" {
 			installstatus += tg.F("appversion %s", release.Chart.Metadata.AppVersion) + NL
 		}
 		tgmsg += tg.Pre(installstatus) + NL + NL
@@ -1279,10 +1311,10 @@ func ServerPackagesUpdate() (err error) {
 		// DELETE PERMIT HASH AND REPORTED HASH
 		//
 		
-		if err := DeleteValues(p.ValuesPermitHashFilename()); err != nil {
+		if err := DeleteValues(p.ValuesPermitHashFilename()); err!=nil {
 			p.perr(F("VERBOSE WARNING DeleteValues %v", err))
 		}
-		if err := DeleteValues(p.ValuesReportedHashFilename()); err != nil {
+		if err := DeleteValues(p.ValuesReportedHashFilename()); err!=nil {
 			p.perr(F("VERBOSE WARNING DeleteValues %v", err))
 		}
 		
@@ -1293,14 +1325,14 @@ func ServerPackagesUpdate() (err error) {
 		if err := p.WriteValues(""); err!=nil {
 			p.perr(F("ERROR WriteValues %v", err))
 			tgmsg += tg.Bold(tg.Esc("INTERNAL ERROR")) + NL + NL
-			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
+			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr!=nil {
 				p.perr(F("ERROR tglog %v", tgerr))
 			}
 			return err
 		}
 		
 		tgmsg += tg.Bold(tg.Esc(tg.F("%s %s UPDATE FINISHED", strings.ToUpper(p.ChartName), strings.ToUpper(p.EnvName)))) + NL + NL
-		if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr != nil {
+		if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr!=nil {
 			p.perr(F("ERROR tglog %v", tgerr))
 		}
 
@@ -1325,54 +1357,54 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 			continue
 		}
 
-		if s.AllowedHours != nil {
+		if s.AllowedHours!=nil {
 			s.AllowedHoursList = strings.Fields(*s.AllowedHours)
 		}
 
-		if s.Timezone == nil || *s.Timezone == "" {
+		if s.Timezone==nil || *s.Timezone=="" {
 			tzutc := "UTC"
 			s.Timezone = &tzutc
 			s.TimezoneLocation = time.UTC
 		} else {
 			s.TimezoneLocation, err = time.LoadLocation(*s.Timezone)
-			if err != nil { return nil, err }
+			if err!=nil { return nil, err }
 		}
 
-		if s.UpdateInterval != nil && *s.UpdateInterval != "" {
+		if s.UpdateInterval!=nil && *s.UpdateInterval!="" {
 			s.UpdateIntervalDuration, err = time.ParseDuration(*s.UpdateInterval)
-			if err != nil { return nil, err }
+			if err!=nil { return nil, err }
 		}
 
-		if s.UpdateDelay != nil && *s.UpdateDelay != "" {
+		if s.UpdateDelay!=nil && *s.UpdateDelay!="" {
 			s.UpdateDelayDuration, err = time.ParseDuration(*s.UpdateDelay)
-			if err != nil { return nil, err }
+			if err!=nil { return nil, err }
 		}
 
-		if s.GlobalValuesEnable == nil {
+		if s.GlobalValuesEnable==nil {
 			s.GlobalValuesEnable = &FALSE
 		}
 
-		if s.DryRun == nil {
+		if s.DryRun==nil {
 			s.DryRun = &FALSE
 		}
 
 		for _, p := range s.Packages {
 
-			if p.ChartName == "" {
+			if p.ChartName=="" {
 				return nil, EF("package ChartName is empty")
 			}
 
-			if p.EnvName == "" {
+			if p.EnvName=="" {
 				p.EnvName = s.EnvName
 			}
-			if p.EnvName == "" {
+			if p.EnvName=="" {
 				return nil, EF("package EnvName is empty")
 			}
 
 			p.Name = F("%s-%s", p.ChartName, p.EnvName)
 
-			if p.Namespace == "" {
-				if s.Namespace != "" {
+			if p.Namespace=="" {
+				if s.Namespace!="" {
 					p.Namespace = s.Namespace
 				} else {
 					p.Namespace = F("%s-%s", p.ChartName, p.EnvName)
@@ -1381,20 +1413,20 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 
 			p.ServerHostname = &s.ServerHostname
 
-			if p.AllowedHours == nil {
+			if p.AllowedHours==nil {
 				p.AllowedHours = s.AllowedHours
 				p.AllowedHoursList = s.AllowedHoursList
 			} else {
 				p.AllowedHoursList = strings.Fields(*p.AllowedHours)
 			}
 
-			if p.Timezone == nil {
+			if p.Timezone==nil {
 				p.Timezone = s.Timezone
 				p.TimezoneLocation = s.TimezoneLocation
 			}
 
-			if p.AlwaysForceNow == nil {
-				if s.AlwaysForceNow == nil {
+			if p.AlwaysForceNow==nil {
+				if s.AlwaysForceNow==nil {
 					varfalse := false
 					p.AlwaysForceNow = &varfalse
 				} else {
@@ -1402,27 +1434,27 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 				}
 			}
 
-			if p.UpdateInterval == nil {
+			if p.UpdateInterval==nil {
 				p.UpdateInterval = s.UpdateInterval
 				p.UpdateIntervalDuration = s.UpdateIntervalDuration
 			} else {
 				p.UpdateIntervalDuration, err = time.ParseDuration(*p.UpdateInterval)
-				if err != nil { return nil, err }
+				if err!=nil { return nil, err }
 			}
 
-			if p.UpdateDelay == nil {
+			if p.UpdateDelay==nil {
 				p.UpdateDelay = s.UpdateDelay
 				p.UpdateDelayDuration = s.UpdateDelayDuration
 			} else {
 				p.UpdateDelayDuration, err = time.ParseDuration(*p.UpdateDelay)
-				if err != nil { return nil, err }
+				if err!=nil { return nil, err }
 			}
 
-			if p.ChartVersion != "" && p.ChartVersionPrefix != "" && !strings.HasPrefix(p.ChartVersion, p.ChartVersionPrefix) {
+			if p.ChartVersion!="" && p.ChartVersionPrefix!="" && !strings.HasPrefix(p.ChartVersion, p.ChartVersionPrefix) {
 				return nil, EF("package ChartVersion does not match ChartVersionPrefix")
 			}
 
-			if p.ChartVersionKey == "" {
+			if p.ChartVersionKey=="" {
 				ww := strings.Split(p.ChartName, "-")
 				for i := range ww {
 					ww[i] = textcases.Title(textlanguage.English, textcases.NoLower).String(ww[i])
@@ -1430,18 +1462,18 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 				p.ChartVersionKey = "HelmChartVersion" + strings.Join(ww, "")
 			}
 
-			if p.TgChatId == nil {
+			if p.TgChatId==nil {
 				p.TgChatId = s.TgChatId
 			}
-			if p.TgMentions == nil {
+			if p.TgMentions==nil {
 				p.TgMentions = s.TgMentions
 			}
 
-			if p.DryRun == nil {
+			if p.DryRun==nil {
 				p.DryRun = s.DryRun
 			}
 
-			if p.GlobalValuesEnable == nil {
+			if p.GlobalValuesEnable==nil {
 				p.GlobalValuesEnable = s.GlobalValuesEnable
 			}
 
@@ -1460,28 +1492,28 @@ func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, e
 }
 
 func GetValuesText(fname string, valuestext *string, notexistok bool) (err error) {
-	if ValuesS3UrlHost != "" {
+	if ValuesS3UrlHost!="" {
 		return GetValuesTextS3(fname, valuestext, notexistok)
 	}
 	return GetValuesTextFile(fname, valuestext, notexistok)
 }
 
 func GetValues(fname string, valuestext *string, values interface{}) (err error) {
-	if ValuesS3UrlHost != "" {
+	if ValuesS3UrlHost!="" {
 		return GetValuesS3(fname, valuestext, values)
 	}
 	return GetValuesFile(fname, valuestext, values)
 }
 
 func PutValuesText(fname string, valuestext string) (err error) {
-	if ValuesS3UrlHost != "" {
+	if ValuesS3UrlHost!="" {
 		return PutValuesTextS3(fname, valuestext)
 	}
 	return PutValuesTextFile(fname, valuestext)
 }
 
 func DeleteValues(fname string) (err error) {
-	if ValuesS3UrlHost != "" {
+	if ValuesS3UrlHost!="" {
 		return DeleteValuesS3(fname)
 	}
 	return DeleteValuesFile(fname)
@@ -1493,27 +1525,27 @@ func GetValuesTextFile(fname string, valuestext *string, notexistok bool) (err e
 	if os.IsNotExist(err) && !notexistok {
 		return EF("GetValuesTextFile [%s] does not exist", fname)
 	} else if os.IsNotExist(err) && notexistok {
-	} else if err != nil {
+	} else if err!=nil {
 		return EF("GetValuesTextFile [%s] %w", fname, err)
 	}
-	if valuestext != nil {
+	if valuestext!=nil {
 		*valuestext = string(bb)
 	}
 	return nil
 }
 
 func GetValuesFile(fname string, valuestext *string, values interface{}) (err error) {
-	if valuestext == nil {
+	if valuestext==nil {
 		var valuestext1 string
 		valuestext = &valuestext1
 	}
 	err = GetValuesTextFile(fname, valuestext, false)
-	if err != nil {
+	if err!=nil {
 		return EF("GetValuesFile [%s] GetValuesTextFile %w", fname, err)
 	}
 	d := yaml.NewDecoder(strings.NewReader(*valuestext))
 	err = d.Decode(values)
-	if err != nil {
+	if err!=nil {
 		return EF("GetValuesFile [%s] Decode %w", fname, err)
 	}
 	return nil
@@ -1522,7 +1554,7 @@ func GetValuesFile(fname string, valuestext *string, values interface{}) (err er
 func PutValuesTextFile(fname string, valuestext string) (err error) {
 	fpath := filepath.Join(ConfigDir, fname)
 	err = os.WriteFile(fpath, []byte(valuestext), 0644)
-	if err != nil {
+	if err!=nil {
 		return EF("PutValuesTextFile [%s] %w", fname, err)
 	}
 	return nil
@@ -1701,7 +1733,7 @@ type HelmbotConfig struct {
 // aws4 signature
 func S3NewRequest(method, name string, payload []byte) (req *http.Request, err error) {
 	req, err = http.NewRequest(method, ValuesS3Url+name, bytes.NewBuffer(payload))
-	if err != nil { return nil, err }
+	if err!=nil { return nil, err }
 	req.Header.Set("User-Agent", "helmbot")
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.Host = ValuesS3UrlHost
@@ -1715,7 +1747,7 @@ func S3NewRequest(method, name string, payload []byte) (req *http.Request, err e
 	req.Header.Set("X-Amz-Date", tnowheader)
 	req.Header.Set("X-Amz-Content-Sha256", payloadhashhex)
 	canonicaluri := req.URL.EscapedPath()
-	if canonicaluri == "" { canonicaluri = "/" }
+	if canonicaluri=="" { canonicaluri = "/" }
 	canonicalquerystring := req.URL.Query().Encode()
 	canonicalheaders := ""+
 		"content-type:"+req.Header.Get("Content-Type")+NL+
@@ -1747,9 +1779,9 @@ func S3NewRequest(method, name string, payload []byte) (req *http.Request, err e
 
 func GetValuesTextS3(name string, valuestext *string, notexistok bool) (err error) {
 	var respbody string
-	if req, err := S3NewRequest(http.MethodGet, name, nil); err != nil {
+	if req, err := S3NewRequest(http.MethodGet, name, nil); err!=nil {
 		return EF("%s: %w", name, err)
-	} else if resp, err := http.DefaultClient.Do(req); err != nil {
+	} else if resp, err := http.DefaultClient.Do(req); err!=nil {
 		return EF("%s: %w", name, err)
 	} else if resp.StatusCode == 404 && !notexistok {
 		return EF("%s: s3 server response status %s", name, resp.Status)
@@ -1759,7 +1791,7 @@ func GetValuesTextS3(name string, valuestext *string, notexistok bool) (err erro
 		bb, err := ioutil.ReadAll(resp.Body)
 		if err!=nil { perr(F("ERROR GetValuesTextS3 resp.Body ReadAll %v", err)) }
 		return EF("%s: s3 server response status <%d> body [%s]", name, resp.StatusCode, string(bb))
-	} else if bb, err := ioutil.ReadAll(resp.Body); err != nil {
+	} else if bb, err := ioutil.ReadAll(resp.Body); err!=nil {
 		return EF("%s: %w", name, err)
 	} else {
 		respbody = string(bb)
@@ -1769,15 +1801,15 @@ func GetValuesTextS3(name string, valuestext *string, notexistok bool) (err erro
 }
 
 func GetValuesS3(name string, valuestext *string, values interface{}) (err error) {
-	if valuestext == nil {
+	if valuestext==nil {
 		var valuestext1 string
 		valuestext = &valuestext1
 	}
 	err = GetValuesTextS3(name, valuestext, false)
-	if err != nil { return EF("GetValuesS3 [%s] GetValuesTextS3 %w", name, err) }
+	if err!=nil { return EF("GetValuesS3 [%s] GetValuesTextS3 %w", name, err) }
 	d := yaml.NewDecoder(strings.NewReader(*valuestext))
 	err = d.Decode(values)
-	if err != nil { return EF("GetValuesS3 [%s] Decode %w", name, err) }
+	if err!=nil { return EF("GetValuesS3 [%s] Decode %w", name, err) }
 	return nil
 }
 
@@ -1786,9 +1818,9 @@ func PutValuesTextS3(name string, valuestext string) (err error) {
 		"DEBUG PutValuesTextS3 len %d %s [%s]", 
 		len(valuestext), name, strings.ReplaceAll(valuestext, NL, " <nl> "),
 	))
-	if req, err := S3NewRequest(http.MethodPut, name, []byte(valuestext)); err != nil {
+	if req, err := S3NewRequest(http.MethodPut, name, []byte(valuestext)); err!=nil {
 		return EF("PutValuesTextS3 [%s] %w", name, err)
-	} else if resp, err := http.DefaultClient.Do(req); err != nil {
+	} else if resp, err := http.DefaultClient.Do(req); err!=nil {
 		return EF("PutValuesTextS3 [%s] %w", name, err)
 	} else if resp.StatusCode != 200 {
 		return EF("PutValuesTextS3 [%s] s3 server response status %s", name, resp.Status)
@@ -1798,9 +1830,9 @@ func PutValuesTextS3(name string, valuestext string) (err error) {
 
 func DeleteValuesS3(name string) (err error) {
 	perr(F("DEBUG DeleteValuesS3 [%s]", AtonString(name)))
-	if req, err := S3NewRequest(http.MethodDelete, name, nil); err != nil {
+	if req, err := S3NewRequest(http.MethodDelete, name, nil); err!=nil {
 		return EF("DeleteValuesS3 [%s] %w", AtonString(name), err)
-	} else if resp, err := http.DefaultClient.Do(req); err != nil {
+	} else if resp, err := http.DefaultClient.Do(req); err!=nil {
 		return EF("DeleteValuesS3 [%s] %w", AtonString(name), err)
 	} else if resp.StatusCode != 200 {
 		return EF("DeleteValuesS3 [%s] s3 server response status %s", AtonString(name), resp.Status)
@@ -1882,7 +1914,7 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 				dr.Logf = dregistry.Quiet
 				// TODO hangs here ?
 				imagetags, err := dr.Tags(RegistryRepository)
-				if err != nil { return EF("registry.Tags [%s] [%s] %w", imagename, imageurl, err) }
+				if err!=nil { return EF("registry.Tags [%s] [%s] %w", imagename, imageurl, err) }
 				sort.Sort(sort.Reverse(DrVersions(imagetags)))
 				perr(F("DEBUG drlatestyaml [%s] tags (%s)", AtonString(imagename), AtonListStrings(imagetags)))
 				imagetag := ""
@@ -1914,7 +1946,7 @@ func ImagesValuesToList(imagesvaluesmap map[string]interface{}) (imagesvalueslis
 		},
 	)
 	for _, iv := range imagesvalueslist {
-		if bb, err := yaml.Marshal(iv); err != nil {
+		if bb, err := yaml.Marshal(iv); err!=nil {
 			return nil, "", EF("yaml.Marshal %w", err)
 		} else {
 			imagesvaluestext += string(bb)
@@ -1932,7 +1964,7 @@ func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error
 		SecretToken:    secrettoken,
 	}
 	swreqjs, err := json.Marshal(swreq)
-	if err != nil { return err }
+	if err!=nil { return err }
 	swreqjsBuffer := bytes.NewBuffer(swreqjs)
 	var resp *http.Response
 	// TODO TgApiUrl
@@ -1942,15 +1974,15 @@ func TgSetWebhook(url string, allowedupdates []string, secrettoken string) error
 		"application/json",
 		swreqjsBuffer,
 	)
-	if err != nil {
+	if err!=nil {
 		return EF("url [%s] data [%s] error %v", AtonString(tgapiurl), AtonString(string(swreqjs)), err)
 	}
 	var swresp TgSetWebhookResponse
 	var swrespbody []byte
 	swrespbody, err = io.ReadAll(resp.Body)
-	if err != nil { return EF("io.ReadAll: %w", err) }
+	if err!=nil { return EF("io.ReadAll: %w", err) }
 	err = json.NewDecoder(bytes.NewBuffer(swrespbody)).Decode(&swresp)
-	if err != nil { return EF("json.Decoder.Decode: %w", err) }
+	if err!=nil { return EF("json.Decoder.Decode: %w", err) }
 	if !swresp.OK || !swresp.Result {
 		return EF("url [%s] data [%s] api response not ok %+v", AtonString(tgapiurl), AtonString(string(swreqjs)), swresp)
 	}
@@ -2077,21 +2109,21 @@ func fmttime(t time.Time) (ts string) {
 func dirExists(path string) bool {
 	s, err := os.Stat(path)
 	if os.IsNotExist(err) { return false }
-	return err == nil && s.IsDir()
+	return err==nil && s.IsDir()
 }
 
 func fileExists(path string) bool {
 	s, err := os.Stat(path)
 	if os.IsNotExist(err) { return false }
-	return err == nil && s.Mode().IsRegular()
+	return err==nil && s.Mode().IsRegular()
 }
 
 func perr(msg string) {
 	if strings.HasPrefix(msg, "DEBUG ") && !DEBUG { return }
 	if strings.HasPrefix(msg, "VERBOSE ") && !VERBOSE { return }
 	tnow := time.Now()
-	if TgToken != "" { msg = strings.ReplaceAll(msg, TgToken, "[TgToken]") }
-	if TgWebhookToken != "" { msg = strings.ReplaceAll(msg, TgWebhookToken, "[TgWebhookToken]") }
+	if TgToken!="" { msg = strings.ReplaceAll(msg, TgToken, "[TgToken]") }
+	if TgWebhookToken!="" { msg = strings.ReplaceAll(msg, TgWebhookToken, "[TgWebhookToken]") }
 	fmt.Fprint(os.Stderr, "<"+fmttime(tnow)+">"+SP+msg+NL)
 }
 
@@ -2105,7 +2137,7 @@ func (p *PackageConfig) perr(msg string, args ...interface{}) {
 
 func (p *PackageConfig) tglog(tgmsg string, tgreplyid, tgeditid int64) (msgid int64, err error) {
 	tgchatid := TgBossUserIds[0]
-	if p.TgChatId != nil {
+	if p.TgChatId!=nil {
 		tgchatid = *p.TgChatId
 	}
 	tgmsg += tg.Code(p.HashId())
@@ -2124,7 +2156,7 @@ func tglog(msg string, chatid, replyid, editid int64) (msgid int64, err error) {
 	}
 	var reqjs []byte
 	reqjs, err = json.Marshal(req)
-	if err != nil { return 0, err }
+	if err!=nil { return 0, err }
 	reqjsBuffer := bytes.NewBuffer(reqjs)
 	// TODO TgApiUrl
 	tgurl := F("%s/bot%s/sendMessage", TgApiUrl, TgToken)
@@ -2136,7 +2168,7 @@ func tglog(msg string, chatid, replyid, editid int64) (msgid int64, err error) {
 	if err!=nil { return 0, EF("url [%s] data [%s] %v", AtonString(tgurl), AtonString(string(reqjs)), err) }
 	var tgresp tg.MessageResponse
 	err = json.NewDecoder(resp.Body).Decode(&tgresp)
-	if err != nil { return 0, EF("%v", err) }
+	if err!=nil { return 0, EF("%v", err) }
 	if !tgresp.Ok {
 		return 0, EF("url [%s] data [%s] api response not ok %+v", AtonString(tgurl), AtonString(string(reqjs)), tgresp)
 	}
