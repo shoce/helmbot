@@ -1897,7 +1897,8 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 			if v, ok := helmvalues[imagenamereplace]; ok {
 				if s, ok := v.(string); ok && s!="" {
 					perr(F("DEBUG drlatestyaml [%s] found [%s][%s]", AtonString(imagename), AtonString(imagenamereplace), s))
-					continue
+					(*imagesvalues)[imagenamereplace] = s
+					break
 				} else if ok && s=="" {
 					perr(F("DEBUG drlatestyaml [%s] found [%s][]", AtonString(imagename), AtonString(imagenamereplace)))
 				} else {
