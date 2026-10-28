@@ -1,6 +1,6 @@
 /*
-:1811
-:815
+:1260
+:870
 conflict S3NewRequest Aton %v
 TODO
 LocalValues INSTALLING drlatestyaml(
@@ -31,6 +31,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log/slog"
 	"maps"
 	"net/http"
 	"net/url"
@@ -43,29 +44,26 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
+	
 	_ "time/tzdata"
-
-	yaml "github.com/goccy/go-yaml"
-	semver "github.com/Masterminds/semver/v3"
-
 	textcases "golang.org/x/text/cases"
 	textlanguage "golang.org/x/text/language"
-
+	yaml "github.com/goccy/go-yaml"
+	semver "github.com/Masterminds/semver/v3"
 	dregistry "github.com/rusenask/docker-registry-client/registry"
-
-	helmaction "helm.sh/helm/v3/pkg/action"
-	helmchart "helm.sh/helm/v3/pkg/chart"
-	helmloader "helm.sh/helm/v3/pkg/chart/loader"
-	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
-	helmcli "helm.sh/helm/v3/pkg/cli"
-	helmdownloader "helm.sh/helm/v3/pkg/downloader"
-	helmgetter "helm.sh/helm/v3/pkg/getter"
-	helmregistry "helm.sh/helm/v3/pkg/registry"
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	helmrepo "helm.sh/helm/v3/pkg/repo"
-
 	tg "github.com/shoce/tg"
+	
+	helmaction "helm.sh/helm/v4/pkg/action"
+	helmchart "helm.sh/helm/v4/pkg/chart"
+	helmchartv2 "helm.sh/helm/v4/pkg/chart/v2"
+	helmchartv2loader "helm.sh/helm/v4/pkg/chart/v2/loader"
+	helmchartutil "helm.sh/helm/v4/pkg/chart/common/util"
+	helmcli "helm.sh/helm/v4/pkg/cli"
+	helmdownloader "helm.sh/helm/v4/pkg/downloader"
+	helmgetter "helm.sh/helm/v4/pkg/getter"
+	helmregistry "helm.sh/helm/v4/pkg/registry"
+	helmrelease "helm.sh/helm/v4/pkg/release"
+	helmrepo "helm.sh/helm/v4/pkg/repo/v1"
 )
 
 const (
@@ -610,8 +608,10 @@ func ServerPackagesUpdate() (err error) {
 	
 	// https://pkg.go.dev/helm.sh/helm/v3/pkg/cli
 	helmenvsettings := helmcli.New()
-	helmactioncfg := new(helmaction.Configuration)
-	if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), "", "", perrf); err!=nil {
+	helmactioncfg := helmaction.NewConfiguration(
+		helmaction.ConfigurationSetLogger(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})),
+	)
+	if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), "", ""); err!=nil {
 		return err
 	}
 	installedreleases, err := helmaction.NewList(helmactioncfg).Run()
@@ -691,7 +691,7 @@ func ServerPackagesUpdate() (err error) {
 		
 		var chartname, chartversion string
 		var chartpath string
-		var chartfull *helmchart.Chart
+		var chartfull *helmchartv2.Chart
 		
 		chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetter.All(helmenvsettings)}
 		chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
@@ -707,7 +707,7 @@ func ServerPackagesUpdate() (err error) {
 					URL: p.ChartRepo.Address,
 					Username: p.ChartRepo.Username,
 					Password: p.ChartRepo.Password,
-					InsecureSkipTLSverify: false,
+					InsecureSkipTLSVerify: false,
 					PassCredentialsAll: false,
 				},
 				helmgetter.All(helmenvsettings),
@@ -876,7 +876,7 @@ func ServerPackagesUpdate() (err error) {
 		}
 		
 		// https://pkg.go.dev/helm.sh/helm/v3/pkg/chart/loader#Load
-		chartfull, err = helmloader.Load(chartpath)
+		chartfull, err = helmchartv2loader.Load(chartpath)
 		if err!=nil {
 			return EF("helmloader.Load [%s] %w", chartpath, err)
 		} else if chartfull==nil {
@@ -902,7 +902,7 @@ func ServerPackagesUpdate() (err error) {
 			p.perr(F("DEBUG LocalValues {%s}", AtonMap(p.LocalValues)))
 			maps.Copy(drlatestyamlhelmvalues, p.LocalValues)
 		}
-		p.perr(F("DEBUG drlatestyamlhelmvalues {%s}", AtonMap(drlatestyamlhelmvalues)))
+		//p.perr(F("DEBUG drlatestyamlhelmvalues {%s}", AtonMap(drlatestyamlhelmvalues)))
 		err = drlatestyaml(drlatestyamlhelmvalues, Config.DrLatestYaml, &p.ImagesValues)
 		if err!=nil { return EF("drlatestyaml [%s] %w", p.Name, err) }
 		p.ImagesValuesList, p.ImagesValuesText, err = ImagesValuesToList(p.ImagesValues)
@@ -1165,8 +1165,10 @@ func ServerPackagesUpdate() (err error) {
 		
 		helmenvsettings := helmcli.New()
 		helmenvsettings.SetNamespace(p.Namespace)
-		helmactioncfg := new(helmaction.Configuration)
-		if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), p.Namespace, "", p.perr); err!=nil {
+		helmactioncfg := helmaction.NewConfiguration(
+			helmaction.ConfigurationSetLogger(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})),
+		)
+		if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), p.Namespace, ""); err!=nil {
 			tgmsg += tg.Bold(tg.Esc("INTERNAL ERROR")) + NL + NL
 			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr!=nil {
 				p.perr(F("ERROR tglog %v", tgerr))
@@ -1176,7 +1178,9 @@ func ServerPackagesUpdate() (err error) {
 		
 		isinstalled := false
 		for _, r := range installedreleases {
-			if r.Name == p.Name && r.Namespace == p.Namespace {
+			ra, err := helmrelease.NewAccessor(r)
+			if err!=nil { return err }
+			if ra.Name() == p.Name && ra.Namespace() == p.Namespace {
 				isinstalled = true
 			}
 		}
@@ -1186,15 +1190,22 @@ func ServerPackagesUpdate() (err error) {
 			p.perr(F("VERBOSE release [%s]/[%s] is not installed", p.Namespace,  p.Name))
 		}
 		
-		var release *helmrelease.Release
+		var releaser helmrelease.Releaser
+		releaseraccessor, err := helmrelease.NewAccessor(releaser)
+		if err!=nil { return err }
+		var dryrunstrategy helmaction.DryRunStrategy
+		dryrunstrategy = helmaction.DryRunNone
+		if *p.DryRun {
+			dryrunstrategy = helmaction.DryRunServer
+		}
 		
 		doupgrade := func() {
 			p.perr(F("VERBOSE starting upgrade now"))
 			// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Upgrade
 			helmupgrade := helmaction.NewUpgrade(helmactioncfg)
-			helmupgrade.DryRun = *p.DryRun
+			helmupgrade.DryRunStrategy = dryrunstrategy
 			helmupgrade.Namespace = p.Namespace
-			release, err = helmupgrade.Run(
+			releaser, err = helmupgrade.Run(
 				p.Name,
 				chartfull,
 				values,
@@ -1204,11 +1215,11 @@ func ServerPackagesUpdate() (err error) {
 			p.perr(F("VERBOSE starting install now"))
 			// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Install
 			helminstall := helmaction.NewInstall(helmactioncfg)
-			helminstall.DryRun = *p.DryRun
+			helminstall.DryRunStrategy = dryrunstrategy
 			helminstall.CreateNamespace = true
 			helminstall.Namespace = p.Namespace
 			helminstall.ReleaseName = p.Name
-			release, err = helminstall.Run(
+			releaser, err = helminstall.Run(
 				chartfull,
 				values,
 			)
@@ -1249,6 +1260,13 @@ func ServerPackagesUpdate() (err error) {
 		
 		// TODO delay helmbot self-update for saving deployed values and hash
 		
+		charteraccessor, err := helmchart.NewAccessor(releaseraccessor.Chart())
+		if err!=nil { return err }
+		chartermetadata := charteraccessor.MetadataAsMap()
+		chartername, _ := chartermetadata["name"].(string)
+		charterversion, _ := chartermetadata["version"].(string)
+		charterappversion, _ := chartermetadata["appVersion"].(string)
+		
 		p.perr(
 			"VERBOSE installed "+
 				"status [%s] "+
@@ -1257,36 +1275,37 @@ func ServerPackagesUpdate() (err error) {
 				"version [%s] "+
 				"appversion [%s] "+
 				"hashid [%s] ",
-			AtonString(string(release.Info.Status)),
-			AtonString(release.Name),
-			AtonString(release.Namespace),
-			AtonString(release.Chart.Metadata.Version),
-			AtonString(release.Chart.Metadata.AppVersion),
+			AtonString(releaseraccessor.Status()),
+			AtonString(releaseraccessor.Name()),
+			AtonString(releaseraccessor.Namespace()),
+			AtonString(charterversion),
+			AtonString(charterappversion),
 			AtonString(p.HashId()),
 		)
-		if strings.TrimSpace(release.Info.Notes)!="" {
+		releasernotes := strings.TrimSpace(releaseraccessor.Notes())
+		if releasernotes!="" {
 			p.perr(
 				"installed "+
 					"notes [-"+NL+
 					"%s"+NL+
 					"-]",
-				release.Info.Notes,
+				releasernotes,
 			)
 		}
 		
 		var installstatus string
-		installstatus += tg.F("status %s", release.Info.Status) + NL
-		installstatus += tg.F("release %s", release.Name) + NL
-		installstatus += tg.F("namespace %s", release.Namespace) + NL
-		installstatus += tg.F("chart %s", release.Chart.Metadata.Name) + NL
-		installstatus += tg.F("version %s", release.Chart.Metadata.Version) + NL
-		if release.Chart.Metadata.AppVersion!="" {
-			installstatus += tg.F("appversion %s", release.Chart.Metadata.AppVersion) + NL
+		installstatus += tg.F("status %s", releaseraccessor.Status()) + NL
+		installstatus += tg.F("release %s", releaseraccessor.Name()) + NL
+		installstatus += tg.F("namespace %s", releaseraccessor.Namespace()) + NL
+		installstatus += tg.F("chart %s", chartername) + NL
+		installstatus += tg.F("version %s", charterversion) + NL
+		if charterappversion!="" {
+			installstatus += tg.F("appversion %s", charterappversion) + NL
 		}
 		tgmsg += tg.Pre(installstatus) + NL + NL
 		
-		if release.Info.Notes!="" {
-			notes := strings.TrimSpace(release.Info.Notes)
+		if releasernotes!="" {
+			notes := releasernotes
 			if len(notes) > 2000 {
 				notes = notes[:1000] + NL + NL + "---cut---" + NL + NL + notes[len(notes)-1000:]
 			}
@@ -1886,7 +1905,7 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 		perr(F("DEBUG drlatestyaml drlatestyamlitems empty"))
 		return nil
 	}
-	perr(F("DEBUG drlatestyaml helmvalues{%s} drlatestyamlitems(%s)", AtonMap(helmvalues), drlatestyamlitems))
+	perr(F("DEBUG drlatestyaml helmvalues{%s} drlatestyamlitems(%+v)", AtonMap(helmvalues), drlatestyamlitems))
 	for hvkey, hvvalue := range helmvalues {
 		var drerr error = nil
 		for _, e := range drlatestyamlitems {
