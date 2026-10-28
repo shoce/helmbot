@@ -10,6 +10,7 @@ func perr(
 ) perr(
 DEBUG repo helm chart 
 ChartVersionPrefix
+drlatestyaml
 */
 /*
 GoGet
@@ -1887,46 +1888,53 @@ func drlatestyaml(helmvalues map[string]interface{}, drlatestyamlitems []DrLates
 	}
 	perr(F("DEBUG drlatestyaml helmvalues{%s} drlatestyamlitems(%s)", AtonMap(helmvalues), drlatestyamlitems))
 	for hvkey, hvvalue := range helmvalues {
+		var drerr error = nil
 		for _, e := range drlatestyamlitems {
-			if strings.HasPrefix(hvkey, e.KeyPrefix) {
-				imagename := hvkey
-				imagenamereplace := e.KeyPrefixReplace + strings.TrimPrefix(imagename, e.KeyPrefix)
-				perr(F("DEBUG drlatestyaml [%s]", AtonString(imagename)))
-				if v, ok := helmvalues[imagenamereplace]; ok {
-					if s, ok := v.(string); ok && s!="" {
-						perr(F("DEBUG drlatestyaml [%s] found [%s][%s]", AtonString(imagename), AtonString(imagenamereplace), s))
-						continue
-					} else if ok && s=="" {
-						perr(F("DEBUG drlatestyaml [%s] found [%s][]", AtonString(imagename), AtonString(imagenamereplace)))
-					} else {
-						perr(F("DEBUG drlatestyaml [%s] found [%s]{ %#v }", AtonString(imagename), AtonString(imagenamereplace), v))
-					}
-				}
-				perr(F("DEBUG drlatestyaml [%s] empty, fetching versions list", AtonString(imagenamereplace)))
-				imageurl := hvvalue.(string)
-				if !strings.HasPrefix(imageurl, "https://") && !strings.HasPrefix(imageurl, "http://") {
-					imageurl = "https://" + imageurl
-				}
-				var u *url.URL
-				if u, err = url.Parse(imageurl); err!=nil { return EF("url.Parse [%s] [%s] %w", imagename, imageurl, err) }
-				RegistryUrl := u.Scheme + "://" + u.Host
-				RegistryRepository := u.Path
-				//perr(F("DEBUG drlatestyaml registry [%s] [%s]", RegistryUrl, RegistryRepository))
-				dr := dregistry.NewInsecure(RegistryUrl, e.RegistryUsername, e.RegistryPassword)
-				dr.Logf = dregistry.Quiet
-				// TODO hangs here ?
-				imagetags, err := dr.Tags(RegistryRepository)
-				if err!=nil { return EF("registry.Tags [%s] [%s] %w", imagename, imageurl, err) }
-				sort.Sort(sort.Reverse(DrVersions(imagetags)))
-				perr(F("DEBUG drlatestyaml [%s] tags (%s)", AtonString(imagename), AtonListStrings(imagetags)))
-				imagetag := ""
-				if len(imagetags)>0 {
-					perr(F("DEBUG drlatestyaml [%s] setting to [%s]", AtonString(imagenamereplace), AtonString(imagetag)))
-					(*imagesvalues)[imagenamereplace] = imagetags[0]
-					break
+			if !strings.HasPrefix(hvkey, e.KeyPrefix) { continue }
+			imagename := hvkey
+			imagenamereplace := e.KeyPrefixReplace + strings.TrimPrefix(imagename, e.KeyPrefix)
+			perr(F("DEBUG drlatestyaml [%s]", AtonString(imagename)))
+			if v, ok := helmvalues[imagenamereplace]; ok {
+				if s, ok := v.(string); ok && s!="" {
+					perr(F("DEBUG drlatestyaml [%s] found [%s][%s]", AtonString(imagename), AtonString(imagenamereplace), s))
+					continue
+				} else if ok && s=="" {
+					perr(F("DEBUG drlatestyaml [%s] found [%s][]", AtonString(imagename), AtonString(imagenamereplace)))
+				} else {
+					perr(F("DEBUG drlatestyaml [%s] found [%s]{ %#v }", AtonString(imagename), AtonString(imagenamereplace), v))
 				}
 			}
+			perr(F("DEBUG drlatestyaml [%s] empty, fetching versions list", AtonString(imagenamereplace)))
+			imageurl := hvvalue.(string)
+			if !strings.HasPrefix(imageurl, "https://") && !strings.HasPrefix(imageurl, "http://") {
+				imageurl = "https://" + imageurl
+			}
+			var u *url.URL
+			u, err = url.Parse(imageurl)
+			if err!=nil {
+				return EF("url.Parse [%s] [%s] %w", imagename, imageurl, err)
+			}
+			RegistryUrl := u.Scheme + "://" + u.Host
+			RegistryRepository := u.Path
+			//perr(F("DEBUG drlatestyaml registry [%s] [%s]", RegistryUrl, RegistryRepository))
+			dr := dregistry.NewInsecure(RegistryUrl, e.RegistryUsername, e.RegistryPassword)
+			dr.Logf = dregistry.Quiet
+			// TODO hangs here ?
+			imagetags, err := dr.Tags(RegistryRepository)
+			if err!=nil {
+				drerr = EF("registry.Tags [%s] [%s] %w", imagename, imageurl, err)
+				continue
+			}
+			sort.Sort(sort.Reverse(DrVersions(imagetags)))
+			perr(F("DEBUG drlatestyaml [%s] tags (%s)", AtonString(imagename), AtonListStrings(imagetags)))
+			imagetag := ""
+			if len(imagetags)>0 {
+				perr(F("DEBUG drlatestyaml [%s] setting to [%s]", AtonString(imagenamereplace), AtonString(imagetag)))
+				(*imagesvalues)[imagenamereplace] = imagetags[0]
+				break
+			}
 		}
+		if drerr!=nil { return drerr }
 	}
 	return nil
 }
