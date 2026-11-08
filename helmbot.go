@@ -1111,7 +1111,7 @@ func ServerPackagesUpdate() (err error) {
 			
 		}
 
-		p.perr(F("VERBOSE INSTALLING UPDATE"))
+		p.perr(F("VERBOSE INSTALLING/UPGRADING HELM RELEASE"))
 		
 		if p.UpdateDelayDuration > 0 {
 			tgmsg += tg.Bold(tg.Esc(tg.F("STARTING IN %v", p.UpdateDelayDuration))) + NL + NL
@@ -1122,12 +1122,12 @@ func ServerPackagesUpdate() (err error) {
 			time.Sleep(p.UpdateDelayDuration)
 			
 		}
-
+		
 		//
 		// DEPLOY
 		//
 		
-		p.perr(F("VERBOSE preparing update"))
+		p.perr(F("VERBOSE preparing helm release"))
 		tgmsg += tg.Bold(tg.Esc("STARTED")) + NL + NL
 		if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr!=nil {
 			p.perr(F("ERROR tglog %v", tgerr))
@@ -1190,39 +1190,10 @@ func ServerPackagesUpdate() (err error) {
 			p.perr(F("VERBOSE release [%s]/[%s] is not installed", p.Namespace,  p.Name))
 		}
 		
-		var releaser helmrelease.Releaser
-		releaseraccessor, err := helmrelease.NewAccessor(releaser)
-		if err!=nil { return err }
 		var dryrunstrategy helmaction.DryRunStrategy
 		dryrunstrategy = helmaction.DryRunNone
 		if *p.DryRun {
 			dryrunstrategy = helmaction.DryRunServer
-		}
-		
-		doupgrade := func() {
-			p.perr(F("VERBOSE starting upgrade now"))
-			// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Upgrade
-			helmupgrade := helmaction.NewUpgrade(helmactioncfg)
-			helmupgrade.DryRunStrategy = dryrunstrategy
-			helmupgrade.Namespace = p.Namespace
-			releaser, err = helmupgrade.Run(
-				p.Name,
-				chartfull,
-				values,
-			)
-		}
-		doinstall := func() {
-			p.perr(F("VERBOSE starting install now"))
-			// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Install
-			helminstall := helmaction.NewInstall(helmactioncfg)
-			helminstall.DryRunStrategy = dryrunstrategy
-			helminstall.CreateNamespace = true
-			helminstall.Namespace = p.Namespace
-			helminstall.ReleaseName = p.Name
-			releaser, err = helminstall.Run(
-				chartfull,
-				values,
-			)
 		}
 		
 		if err := p.WriteValues("new"); err!=nil {
@@ -1234,15 +1205,44 @@ func ServerPackagesUpdate() (err error) {
 			return err
 		}
 		
+		doupgrade := func() (helmrelease.Releaser, error) {
+			p.perr(F("VERBOSE starting helm release upgrade now"))
+			// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Upgrade
+			helmupgrade := helmaction.NewUpgrade(helmactioncfg)
+			helmupgrade.DryRunStrategy = dryrunstrategy
+			helmupgrade.Namespace = p.Namespace
+			releaser, err := helmupgrade.Run(
+				p.Name,
+				chartfull,
+				values,
+			)
+			return releaser, err
+		}
+		doinstall := func() (helmrelease.Releaser, error) {
+			p.perr(F("VERBOSE starting helm release install now"))
+			// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Install
+			helminstall := helmaction.NewInstall(helmactioncfg)
+			helminstall.DryRunStrategy = dryrunstrategy
+			helminstall.CreateNamespace = true
+			helminstall.Namespace = p.Namespace
+			helminstall.ReleaseName = p.Name
+			releaser, err := helminstall.Run(
+				chartfull,
+				values,
+			)
+			return releaser, err
+		}
+		
+		var releaser helmrelease.Releaser
 		if isinstalled {
-			doupgrade()
+			releaser, err = doupgrade()
 		} else {
-			doinstall()
+			releaser, err = doinstall()
 			if err!=nil {
 				p.perr(F("ERROR helm Run %v", err))
 				p.perr(F("ERROR helm Run trying upgrade"))
+				releaser, err = doupgrade()
 			}
-			doupgrade()
 		}
 		
 		if err!=nil {
@@ -1257,6 +1257,9 @@ func ServerPackagesUpdate() (err error) {
 			}
 			return err
 		}
+		
+		releaseraccessor, err := helmrelease.NewAccessor(releaser)
+		if err!=nil { return err }
 		
 		// TODO delay helmbot self-update for saving deployed values and hash
 		
