@@ -2165,8 +2165,6 @@ func perr(msg string) {
 	fmt.Fprint(os.Stderr, "<"+fmttime(tnow)+">"+SP+msg+NL)
 }
 
-func perrf(msg string, args ...interface{}) { perr(F(msg, args...)) }
-
 func (p *PackageConfig) perr(msg string, args ...interface{}) {
 	if strings.HasPrefix(msg, "DEBUG ") && !DEBUG { return }
 	if strings.HasPrefix(msg, "VERBOSE ") && !VERBOSE { return }
