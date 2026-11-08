@@ -5,7 +5,7 @@ conflict S3NewRequest Aton %v
 TODO
 LocalValues INSTALLING drlatestyaml(
 local.values.yaml AllowedHours
-AtonList LocalValues
+AtonList LocalValues yaml. Marshal
 func perr(
 ) perr(
 DEBUG repo helm chart 
@@ -932,7 +932,7 @@ func ServerPackagesUpdate() (err error) {
 				allvaluestext = p.GlobalValuesText + allvaluestext
 			}
 		} else {
-			localvaluesbb, err := yaml.Marshal(p.LocalValues)
+			localvaluesbb, err := yaml.MarshalWithOptions(p.LocalValues, yaml.JSON(), yaml.Flow(false))
 			if err!=nil { return err }
 			p.LocalValuesText = string(localvaluesbb) + NL
 			allvaluestext = p.LocalValuesText + p.ImagesValuesText
@@ -1975,7 +1975,7 @@ func ImagesValuesToList(imagesvaluesmap map[string]interface{}) (imagesvalueslis
 		},
 	)
 	for _, iv := range imagesvalueslist {
-		if bb, err := yaml.Marshal(iv); err!=nil {
+		if bb, err := yaml.MarshalWithOptions(iv, yaml.JSON(), yaml.Flow(false)); err!=nil {
 			return nil, "", EF("yaml.Marshal %w", err)
 		} else {
 			imagesvaluestext += string(bb)
