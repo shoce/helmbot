@@ -1,11 +1,11 @@
 /*
-:1260
-:870
+:1260 :1730
+:870 :929
 conflict S3NewRequest Aton %v
 TODO
 LocalValues INSTALLING drlatestyaml(
 local.values.yaml AllowedHours
-AtonList
+AtonList LocalValues
 func perr(
 ) perr(
 DEBUG repo helm chart 
@@ -932,7 +932,10 @@ func ServerPackagesUpdate() (err error) {
 				allvaluestext = p.GlobalValuesText + allvaluestext
 			}
 		} else {
-			allvaluestext = AtonMap(p.LocalValues) + p.ImagesValuesText
+			localvaluesbb, err := yaml.Marshal(p.LocalValues)
+			if err!=nil { return err }
+			p.LocalValuesText = string(localvaluesbb) + NL
+			allvaluestext = p.LocalValuesText + p.ImagesValuesText
 		}
 		p.ValuesHash = F("%x", sha256.Sum256([]byte(allvaluestext)))[:HashLength]
 
@@ -1597,71 +1600,59 @@ func DeleteValuesFile(fname string) (err error) {
 }
 
 type PackageConfig struct {
+	ServerHostname *string `yaml:"ServerHostname,omitempty"`
 	Name string `yaml:"Name"`
-
 	ChartName string `yaml:"ChartName"`
-	EnvName   string `yaml:"EnvName"`
-
+	EnvName string `yaml:"EnvName"`
 	Namespace string `yaml:"Namespace,omitempty"`
-
-	ChartVersion       string `yaml:"ChartVersion"`
+	DryRun *bool `yaml:"DryRun,omitempty"`
+	
+	ChartVersion string `yaml:"ChartVersion"`
 	ChartVersionPrefix string `yaml:"ChartVersionPrefix"`
-	ChartVersionKey    string `yaml:"ChartVersionKey"`
-
+	ChartVersionKey string `yaml:"ChartVersionKey"`
 	ChartLocalFilename string `yaml:"ChartLocalFilename"`
-
 	ChartAddress string `yaml:"ChartAddress"`
-
 	ChartAuth struct {
 		Username string `yaml:"Username"`
 		Password string `yaml:"Password"`
 	} `yaml:"ChartAuth"`
-
 	ChartRepo struct {
-		Address  string `yaml:"Address"`
+		Address string `yaml:"Address"`
 		Username string `yaml:"Username"`
 		Password string `yaml:"Password"`
 	} `yaml:"ChartRepo"`
-
-	ServerHostname *string `yaml:"ServerHostname,omitempty"`
-
+	
 	TgChatId   *int64  `yaml:"TgChatId,omitempty"`
 	TgMentions *string `yaml:"TgMentions,omitempty"`
-
+	
 	AlwaysForceNow *bool `yaml:"AlwaysForceNow,omitempty"`
-	ForceNow       bool  `yaml:"ForceNow"`
-
+	ForceNow bool  `yaml:"ForceNow"`
 	UpdateInterval *string `yaml:"UpdateInterval,omitempty"`
-	UpdateDelay    *string `yaml:"UpdateDelay,omitempty"`
-
-	Timezone     *string `yaml:"Timezone,omitempty"`
-	AllowedHours *string `yaml:"AllowedHours,omitempty"`
-
-	LocalValues map[string]interface{} `yaml:"LocalValues,omitempty"`
-
-	UpdateIntervalDuration time.Duration
-	UpdateDelayDuration    time.Duration
-	UpdateTimestamp        time.Time
-
+	UpdateDelay *string `yaml:"UpdateDelay,omitempty"`
+	Timezone *string `yaml:"Timezone,omitempty"`
 	TimezoneLocation *time.Location
 	AllowedHoursList []string
-
+	AllowedHours *string `yaml:"AllowedHours,omitempty"`
+	UpdateIntervalDuration time.Duration
+	UpdateDelayDuration time.Duration
+	UpdateTimestamp time.Time
+	
 	GlobalValuesEnable *bool `yaml:"GlobalValuesEnable"`
-
+	
 	GlobalValuesText string
-	ValuesText       string
-	EnvValuesText    string
+	ValuesText string
+	EnvValuesText string
+	LocalValuesText string
 	ImagesValuesText string
-
-	GlobalValues     map[string]interface{}
-	Values           map[string]interface{}
-	EnvValues        map[string]interface{}
+	
+	GlobalValues map[string]interface{}
+	Values map[string]interface{}
+	EnvValues map[string]interface{}
 	ImagesValuesList []map[string]interface{}
-	ImagesValues     map[string]interface{}
-
+	ImagesValues map[string]interface{}
+	LocalValues map[string]interface{} `yaml:"LocalValues,omitempty"`
+	
 	ValuesHash string
-
-	DryRun *bool `yaml:"DryRun,omitempty"`
 }
 
 func (p *PackageConfig) FullName() string {
@@ -1723,7 +1714,7 @@ func (p *PackageConfig) WriteValues(subdir string) error {
 			return EF("PutValuesTextFile %w", err)
 		}
 	} else {
-		if err := PutValuesTextFile(path.Join(p.FullName(), subdir, "local.values.yaml"), AtonMap(p.LocalValues)); err!=nil {
+		if err := PutValuesTextFile(path.Join(p.FullName(), subdir, "local.values.yaml"), p.LocalValuesText); err!=nil {
 			return EF("PutValuesTextFile %w", err)
 		}
 	}
@@ -2222,6 +2213,7 @@ func (vv VersionSlice) Less(a, b int) bool {
 	if err!=nil { return false }
 	return va.LessThan(vb)
 }
+
 
 
 
