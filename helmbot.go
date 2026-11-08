@@ -61,6 +61,7 @@ import (
 	helmcli "helm.sh/helm/v4/pkg/cli"
 	helmdownloader "helm.sh/helm/v4/pkg/downloader"
 	helmgetter "helm.sh/helm/v4/pkg/getter"
+	helmkube "helm.sh/helm/v4/pkg/kube"
 	helmregistry "helm.sh/helm/v4/pkg/registry"
 	helmrelease "helm.sh/helm/v4/pkg/release"
 	helmrepo "helm.sh/helm/v4/pkg/repo/v1"
@@ -1210,6 +1211,7 @@ func ServerPackagesUpdate() (err error) {
 			// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Upgrade
 			helmupgrade := helmaction.NewUpgrade(helmactioncfg)
 			helmupgrade.DryRunStrategy = dryrunstrategy
+			helmupgrade.WaitStrategy = helmkube.StatusWatcherStrategy
 			helmupgrade.Namespace = p.Namespace
 			releaser, err := helmupgrade.Run(
 				p.Name,
@@ -1218,11 +1220,13 @@ func ServerPackagesUpdate() (err error) {
 			)
 			return releaser, err
 		}
+		
 		doinstall := func() (helmrelease.Releaser, error) {
 			p.perr(F("VERBOSE starting helm release install now"))
 			// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Install
 			helminstall := helmaction.NewInstall(helmactioncfg)
 			helminstall.DryRunStrategy = dryrunstrategy
+			helminstall.WaitStrategy = helmkube.StatusWatcherStrategy
 			helminstall.CreateNamespace = true
 			helminstall.Namespace = p.Namespace
 			helminstall.ReleaseName = p.Name
