@@ -36,7 +36,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -176,7 +175,7 @@ func init() {
 		perr(F("ERROR empty ConfigDir env var"))
 		os.Exit(1)
 	}
-	if !path.IsAbs(ConfigDir) {
+	if !filepath.IsAbs(ConfigDir) {
 		perr(F("ERROR ConfigDir [%s] must be an absolute path", ConfigDir))
 		os.Exit(1)
 	}
@@ -649,7 +648,7 @@ func ServerPackagesUpdate() (err error) {
 			p.perr(F("ERROR GetValuesText %v", err))
 		}
 		
-		updatetimestampfilename := path.Join(ConfigDir, p.UpdateTimestampFilename())
+		updatetimestampfilename := filepath.Join(ConfigDir, p.UpdateTimestampFilename())
 		if updatetimestampfilestat, err := os.Stat(updatetimestampfilename); err==nil {
 			p.UpdateTimestamp = updatetimestampfilestat.ModTime()
 		}
@@ -696,6 +695,10 @@ func ServerPackagesUpdate() (err error) {
 		
 		chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetter.All(helmenvsettings)}
 		p.perr(F("DEBUG chartdownloader RepositoryCache[%s] ContentCache[%s]", chartdownloader.RepositoryCache, chartdownloader.ContentCache))
+		if chartdownloader.ContentCache=="" {
+			chartdownloader.ContentCache = filepath.Join(ConfigDir, "helmbot.content-cache")
+		}
+		p.perr(F("DEBUG chartdownloader RepositoryCache[%s] ContentCache[%s]", chartdownloader.RepositoryCache, chartdownloader.ContentCache))
 		chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
 		if p.ChartRepo.Address!="" && p.ChartRepo.Username!="" {
 			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithBasicAuth(p.ChartRepo.Username, p.ChartRepo.Password))
@@ -719,16 +722,12 @@ func ServerPackagesUpdate() (err error) {
 			}
 			
 			indexfilepath, err := chartrepo.DownloadIndexFile()
-			if err!=nil {
-				return EF("DownloadIndexFile %w", err)
-			}
+			if err!=nil { return EF("DownloadIndexFile %w", err) }
 			//p.perr(F("DEBUG chart repo index file path %s", indexfilepath))
 			// TODO store chart repo indexes in /opt/helmbot/, not at /root/.cache/helm/
 			
 			idx, err := helmrepo.LoadIndexFile(indexfilepath)
-			if err!=nil {
-				return EF("LoadIndexFile %w", err)
-			}
+			if err!=nil { return EF("LoadIndexFile %w", err) }
 			
 			// https://pkg.go.dev/helm.sh/helm/v3/pkg/repo#ChartVersion
 			var repochartversion *helmrepo.ChartVersion
@@ -773,7 +772,7 @@ func ServerPackagesUpdate() (err error) {
 			
 			chartname = repochartversion.Name
 			chartversion = repochartversion.Version
-			chartpath = path.Join(ConfigDir, F("%s-%s.tgz", chartname, chartversion))
+			chartpath = filepath.Join(ConfigDir, F("%s-%s.tgz", chartname, chartversion))
 			p.perr(F("DEBUG local chartpath [%s] exists <%t>", chartpath, fileExists(chartpath)))
 			
 			if !fileExists(chartpath) {
@@ -845,8 +844,8 @@ func ServerPackagesUpdate() (err error) {
 			if u, err := url.Parse(p.ChartAddress); err!=nil {
 				return EF("parse ChartAddress [%s] %v", p.ChartAddress, err)
 			} else {
-				chartname = path.Base(u.Path)
-				chartpath = path.Join(ConfigDir, F("%s-%s.tgz", chartname, chartversion))
+				chartname = filepath.Base(u.Path)
+				chartpath = filepath.Join(ConfigDir, F("%s-%s.tgz", chartname, chartversion))
 				p.perr(F("DEBUG local chartpath [%s] exists <%t>", chartpath, fileExists(chartpath)))
 			}
 			if !fileExists(chartpath) {
@@ -860,7 +859,7 @@ func ServerPackagesUpdate() (err error) {
 				return EF("ChartLocalFilename [%s] is not a .tgz file", p.ChartLocalFilename)
 			}
 			
-			if mm, err := filepath.Glob(path.Join(ConfigDir, p.ChartLocalFilename)); err!=nil {
+			if mm, err := filepath.Glob(filepath.Join(ConfigDir, p.ChartLocalFilename)); err!=nil {
 				return EF("Glob ConfigDir [%s] ChartLocalFilename [%s] %v", ConfigDir, p.ChartLocalFilename, err)
 			} else if len(mm) == 0 {
 				return EF("Glob ConfigDir [%s] ChartLocalFilename [%s] glob no match", ConfigDir, p.ChartLocalFilename)
@@ -1702,22 +1701,22 @@ func (p *PackageConfig) WriteValues(subdir string) error {
 	}
 	if p.LocalValues==nil {
 		if *p.GlobalValuesEnable {
-			if err := PutValuesTextFile(path.Join(p.FullName(), subdir, p.GlobalValuesFilename()), p.GlobalValuesText); err!=nil {
+			if err := PutValuesTextFile(filepath.Join(p.FullName(), subdir, p.GlobalValuesFilename()), p.GlobalValuesText); err!=nil {
 				return EF("PutValuesTextFile %w", err)
 			}
 		}
-		if err := PutValuesTextFile(path.Join(p.FullName(), subdir, p.ValuesFilename()), p.ValuesText); err!=nil {
+		if err := PutValuesTextFile(filepath.Join(p.FullName(), subdir, p.ValuesFilename()), p.ValuesText); err!=nil {
 			return EF("PutValuesTextFile %w", err)
 		}
-		if err := PutValuesTextFile(path.Join(p.FullName(), subdir, p.EnvValuesFilename()), p.EnvValuesText); err!=nil {
+		if err := PutValuesTextFile(filepath.Join(p.FullName(), subdir, p.EnvValuesFilename()), p.EnvValuesText); err!=nil {
 			return EF("PutValuesTextFile %w", err)
 		}
 	} else {
-		if err := PutValuesTextFile(path.Join(p.FullName(), subdir, "local.values.yaml"), p.LocalValuesText); err!=nil {
+		if err := PutValuesTextFile(filepath.Join(p.FullName(), subdir, "local.values.yaml"), p.LocalValuesText); err!=nil {
 			return EF("PutValuesTextFile %w", err)
 		}
 	}
-	if err := PutValuesTextFile(path.Join(p.FullName(), subdir, p.ImagesValuesFilename()), p.ImagesValuesText); err!=nil {
+	if err := PutValuesTextFile(filepath.Join(p.FullName(), subdir, p.ImagesValuesFilename()), p.ImagesValuesText); err!=nil {
 		return EF("PutValuesTextFile %w", err)
 	}
 	return nil
