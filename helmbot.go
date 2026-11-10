@@ -56,7 +56,7 @@ import (
 	tg "github.com/shoce/tg"
 	
 	helmaction "helm.sh/helm/v4/pkg/action"
-	//helmchart "helm.sh/helm/v4/pkg/chart"
+	helmchart "helm.sh/helm/v4/pkg/chart"
 	helmchartv2 "helm.sh/helm/v4/pkg/chart/v2"
 	helmchartv2loader "helm.sh/helm/v4/pkg/chart/v2/loader"
 	helmchartutil "helm.sh/helm/v4/pkg/chart/common/util"
@@ -396,11 +396,11 @@ func main() {
 }
 
 func CheckChanSigTerm() {
-	perr("debug checking term signal channel"+NL)
+	perr("debug checking term signal channel")
 	select {
 	case <-ChanSigTerm:
-		perr("RECEIVED TERM SIGNAL"+NL)
-		perr("SHUTTING DOWN"+NL)
+		perr("RECEIVED TERM SIGNAL")
+		perr("SHUTTING DOWN")
 		os.Exit(0)
 	default:
 	}
@@ -640,13 +640,23 @@ func ServerPackagesUpdate() (err error) {
 	installedreleases, err := helmaction.NewList(helmactioncfg).Run()
 	if err!=nil { return err }
 	
-	/*
-		for _, r := range installedreleases {
-			log("DEBUG packages Name %s Namespace %s Status %s Revision %d Version %s",
-				r.Name, r.Namespace, r.Info.Status, r.Version, r.Chart.Metadata.Version,
-			)
+	for _, ir := range installedreleases {
+		ira, err := helmrelease.NewAccessor(ir)
+		if err!=nil {
+			perr(F("ERROR release NewAccessor %v", err))
+			continue
 		}
-	*/
+		iraca, err := helmchart.NewAccessor(ira.Chart())
+		if err!=nil {
+			perr(F("ERROR release chart NewAccessor %v", err))
+			continue
+		}
+		irachartversion, _ := iraca.MetadataAsMap()["version"]
+		perr(F(
+			"DEBUG release Name %s Namespace %s Status %s Revision %d Version %s",
+			ira.Name(), ira.Namespace(), ira.Status(), ira.Version(), irachartversion,
+		))
+	}
 	
 	Packages, err = ProcessServersPackages(Config.Servers)
 	if err!=nil {
