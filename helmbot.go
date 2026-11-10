@@ -695,6 +695,7 @@ func ServerPackagesUpdate() (err error) {
 		var chartfull *helmchartv2.Chart
 		
 		chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetter.All(helmenvsettings)}
+		p.perr(F("DEBUG chartdownloader RepositoryCache[%s] ContentCache[%s]", chartdownloader.RepositoryCache, chartdownloader.ContentCache))
 		chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithUserAgent("helmbot"))
 		if p.ChartRepo.Address!="" && p.ChartRepo.Username!="" {
 			chartdownloader.Options = append(chartdownloader.Options, helmgetter.WithBasicAuth(p.ChartRepo.Username, p.ChartRepo.Password))
@@ -783,9 +784,8 @@ func ServerPackagesUpdate() (err error) {
 				if err!=nil {
 					return err
 				}
-				if chartpath, _, err = chartdownloader.DownloadTo(charturl, chartversion, ConfigDir); err!=nil {
-					return err
-				}
+				chartpath, _, err = chartdownloader.DownloadTo(charturl, chartversion, ConfigDir)
+				if err!=nil { return EF("chartdownloader DownloadTo [%s] %w", charturl, err) }
 			}
 			
 		} else if p.ChartAddress!="" {
@@ -850,9 +850,8 @@ func ServerPackagesUpdate() (err error) {
 				p.perr(F("DEBUG local chartpath [%s] exists <%t>", chartpath, fileExists(chartpath)))
 			}
 			if !fileExists(chartpath) {
-				if chartpath, _, err = chartdownloader.DownloadTo(p.ChartAddress, chartversion, ConfigDir); err!=nil {
-					return err
-				}
+				chartpath, _, err = chartdownloader.DownloadTo(p.ChartAddress, chartversion, ConfigDir)
+				if err!=nil { return EF("chartdownloader DownloadTo [%s] %w", p.ChartAddress, err) }
 			}
 			
 		} else if p.ChartLocalFilename!="" {
