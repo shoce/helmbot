@@ -10,8 +10,8 @@ func perr(
 ) perr(
 DEBUG repo helm chart 
 ChartVersionPrefix
-drlatestyaml
-registry.NewClient
+drlatestyaml hrclient
+registry.NewClient installstatus
 */
 /*
 GoGet
@@ -54,7 +54,7 @@ import (
 	tg "github.com/shoce/tg"
 	
 	helmaction "helm.sh/helm/v4/pkg/action"
-	helmchart "helm.sh/helm/v4/pkg/chart"
+	//helmchart "helm.sh/helm/v4/pkg/chart"
 	helmchartv2 "helm.sh/helm/v4/pkg/chart/v2"
 	helmchartv2loader "helm.sh/helm/v4/pkg/chart/v2/loader"
 	helmchartutil "helm.sh/helm/v4/pkg/chart/common/util"
@@ -1050,7 +1050,7 @@ func ServerPackagesUpdate() (err error) {
 			p.perr(F("DEBUG ImagesValues diff [-"+NL+"%s"+NL+"-]", imagesvaluesdiff))
 			
 		}
-
+		
 		//
 		// CHECK IF DEPLOY IS ALLOWED NOW
 		//
@@ -1065,7 +1065,7 @@ func ServerPackagesUpdate() (err error) {
 		if PermitHash == p.ValuesHash {
 			deploynow = true
 		}
-
+		
 		//
 		// PREPARE TELEGRAM MESSAGE
 		//
@@ -1111,7 +1111,7 @@ func ServerPackagesUpdate() (err error) {
 			continue
 			
 		}
-
+		
 		p.perr(F("VERBOSE INSTALLING/UPGRADING HELM RELEASE"))
 		
 		if p.UpdateDelayDuration > 0 {
@@ -1169,7 +1169,8 @@ func ServerPackagesUpdate() (err error) {
 		helmactioncfg := helmaction.NewConfiguration(
 			helmaction.ConfigurationSetLogger(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})),
 		)
-		if err := helmactioncfg.Init(helmenvsettings.RESTClientGetter(), p.Namespace, ""); err!=nil {
+		err = helmactioncfg.Init(helmenvsettings.RESTClientGetter(), p.Namespace, "")
+		if err!=nil {
 			tgmsg += tg.Bold(tg.Esc("INTERNAL ERROR")) + NL + NL
 			if tgmsgid, tgerr = p.tglog(tgmsg, 0, tgmsgid); tgerr!=nil {
 				p.perr(F("ERROR tglog %v", tgerr))
@@ -1267,26 +1268,21 @@ func ServerPackagesUpdate() (err error) {
 		
 		// TODO delay helmbot self-update for saving deployed values and hash
 		
-		charteraccessor, err := helmchart.NewAccessor(releaseraccessor.Chart())
-		if err!=nil { return err }
-		chartermetadata := charteraccessor.MetadataAsMap()
-		chartername, _ := chartermetadata["name"].(string)
-		charterversion, _ := chartermetadata["version"].(string)
-		charterappversion, _ := chartermetadata["appVersion"].(string)
-		
 		p.perr(
 			"VERBOSE installed "+
 				"status [%s] "+
 				"release [%s] "+
 				"namespace [%s] "+
+				"name [%s] "+
 				"version [%s] "+
 				"appversion [%s] "+
 				"hashid [%s] ",
 			AtonString(releaseraccessor.Status()),
 			AtonString(releaseraccessor.Name()),
 			AtonString(releaseraccessor.Namespace()),
-			AtonString(charterversion),
-			AtonString(charterappversion),
+			AtonString(chartfull.Metadata.Name),
+			AtonString(chartfull.Metadata.Version),
+			AtonString(chartfull.Metadata.AppVersion),
 			AtonString(p.HashId()),
 		)
 		releasernotes := strings.TrimSpace(releaseraccessor.Notes())
@@ -1304,10 +1300,10 @@ func ServerPackagesUpdate() (err error) {
 		installstatus += tg.F("status %s", releaseraccessor.Status()) + NL
 		installstatus += tg.F("release %s", releaseraccessor.Name()) + NL
 		installstatus += tg.F("namespace %s", releaseraccessor.Namespace()) + NL
-		installstatus += tg.F("chart %s", chartername) + NL
-		installstatus += tg.F("version %s", charterversion) + NL
-		if charterappversion!="" {
-			installstatus += tg.F("appversion %s", charterappversion) + NL
+		installstatus += tg.F("chart %s", chartfull.Metadata.Name) + NL
+		installstatus += tg.F("version %s", chartfull.Metadata.Version) + NL
+		if chartfull.Metadata.AppVersion!="" {
+			installstatus += tg.F("appversion %s", chartfull.Metadata.AppVersion) + NL
 		}
 		tgmsg += tg.Pre(installstatus) + NL + NL
 		
