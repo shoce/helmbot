@@ -11,6 +11,7 @@ func perr(
 DEBUG repo helm chart 
 ChartVersionPrefix
 drlatestyaml
+registry.NewClient
 */
 /*
 GoGet
@@ -695,6 +696,9 @@ func ServerPackagesUpdate() (err error) {
 		
 		chartdownloader := helmdownloader.ChartDownloader{Getters: helmgetter.All(helmenvsettings)}
 		p.perr(F("DEBUG chartdownloader RepositoryCache[%s] ContentCache[%s]", chartdownloader.RepositoryCache, chartdownloader.ContentCache))
+		hrclient, err := helmregistry.NewClient(helmregistry.ClientOptDebug(false))
+		if err!=nil { return EF("helmregistry.NewClient %w", err) }
+		chartdownloader.RegistryClient = hrclient
 		if chartdownloader.ContentCache=="" {
 			chartdownloader.ContentCache = filepath.Join(ConfigDir, "helmbot.content-cache")
 		}
@@ -792,17 +796,12 @@ func ServerPackagesUpdate() (err error) {
 			chartaddress := p.ChartAddress
 			chartaddress = strings.TrimPrefix(chartaddress, "https://")
 			chartaddress = strings.TrimPrefix(chartaddress, "oci://")
-			hrclient, err := helmregistry.NewClient(helmregistry.ClientOptDebug(false))
-			if err!=nil {
-				return EF("helmregistry.NewClient %v", err)
-			}
 			if p.ChartAuth.Username!="" {
 				if charturl, err := url.Parse(p.ChartAddress); err!=nil {
 					p.perr(F("ERROR url.Parse %+v", err))
 				} else {
-					if err := hrclient.Login(charturl.Host, helmregistry.LoginOptBasicAuth(p.ChartAuth.Username, p.ChartAuth.Password)); err!=nil {
-						p.perr(F("ERROR hrclient.Login %+v", err))
-					}
+					err := hrclient.Login(charturl.Host, helmregistry.LoginOptBasicAuth(p.ChartAuth.Username, p.ChartAuth.Password))
+					if err!=nil { p.perr(F("ERROR hrclient.Login %+v", err)) }
 				}
 			}
 			tags, err := hrclient.Tags(chartaddress)
