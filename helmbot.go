@@ -374,9 +374,12 @@ func main() {
 		ticker := time.NewTicker(PackagesUpgradeInterval)
 		
 		for {
+			CheckChanSigTerm()
+			
 			ServerPackagesUpdateLastRun = time.Now()
 			
-			if err := ServerPackagesUpdate(); err!=nil {
+			err := ServerPackagesUpdate()
+			if err!=nil {
 				perr(F("ERROR packages update %+v", err))
 			}
 			
@@ -1373,13 +1376,7 @@ func ServerPackagesUpdate() (err error) {
 		// DEPLOY FINISHED
 		//
 		
-		select {
-		case <-ChanSigTerm:
-			perr("RECEIVED TERM SIGNAL"+NL)
-			perr("SHUTTING DOWN"+NL)
-			os.Exit(0)
-		default:
-		}
+		CheckChanSigTerm()
 		
 		time.Sleep(PackagesSleepDuration)
 		continue
@@ -1388,6 +1385,16 @@ func ServerPackagesUpdate() (err error) {
 	
 	return nil
 	
+}
+
+func CheckChanSigTerm() {
+	select {
+	case <-ChanSigTerm:
+		perr("RECEIVED TERM SIGNAL"+NL)
+		perr("SHUTTING DOWN"+NL)
+		os.Exit(0)
+	default:
+	}
 }
 
 func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, err error) {
