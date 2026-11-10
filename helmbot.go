@@ -37,12 +37,14 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 	
 	_ "time/tzdata"
@@ -125,6 +127,8 @@ var (
 	TgDisableNotification = false
 
 	UpdateHashIdRe *regexp.Regexp
+	
+	ChanSigTerm chan os.Signal
 
 	FALSE = false
 
@@ -309,7 +313,7 @@ func init() {
 // TODO tglog replacement for logging to a web page
 
 func main() {
-
+	
 	go func() {
 
 		healthmux := http.NewServeMux()
@@ -330,19 +334,19 @@ func main() {
 				time.Sleep(time.Second)
 			}
 		}
-
+	
 	}()
-
+	
 	if TgWebhookUrl!="" {
-
+		
 		perr(F("DEBUG TgWebhookUrl [%s] is not empty so setting webhook with telegram to receive updates", TgWebhookUrl))
 		if err := TgSetWebhook(TgWebhookUrl, []string{"message", "channel_post"}, TgWebhookToken); err!=nil {
 			perr(F("ERROR TgSetWebhook %+v", err))
 			os.Exit(1)
 		}
-
+		
 		http.HandleFunc("/", Webhook)
-
+		
 		go func() {
 			for {
 				perr(F("webhook serving requests on [%s]", ListenAddr))
@@ -355,33 +359,37 @@ func main() {
 				time.Sleep(retryinterval)
 			}
 		}()
-
+		
 	} else {
-
+		
 		perr(F("TgWebhookUrl is empty so this instance will not register telegram webhook"))
-
+		
 	}
-
+	
+	ChanSigTerm = make(chan os.Signal, 1)
+	signal.Notify(ChanSigTerm, syscall.SIGTERM, os.Interrupt)
+	defer signal.Stop(ChanSigTerm)
+	
 	go func() {
 		ticker := time.NewTicker(PackagesUpgradeInterval)
-
+		
 		for {
 			ServerPackagesUpdateLastRun = time.Now()
-
+			
 			if err := ServerPackagesUpdate(); err!=nil {
 				perr(F("ERROR packages update %+v", err))
 			}
-
+			
 			perr(F("DEBUG packages sleeping"))
 			<-ticker.C
 			perr(F("DEBUG ---"))
 		}
 	}()
-
+	
 	perr(F("start done"))
-
+	
 	select {}
-
+	
 }
 
 func Webhook(w http.ResponseWriter, r *http.Request) {
@@ -1364,6 +1372,14 @@ func ServerPackagesUpdate() (err error) {
 		//
 		// DEPLOY FINISHED
 		//
+		
+		select {
+		case <-ChanSigTerm:
+			perr("RECEIVED TERM SIGNAL"+NL)
+			perr("SHUTTING DOWN"+NL)
+			os.Exit(0)
+		default:
+		}
 		
 		time.Sleep(PackagesSleepDuration)
 		continue
