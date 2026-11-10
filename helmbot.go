@@ -651,9 +651,9 @@ func ServerPackagesUpdate() (err error) {
 			perr(F("ERROR release chart NewAccessor %v", err))
 			continue
 		}
-		irachartversion, _ := iraca.MetadataAsMap()["version"]
+		irachartversion, _ := iraca.MetadataAsMap()["version"].(string)
 		perr(F(
-			"DEBUG release Name %s Namespace %s Status %s Revision %d Version %s",
+			"DEBUG release Name[%s] Namespace[%s] Status[%s] Revision[%d] Version[%s]",
 			ira.Name(), ira.Namespace(), ira.Status(), ira.Version(), irachartversion,
 		))
 	}
