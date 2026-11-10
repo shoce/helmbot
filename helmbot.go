@@ -12,6 +12,7 @@ DEBUG repo helm chart
 ChartVersionPrefix
 drlatestyaml hrclient
 registry.NewClient installstatus
+ImagesValues diff
 */
 /*
 GoGet
@@ -1079,7 +1080,7 @@ func ServerPackagesUpdate() (err error) {
 			slices.SortFunc(imagesvaluesdiffss, strings.Compare)
 			imagesvaluesdiff = strings.Join(imagesvaluesdiffss, NL)
 			
-			p.perr(F("DEBUG ImagesValues diff [-"+NL+"%s"+NL+"-]", imagesvaluesdiff))
+			p.perr("DEBUG ImagesValues diff [-"+NL+imagesvaluesdiff+NL+"-]")
 			
 		}
 		
@@ -1097,6 +1098,7 @@ func ServerPackagesUpdate() (err error) {
 		if PermitHash == p.ValuesHash {
 			deploynow = true
 		}
+		p.perr(F("DEBUG deploynow <%t>", deploynow))
 		
 		//
 		// PREPARE TELEGRAM MESSAGE
@@ -1122,14 +1124,15 @@ func ServerPackagesUpdate() (err error) {
 		}
 		
 		if !deploynow {
+			
 			if p.ValuesHash != ValuesReportedHash {
-				p.perr(F("VERBOSE reporting pending update"))
+				p.perr("VERBOSE reporting pending update")
 				tgmsg += tg.Bold(tg.Esc("NOT UPDATING NOW")) + tg.Esc("; update will start ") + tg.Bold(tg.Esc("in the next allowed time window")) + NL + NL
 				tgmsg += tg.Esc("TO FORCE START THIS UPDATE NOW REPLY TO THIS MESSAGE WITH TEXT \"") + tg.Code("NOW") + tg.Esc("\" (UPPERCASE)") + NL + NL
 				if tgmsgid, tgerr = p.tglog(tgmsg, 0, 0); tgerr!=nil {
 					p.perr(F("ERROR tglog %v", tgerr))
 				}
-
+				
 				//
 				// WRITE REPORTED HASH
 				//
@@ -1144,7 +1147,7 @@ func ServerPackagesUpdate() (err error) {
 			
 		}
 		
-		p.perr(F("VERBOSE INSTALLING/UPGRADING HELM RELEASE"))
+		p.perr("VERBOSE INSTALLING/UPGRADING HELM RELEASE")
 		
 		if p.UpdateDelayDuration > 0 {
 			tgmsg += tg.Bold(tg.Esc(tg.F("STARTING IN %v", p.UpdateDelayDuration))) + NL + NL
