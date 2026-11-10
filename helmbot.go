@@ -395,6 +395,17 @@ func main() {
 	
 }
 
+func CheckChanSigTerm() {
+	perr("debug checking term signal channel"+NL)
+	select {
+	case <-ChanSigTerm:
+		perr("RECEIVED TERM SIGNAL"+NL)
+		perr("SHUTTING DOWN"+NL)
+		os.Exit(0)
+	default:
+	}
+}
+
 func Webhook(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var tgerr error
@@ -1385,16 +1396,6 @@ func ServerPackagesUpdate() (err error) {
 	
 	return nil
 	
-}
-
-func CheckChanSigTerm() {
-	select {
-	case <-ChanSigTerm:
-		perr("RECEIVED TERM SIGNAL"+NL)
-		perr("SHUTTING DOWN"+NL)
-		os.Exit(0)
-	default:
-	}
 }
 
 func ProcessServersPackages(servers []ServerConfig) (packages []PackageConfig, err error) {
