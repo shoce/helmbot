@@ -12,7 +12,7 @@ DEBUG repo helm chart
 ChartVersionPrefix
 drlatestyaml hrclient
 registry.NewClient installstatus
-ImagesValues diff
+ImagesValues diff term signal
 */
 /*
 GoGet
@@ -397,7 +397,7 @@ func main() {
 }
 
 func CheckChanSigTerm() {
-	perr("debug checking term signal channel")
+	//perr("DEBUG checking term signal channel")
 	select {
 	case <-ChanSigTerm:
 		perr("RECEIVED TERM SIGNAL")
