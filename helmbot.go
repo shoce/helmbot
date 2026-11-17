@@ -1,18 +1,15 @@
 /*
-:1260 :1730
-:870 :929
+:1260 :1730 :870 :929
 conflict S3NewRequest Aton %v
 TODO
 LocalValues INSTALLING drlatestyaml(
 local.values.yaml AllowedHours
 AtonList LocalValues yaml. Marshal
-func perr(
-) perr(
 DEBUG repo helm chart 
 ChartVersionPrefix
 drlatestyaml hrclient
 registry.NewClient installstatus
-ImagesValues diff term signal
+ImagesValues diff term signal Wait
 */
 /*
 GoGet
@@ -630,7 +627,7 @@ func ServerPackagesUpdate() (err error) {
 	
 	// INSTALLED RELEASES
 	
-	// https://pkg.go.dev/helm.sh/helm/v3/pkg/cli
+	// https://pkg.go.dev/helm.sh/helm/v4/pkg/cli
 	helmenvsettings := helmcli.New()
 	helmactioncfg := helmaction.NewConfiguration(
 		helmaction.ConfigurationSetLogger(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})),
@@ -766,7 +763,7 @@ func ServerPackagesUpdate() (err error) {
 			idx, err := helmrepo.LoadIndexFile(indexfilepath)
 			if err!=nil { return EF("LoadIndexFile %w", err) }
 			
-			// https://pkg.go.dev/helm.sh/helm/v3/pkg/repo#ChartVersion
+			// https://pkg.go.dev/helm.sh/helm/v4/pkg/repo#ChartVersion
 			var repochartversion *helmrepo.ChartVersion
 			for repochartname, repochartversions := range idx.Entries {
 				if repochartname != p.ChartName { continue }
@@ -906,7 +903,7 @@ func ServerPackagesUpdate() (err error) {
 			
 		}
 		
-		// https://pkg.go.dev/helm.sh/helm/v3/pkg/chart/loader#Load
+		// https://pkg.go.dev/helm.sh/helm/v4/pkg/chart/loader#Load
 		chartfull, err = helmchartv2loader.Load(chartpath)
 		if err!=nil {
 			return EF("helmloader.Load [%s] %w", chartpath, err)
@@ -914,7 +911,7 @@ func ServerPackagesUpdate() (err error) {
 			return EF("loaded chart is <nil>")
 		}
 		
-		// https://pkg.go.dev/helm.sh/helm/v3@v3.16.3/pkg/chart#Metadata
+		// https://pkg.go.dev/helm.sh/helm/v4/pkg/chart#Metadata
 		chartversion = chartfull.Metadata.Version
 		
 		//
@@ -1244,10 +1241,13 @@ func ServerPackagesUpdate() (err error) {
 		
 		doupgrade := func() (helmrelease.Releaser, error) {
 			p.perr(F("VERBOSE starting helm release upgrade now"))
-			// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Upgrade
+			// https://pkg.go.dev/helm.sh/helm/v4/pkg/action#Upgrade
 			helmupgrade := helmaction.NewUpgrade(helmactioncfg)
 			helmupgrade.DryRunStrategy = dryrunstrategy
 			helmupgrade.WaitStrategy = helmkube.StatusWatcherStrategy
+			if p.NoWaitResources {
+				helmupgrade.WaitStrategy = helmkube.HookOnlyStrategy
+			}
 			helmupgrade.Namespace = p.Namespace
 			releaser, err := helmupgrade.Run(
 				p.Name,
@@ -1259,10 +1259,13 @@ func ServerPackagesUpdate() (err error) {
 		
 		doinstall := func() (helmrelease.Releaser, error) {
 			p.perr(F("VERBOSE starting helm release install now"))
-			// https://pkg.go.dev/helm.sh/helm/v3/pkg/action#Install
+			// https://pkg.go.dev/helm.sh/helm/v4/pkg/action#Install
 			helminstall := helmaction.NewInstall(helmactioncfg)
 			helminstall.DryRunStrategy = dryrunstrategy
 			helminstall.WaitStrategy = helmkube.StatusWatcherStrategy
+			if p.NoWaitResources {
+				helminstall.WaitStrategy = helmkube.HookOnlyStrategy
+			}
 			helminstall.CreateNamespace = true
 			helminstall.Namespace = p.Namespace
 			helminstall.ReleaseName = p.Name
@@ -1657,6 +1660,7 @@ type PackageConfig struct {
 	
 	AlwaysForceNow *bool `yaml:"AlwaysForceNow,omitempty"`
 	ForceNow bool  `yaml:"ForceNow"`
+	NoWaitResources bool `yaml:"NoWaitResources"`
 	UpdateInterval *string `yaml:"UpdateInterval,omitempty"`
 	UpdateDelay *string `yaml:"UpdateDelay,omitempty"`
 	Timezone *string `yaml:"Timezone,omitempty"`
