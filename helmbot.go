@@ -82,6 +82,7 @@ const (
 	PackagesSleepDuration = 2 * time.Second
 	ConfigLocalFilename = "helmbot.config.local.yaml"
 	TgApiUrlDef = "https://api.telegram.org"
+	HttpTimeoutDef = 2 * time.Second
 )
 
 var (
@@ -697,8 +698,8 @@ func ServerPackagesUpdate() (err error) {
 		timenowhour := F("%02d", timenow.In(p.TimezoneLocation).Hour())
 		
 		p.perr(F(
-		"DEBUG Namespace[%s] DryRun<%t> AlwaysForceNow<%t> AllowedHours(%s) Timezone[%s] TimeNowHour[%s] UpdateInterval<%s> ChartVersion[%s] ChartVersionPrefix[%s]",
-		p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration, p.ChartVersion, p.ChartVersionPrefix,
+		"DEBUG Namespace[%s] DryRun<%t> AlwaysForceNow<%t> AllowedHours(%s) Timezone[%s] TimeNowHour[%s] UpdateInterval<%s> ChartVersion[%s] ChartVersionPrefix[%s] NoWaitResources<%t>",
+		p.Namespace, *p.DryRun, *p.AlwaysForceNow, p.AllowedHoursList, *p.Timezone, timenowhour, p.UpdateIntervalDuration, p.ChartVersion, p.ChartVersionPrefix, p.NoWaitResources,
 		))
 		
 		//p.perr(F("DEBUG config %+v", p))
@@ -2225,7 +2226,9 @@ func tglog(msg string, chatid, replyid, editid int64) (msgid int64, err error) {
 		tgurl = F("%s/bot%s/editMessageText", TgApiUrl, TgToken)
 	}
 	var resp *http.Response
-	resp, err = http.Post( tgurl, "application/json", reqjsBuffer, )
+	// https://pkg.go.dev/http#Post
+	hclient := &http.Client{Timeout: HttpTimeoutDef}
+	resp, err = hclient.Post( tgurl, "application/json", reqjsBuffer, )
 	if err!=nil { return 0, EF("url [%s] data [%s] %v", AtonString(tgurl), AtonString(string(reqjs)), err) }
 	var tgresp tg.MessageResponse
 	err = json.NewDecoder(resp.Body).Decode(&tgresp)
